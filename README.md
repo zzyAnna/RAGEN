@@ -13,6 +13,7 @@ pip install torch==2.4.0 --index-url https://download.pytorch.org/whl/cu121
 # install vllm
 pip3 install vllm==0.6.3 # or you can install 0.5.4, 0.4.2 and 0.3.1
 pip3 install ray
+pip3 intall peft
 # flash attention 2
 pip3 install flash-attn --no-build-isolation
 # quality of life
@@ -40,8 +41,8 @@ export N_GPUS=2
 export BASE_MODEL=Qwen/Qwen2.5-3B
 export DATA_DIR=countdown_data
 export ROLLOUT_TP_SIZE=2
-export EXPERIMENT_NAME=countdown-qwen2.5-3b
 export VLLM_ATTENTION_BACKEND=XFORMERS
+export EXPERIMENT_NAME=countdown-qwen2.5-3b-grad_ckpt
 
 bash ./scripts/train_tiny_zero.sh
 ```
