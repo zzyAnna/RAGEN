@@ -1,5 +1,5 @@
 export N_GPUS=1
-export DATA_DIR=countdown_data
+export DATA_DIR=data/sokoban
 export VLLM_ATTENTION_BACKEND=XFORMERS
 
 export ROLLOUT_TP_SIZE=1
@@ -42,7 +42,7 @@ trainer.n_gpus_per_node=$N_GPUS \
 trainer.nnodes=1 \
 trainer.save_freq=100 \
 trainer.test_freq=100 \
-trainer.project_name=TinyZero \
+trainer.project_name=Agent-R1 \
 trainer.experiment_name=$EXPERIMENT_NAME \
 trainer.total_epochs=15
 #  2>&1 | tee verl_demo.log

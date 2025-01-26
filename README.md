@@ -32,7 +32,9 @@ pip install verl[full] # includes verl-core (by the verl team) and verl-rage-ext
 
 Create data:
 ```bash
-python tinyzero/examples/data_preprocess/countdown.py --local_dir countdown_data
+# it's normal to see some SOKOBAN errors, but the data will be created
+python scripts/dataset_curation.py \
+    --output data/sokoban
 ```
 
 Export variables:

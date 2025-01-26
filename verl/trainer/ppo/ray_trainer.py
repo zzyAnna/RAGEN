@@ -585,6 +585,10 @@ class RayPPOTrainer(object):
 
                 with _timer('step', timing_raw):
                     # generate a batch
+
+
+
+                    # breakpoint()
                     with _timer('gen', timing_raw):
                         # make this a loop.
                         # first, generate data through seeds
@@ -597,6 +601,13 @@ class RayPPOTrainer(object):
                     # repeat to align with repeated responses in rollout
                     batch = batch.repeat(repeat_times=self.config.actor_rollout_ref.rollout.n, interleave=True)
                     batch = batch.union(gen_batch_output)
+
+                    # first, make input and output to the file and see it
+                    with open(".debug.log", "w") as f:
+                        f.write(f"input: {batch}\n")
+                    exit()
+
+
 
                     # balance the number of valid tokens on each dp rank.
                     # Note that this breaks the order of data inside the batch.
