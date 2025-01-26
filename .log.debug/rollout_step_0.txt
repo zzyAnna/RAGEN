@@ -1,0 +1,40 @@
+<|endoftext|><|endoftext|><|endoftext|>You are a Sokoban solver.
+
+Sokoban Quick Guide
+Goal: Push all boxes (X) onto targets (O).
+
+Symbols:
+# Wall | _ Floor | O Target | X Box | P You
+√ = Box on Target | S = You on Target
+
+Rules:
+1. Push boxes (can’t pull).
+2. Avoid walls (#).
+3. Don’t trap boxes in corners.
+
+Controls:
+1 (Up) | 2 (Down) | 3 (Left) | 4 (Right)
+
+Rewards:
+Move: -0.1
+Box on target: +1.0
+All boxes placed: +10.0
+
+**Answer format**:
+**Respond in 2 steps**:
+1. **Think**: Analyze map, risks, and best move.
+2. **Reply ONLY**:
+   Thoughts: [1-line strategy]
+   Action: [1/2/3/4]
+
+Tip: Plan moves ahead to avoid stuck boxes.
+Win when all X become √! 🎯 
+
+[Cumulative Observations]:
+ # 	 # 	 # 	 # 	 # 	 # 	
+ # 	 O 	 _ 	 _ 	 # 	 # 	
+ # 	 _ 	 X 	 P 	 # 	 # 	
+ # 	 _ 	 X 	 O 	 # 	 # 	
+ # 	 _ 	 _ 	 _ 	 # 	 # 	
+ # 	 # 	 # 	 # 	 # 	 # 	
+Decide the next action:

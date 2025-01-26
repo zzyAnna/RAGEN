@@ -630,78 +630,107 @@ class RayPPOTrainer(object):
                 # Below is aLL about agents - the "LLM + forloop"
                 ####################
 
-                # 原始代码框架保留部分
-                with _timer('step', timing_raw):
-                    rolling_inputs = gen_batch
-                    # the gen_batch's last max_start_length tokens
-                    rolling_inputs.batch['input_ids'] = rolling_inputs.batch['input_ids'][:, -max_start_len:].clone()
-                    rolling_inputs.batch['attention_mask'] = rolling_inputs.batch['attention_mask'][:, -max_start_len:].clone()
-                    rolling_inputs.batch['position_ids'] = rolling_inputs.batch['position_ids'][:, -max_start_len:].clone()
-                    
-                    # 用于累积多轮结果
-                    all_responses = []      # 每轮生成的response列表
-                    all_log_probs = []      # 每轮对应的log概率
+                # keep the very first input_ids
+                first_input_ids = gen_batch.batch['input_ids'][:, -max_start_len:].clone()
 
-                    original_prompt = {
+                with _timer('step', timing_raw):
+                    """
+                    keep rolling to generate K turns of responses.
+                    when doing this, update the "original right side" when new responses are generated.
+                    finally, concatenate the "original left side" and "original right side" to get the final thing to feed to train the model.
+
+                    Left-pad prompts, right-gen flow,
+                    Tensors dance like stardust glow.
+                    Errors swarm? Stay calm, don't fret-
+                    Code with coffee, debug sunset.
+                    """
+                    rollings = gen_batch
+                    # the gen_batch's last max_start_length tokens
+                    rollings.batch['input_ids'] = rollings.batch['input_ids'][:, -max_start_len:].clone()
+                    rollings.batch['attention_mask'] = rollings.batch['attention_mask'][:, -max_start_len:].clone()
+                    rollings.batch['position_ids'] = rollings.batch['position_ids'][:, -max_start_len:].clone()
+                    
+                    original_left_side = {
                         'input_ids': gen_batch.batch['input_ids'][:, -max_start_len:].clone(), 
-                        'attention_mask': gen_batch.batch['attention_mask'][:, -max_start_len:].clone()
                     }
+                    original_right_side = {
+                        'responses': gen_batch.batch['input_ids'][:, []].clone(),
+                        'old_log_probs': gen_batch.batch['input_ids'][:, []].clone(),
+                    }
+                    
 
                     for rollout_step in range(K):
-                        print(f"current gen batch: {rolling_inputs}")
+                        # print(f"current gen batch: {rollings}")
+                        # os.makedirs(f'.log.debug', exist_ok=True)
+                        # with open(f'.log.debug/rollout_step_{rollout_step}.txt', 'a') as f:
+                        #     tokens = self.tokenizer.decode(rollings.batch['input_ids'][0], skip_special_tokens=False)
+                        #     f.write(tokens)
+
                         with _timer(f'gen', timing_raw):
-                            gen_batch_output = self.actor_rollout_wg.generate_sequences(rolling_inputs)  # [IMPLEMENT]
+                            gen_batch_output = self.actor_rollout_wg.generate_sequences(rollings)  # [IMPLEMENT]
 
-                        current_response = gen_batch_output.batch['responses']          # [BSZ, MAX_RESP_LEN]
-                        current_log_probs = gen_batch_output.batch['old_log_probs']
+                        cur_responses = gen_batch_output.batch['responses']          # [BSZ, MAX_RESP_LEN]
+                        cur_log_probs = gen_batch_output.batch['old_log_probs']
 
+                        # add responses to the rollings
                         new_input_ids = torch.cat([
-                            rolling_inputs.batch['input_ids'], 
-                            current_response
+                            rollings.batch['input_ids'], 
+                            cur_responses
                         ], dim=1)
 
-                        current_response, sorted_indices = self._convert_pad_structure(current_response, pad_token_id=self.tokenizer.pad_token_id, pad_to_left=True)
-                        current_log_probs = torch.gather(current_log_probs, 1, sorted_indices)
-                        
-                        all_responses.append(current_response)
-                        all_log_probs.append(current_log_probs)
-
-
-                        # print the current response and log_probs
-                        print(f"current response: {current_response}")
-                        print(f"current log_probs: {current_log_probs}")
-
+                        # update rollings, pad to the left
+                        new_input_ids, _ = self._convert_pad_structure(new_input_ids, pad_token_id=self.tokenizer.pad_token_id, pad_to_left=True)
                         new_attention_mask = torch.where(new_input_ids != self.tokenizer.pad_token_id, 1, 0)
                         new_position_ids = (torch.cumsum(new_attention_mask, dim=1) - 1) * new_attention_mask
-                                                
-                        if new_input_ids.shape[1] > max_seq_len:
-                            keep_length = max_seq_len - current_response.shape[1]
-                            new_input_ids = torch.cat([
-                                new_input_ids[:, -keep_length:], 
-                                current_response
-                            ], dim=1)
-                            new_attention_mask = new_attention_mask[:, -keep_length:]
-                            new_position_ids = new_position_ids[:, -keep_length:]
 
-                        # 更新滚动输入
-                        rolling_inputs = DataProto.from_dict({
+                        effective_len = new_attention_mask.sum(dim=1).max()
+                        max_len = min(max_prompt_len, effective_len)
+
+                        # cut to the min of max_prompt_len and effective_len
+                        new_input_ids = new_input_ids[:, -max_len:]
+                        new_attention_mask = new_attention_mask[:, -max_len:]
+                        new_position_ids = new_position_ids[:, -max_len:]
+
+                        rollings = DataProto.from_dict({
                             'input_ids': new_input_ids,
                             'position_ids': new_position_ids,
                             'attention_mask': new_attention_mask
                         })
+
+
+                        # update original right side, pad to the right
+                        original_right_side['responses'] = torch.cat([
+                            original_right_side['responses'],
+                            cur_responses
+                        ], dim=1)
+                        original_right_side['old_log_probs'] = torch.cat([
+                            original_right_side['old_log_probs'],
+                            cur_log_probs
+                        ], dim=1)
+                        
+                        original_right_side['responses'], indices = self._convert_pad_structure(original_right_side['responses'], pad_token_id=self.tokenizer.pad_token_id, pad_to_left=False)
+                        original_right_side['old_log_probs'] = torch.gather(original_right_side['old_log_probs'], 1, indices)
+                        
+                        # also make a cut
+                        effective_len = torch.where(original_right_side['responses'] != self.tokenizer.pad_token_id, 1, 0).sum(dim=1).max()
+                        max_len = min(max_prompt_len, effective_len)
+                        original_right_side['responses'] = original_right_side['responses'][:, :max_len]
+                        original_right_side['old_log_probs'] = original_right_side['old_log_probs'][:, :max_len]
+
+                        # output both left side and right side, decode if needed, print all shapes, under .log.debug/rollout_step_{rollout_step}/{obj_name}.txt
+                        with open(f'.log.debug/rollout_step_{rollout_step}/left_side.txt', 'a') as f:
+                            f.write(f"left side: {original_left_side}\n")
+                            f.write(f"left side shape: {original_left_side['input_ids'].shape}\n")
+                            f.write(f"left side decoded: {self.tokenizer.decode(original_left_side['input_ids'][0], skip_special_tokens=False)}\n")
+                        with open(f'.log.debug/rollout_step_{rollout_step}/right_side.txt', 'a') as f:
+                            f.write(f"right side: {original_right_side}\n")
+                            f.write(f"right side shape: {original_right_side['responses'].shape}\n")
+                            f.write(f"right side decoded: {self.tokenizer.decode(original_right_side['responses'][0], skip_special_tokens=False)}\n")
+
                     
                     # log input_ids[0] and position_ids[0] to the log
-                    with open('.log.input_ids.txt', 'w') as f:
-                        tokens = self.tokenizer.decode(rolling_inputs.batch['input_ids'][0], skip_special_tokens=False)
-                        f.write(tokens)
-
-                    with open('.log.position_ids.txt', 'w') as f:
-                        f.write(str(rolling_inputs.batch['position_ids'][0]))
-
-                    # ========== 重组最终batch ==========
-                    # 合并所有轮次的response
-                    final_response = torch.cat(all_responses, dim=1)          # [256, 512*K]
-                    final_log_probs = torch.cat(all_log_probs, dim=1)         # [256, 512*K]
+                    final_response = current_response
+                    final_log_probs = current_log_probs
                     
                     # 构造最终的gen_batch_output（需与原始代码兼容）
                     final_gen_batch_output = DataProto.from_dict({
