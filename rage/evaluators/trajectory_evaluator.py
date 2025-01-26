@@ -1,5 +1,5 @@
-from relax.utils.helpers import generate_trajectory, generate_trajectory_multienv
-from relax.utils import set_seed
+from rage.utils.helpers import generate_trajectory, generate_trajectory_multienv
+from rage.utils import set_seed
 
 class TrajectoryEvaluator:
     def __init__(self, env, policy, max_steps=100):

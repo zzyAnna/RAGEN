@@ -34,9 +34,13 @@ from verl.single_controller.ray import RayResourcePool, RayWorkerGroup, RayClass
 from verl.single_controller.ray.base import create_colocated_worker_cls
 from verl.trainer.ppo import core_algos
 from verl.utils.seqlen_balancing import get_seqlen_balanced_partitions, log_seqlen_unbalance
+
 import rage
+from rage.utils import set_seed
+
 WorkerType = Type[Worker]
 
+from rage.env.sokoban import SokobanEnv
 
 class Role(Enum):
     """
@@ -572,6 +576,9 @@ class RayPPOTrainer(object):
         # we start from step 1
         self.global_steps += 1
 
+        K = self.config.max_interaction_steps
+        envs = [SokobanEnv(dim_room=(6, 6), num_boxes=2, max_steps=10) for _ in range(len(env_seeds))]
+
         for epoch in range(self.config.trainer.total_epochs):
             for batch_dict in self.train_dataloader:
                 print(f'epoch {epoch}, step {self.global_steps}')
@@ -580,34 +587,127 @@ class RayPPOTrainer(object):
 
                 batch: DataProto = DataProto.from_single_dict(batch_dict)
 
+                env_seeds = [i['index'] for i in batch.non_tensor_batch['extra_info']]
+
+                for env, seed in zip(envs, env_seeds):
+                    with set_seed(seed):
+                        env.reset()
+                
                 # pop those keys for generation
                 gen_batch = batch.pop(batch_keys=['input_ids', 'attention_mask', 'position_ids'])
 
+                ####################
+                # original code here
+                # with _timer('gen', timing_raw):
+                #     gen_batch_output = self.actor_rollout_wg.generate_sequences(gen_batch)
+
+                #     batch.non_tensor_batch['uid'] = np.array([str(uuid.uuid4()) for _ in range(len(batch.batch))],
+                #                                              dtype=object)
+                #     # repeat to align with repeated responses in rollout
+                #     batch = batch.repeat(repeat_times=self.config.actor_rollout_ref.rollout.n, interleave=True)
+                #     batch = batch.union(gen_batch_output)
+
+                ####################
+                # ALL about agents - the "LLM + forloop" below
+                ####################
+
+                # 原始代码框架保留部分
                 with _timer('step', timing_raw):
-                    # generate a batch
+                    # ========== 新增加的循环生成逻辑 ==========
+                    K = self.config.actor_rollout_ref.rollout_steps  # 需要配置循环次数
+                    
+                    # 初始化滚动状态（关键！）
+                    rolling_inputs = DataProto.from_dict({
+                        'input_ids': gen_batch.input_ids.clone(),        # [256, 768] 初始prompt
+                        'position_ids': gen_batch.position_ids.clone(),  # [256, 768]
+                        'attention_mask': gen_batch.attention_mask.clone() # [256, 768]
+                    })
+                    
+                    # 用于累积多轮结果
+                    all_responses = []      # 每轮生成的response列表
+                    all_log_probs = []      # 每轮对应的log概率
+                    all_gen_outputs = []    # 存储每轮的gen_batch_output
 
+                    # 记录原始prompt信息
+                    original_prompt = {
+                        'input_ids': gen_batch.input_ids[:, :256].clone(),  # 假设前256是prompt
+                        'attention_mask': gen_batch.attention_mask[:, :256].clone()
+                    }
 
+                    for rollout_step in range(K):
+                        # 生成当前step的输入batch（关键结构！）
+                        current_gen_batch = DataProto.from_dict({
+                            'input_ids': rolling_inputs.input_ids,
+                            'position_ids': rolling_inputs.position_ids,
+                            'attention_mask': rolling_inputs.attention_mask
+                        })
+                        
+                        # 调用生成函数（保持与原始代码兼容）
+                        with _timer(f'gen_step_{rollout_step}', timing_raw):
+                            gen_batch_output = self.actor_rollout_wg.generate_sequences(current_gen_batch)  # [IMPLEMENT]
+                        
+                        # 收集当前step的输出（假设返回结构包含这些字段）
+                        current_response = gen_batch_output.responses          # [256, 512]
+                        current_log_probs = gen_batch_output.old_log_probs     # [256, 512]
+                        
+                        # 保存到累积列表
+                        all_responses.append(current_response)
+                        all_log_probs.append(current_log_probs)
+                        all_gen_outputs.append(gen_batch_output)  # 保留原始输出结构
+                        
+                        # 准备下一轮输入（关键拼接逻辑）
+                        new_input_ids = torch.cat([
+                            rolling_inputs.input_ids, 
+                            current_response
+                        ], dim=1)
+                        
+                        # [IMPLEMENT] 更新position_ids（示例为绝对位置编码）
+                        last_pos = rolling_inputs.position_ids[:, -1:]  # 取最后一个位置
+                        new_positions = last_pos + torch.arange(current_response.shape[1], device=last_pos.device).unsqueeze(0)
+                        new_position_ids = torch.cat([rolling_inputs.position_ids, new_positions], dim=1)
+                        
+                        # 更新attention_mask（左padding保持原mask不变）
+                        new_attention_mask = torch.cat([
+                            rolling_inputs.attention_mask,
+                            torch.ones_like(current_response)  # 假设新生成部分全为有效
+                        ], dim=1)
+                        
+                        # 截断到最大长度（示例保留左侧内容）
+                        max_seq_len = 768  # 根据实际情况调整
+                        if new_input_ids.shape[1] > max_seq_len:
+                            keep_length = max_seq_len - current_response.shape[1]
+                            new_input_ids = torch.cat([
+                                new_input_ids[:, :keep_length],  # 保留左侧prompt部分
+                                current_response
+                            ], dim=1)
+                            # [IMPLEMENT] 同步调整position_ids和attention_mask
 
-                    # breakpoint()
-                    with _timer('gen', timing_raw):
-                        # make this a loop.
-                        # first, generate data through seeds
-                        # then, print all these gen_batch and gen_batch_output to local files and exit
-                        # third, see how can we do this in a loop
-                        gen_batch_output = self.actor_rollout_wg.generate_sequences(gen_batch)
+                        # 更新滚动输入
+                        rolling_inputs = DataProto.from_dict({
+                            'input_ids': new_input_ids,
+                            'position_ids': new_position_ids,
+                            'attention_mask': new_attention_mask
+                        })
 
-                    batch.non_tensor_batch['uid'] = np.array([str(uuid.uuid4()) for _ in range(len(batch.batch))],
-                                                             dtype=object)
-                    # repeat to align with repeated responses in rollout
+                    # ========== 重组最终batch ==========
+                    # 合并所有轮次的response
+                    final_response = torch.cat(all_responses, dim=1)          # [256, 512*K]
+                    final_log_probs = torch.cat(all_log_probs, dim=1)         # [256, 512*K]
+                    
+                    # 构造最终的gen_batch_output（需与原始代码兼容）
+                    final_gen_batch_output = DataProto.from_dict({
+                        'responses': final_response,
+                        'old_log_probs': final_log_probs,
+                        # [IMPLEMENT] 需要合并其他必要字段（参考原始gen_batch_output结构）
+                    })
+                    
+                    # 原始代码后续处理保持不变
+                    batch.non_tensor_batch['uid'] = np.array([str(uuid.uuid4()) for _ in range(len(batch.batch))], dtype=object)
                     batch = batch.repeat(repeat_times=self.config.actor_rollout_ref.rollout.n, interleave=True)
-                    batch = batch.union(gen_batch_output)
+                    batch = batch.union(final_gen_batch_output)  # 这里使用合并后的最终输出
 
-                    # first, make input and output to the file and see it
-                    with open(".debug.log", "w") as f:
-                        f.write(f"input: {batch}\n")
-                    exit()
-
-
+                    ####################
+                    ####################
 
                     # balance the number of valid tokens on each dp rank.
                     # Note that this breaks the order of data inside the batch.
