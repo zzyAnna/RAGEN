@@ -37,17 +37,7 @@ python tinyzero/examples/data_preprocess/countdown.py --local_dir countdown_data
 
 Export variables:
 ```bash
-export N_GPUS=1
-export BASE_MODEL=Qwen/Qwen2.5-0.5B
-export DATA_DIR=countdown_data
-export ROLLOUT_TP_SIZE=1
-export VLLM_ATTENTION_BACKEND=XFORMERS
-
-export EXPERIMENT_NAME=countdown-qwen2.5-0.5b
-export MICRO_BATCH_SIZE=1
-export RESPONSE_LENGTH=1024
-
-bash ./scripts/train_tiny_zero.sh
+bash ./train.sh
 ```
 
 
@@ -61,6 +51,8 @@ export VLLM_ATTENTION_BACKEND=XFORMERS
 export EXPERIMENT_NAME=countdown-qwen2.5-3b-grad_ckpt
 export MICRO_BATCH_SIZE=8
 export RESPONSE_LENGTH=1024
+export LOG_MODE=wandb
+export MULTI_PROCESSING=ray
 
 bash ./scripts/train_tiny_zero.sh
 ```

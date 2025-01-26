@@ -1,4 +1,18 @@
-python3 -m verl.trainer.main_ppo \
+export N_GPUS=1
+export BASE_MODEL=Qwen/Qwen2.5-0.5B
+export DATA_DIR=countdown_data
+export ROLLOUT_TP_SIZE=1
+export VLLM_ATTENTION_BACKEND=XFORMERS
+
+export EXPERIMENT_NAME=countdown-qwen2.5-0.5b
+export MICRO_BATCH_SIZE=1
+export RESPONSE_LENGTH=1024
+export LOG_MODE=console
+export MULTI_PROCESSING=null
+
+
+python verl/trainer/main_ppo.py \
+multi_processing=$MULTI_PROCESSING \
 data.train_files=$DATA_DIR/train.parquet \
 data.val_files=$DATA_DIR/test.parquet \
 data.train_batch_size=256 \
@@ -18,7 +32,7 @@ critic.optim.lr=1e-5 \
 critic.model.path=$BASE_MODEL \
 critic.ppo_micro_batch_size=$MICRO_BATCH_SIZE \
 algorithm.kl_ctrl.kl_coef=0.001 \
-trainer.logger=['wandb'] \
+trainer.logger=['$LOG_MODE'] \
 +trainer.val_before_train=False \
 trainer.default_hdfs_dir=null \
 trainer.n_gpus_per_node=$N_GPUS \
@@ -27,4 +41,7 @@ trainer.save_freq=100 \
 trainer.test_freq=100 \
 trainer.project_name=TinyZero \
 trainer.experiment_name=$EXPERIMENT_NAME \
-trainer.total_epochs=15 2>&1 | tee verl_demo.log
+trainer.total_epochs=15
+#  2>&1 | tee verl_demo.log
+
+
