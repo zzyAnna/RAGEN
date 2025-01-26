@@ -10,15 +10,4 @@ right side: DataProto(batch=TensorDict(
     device=cpu,
     is_shared=False), non_tensor_batch={}, meta_info={'micro_batch_size': 8, 'max_token_len': 16384, 'use_dynamic_bsz': False, 'temperature': 1.0})
 right side shape: torch.Size([256, 100])
-right side decoded:  rejections or negative consequences.
-
-2. **Handling P:**
-   Pop any remaining (not in the top floor) boxes to avoid rejections or negative consequences.
-
-3. **Moving:**
-   - Aim for a placement in a critical cell such as the top floor (O Goal Target).
-
-4. **Moving Method:**
-   Reduce action complexity by planning your move sets:
-   - Move left or right based on how closely to the P or sides you are:
-   - Building ladder similar to
+right side decoded:  `10` 储物箱时，游戏进入暂停设置。 而是 `MoveByKey`，在游戏进入暂停设置之前使用 `Move` 利于在需要时迅速测试下风的选择。在Pause设置触发后，“Down”和“Right”都有效，撞击墙壁后的“Up”也需要调度。如果在一个特殊的关卡情况下，比如几个有八个小褐猎人“贩货”商店那样，那么你可以在那一关规定它滚

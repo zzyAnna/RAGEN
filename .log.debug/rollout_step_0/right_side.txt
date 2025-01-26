@@ -10,16 +10,9 @@ right side: DataProto(batch=TensorDict(
     device=cpu,
     is_shared=False), non_tensor_batch={}, meta_info={'micro_batch_size': 8, 'max_token_len': 16384, 'use_dynamic_bsz': False, 'temperature': 1.0})
 right side shape: torch.Size([256, 100])
-right side decoded:  Reference the strategy on Cumulative Observations.
+right side decoded:  Up, Down, Left, Right, Push, *[MoveByKey*]
 
-Step 1: Analyze the map and identify key moving actions.
+**Final Answer**:
+2) Push, and [0/1/2/3], *[PushByKey*, *[InsertX*] 
 
-### Key Observations and Strategies
-Objects with a plus (+1) at the end are boxes that can be popped:
-- Box on target (complementary to Box in Floor)
-- All boxes (object with a +1)
-- Target (corner)
-- Moving To Key - (object with a +1)
-
-Key strategies are:
-1. Box Pop - Collect all boxes on the
+步骤 2：根据第2轮环境，玩家将处于的核心选项是垂直移动（up/down）和左/右移动，所以玩家大多会选择上/下，只有在需要使用箭头或者力量最大的操作时（张力最大时）选择左/

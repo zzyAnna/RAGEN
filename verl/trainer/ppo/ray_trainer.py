@@ -619,6 +619,7 @@ class RayPPOTrainer(object):
 
                 ####################
                 # original code here
+
                 # with _timer('gen', timing_raw):
                 #     gen_batch_output = self.actor_rollout_wg.generate_sequences(gen_batch)
 
@@ -627,6 +628,11 @@ class RayPPOTrainer(object):
                 #     # repeat to align with repeated responses in rollout
                 #     batch = batch.repeat(repeat_times=self.config.actor_rollout_ref.rollout.n, interleave=True)
                 #     batch = batch.union(gen_batch_output)
+
+                #     # # output batch to file
+                #     # with open(f'.log.debug/gen_batch.txt', 'a') as f:
+                #     #     f.write(f"gen batch: {batch}\n")
+                #     # exit()
 
                 ####################
                 # Below is aLL about agents - the "LLM + forloop"
@@ -734,22 +740,27 @@ class RayPPOTrainer(object):
                         original_right_side['old_log_probs'] = original_right_side['old_log_probs'][:, :max_len]
 
 
+                    # compose final gen batch output
                     final_gen_batch_output = original_right_side
-                    final_gen_batch_output['input_ids'] = original_left_side['input_ids']
+                    final_gen_batch_output['prompts'] = original_left_side['input_ids']
+                    final_gen_batch_output['input_ids'] = torch.concat([
+                        original_left_side['input_ids'],
+                        original_right_side['responses']
+                    ], dim=1)
                     final_gen_batch_output['attention_mask'] = torch.concat([
+                        torch.where(original_left_side['input_ids'] != self.tokenizer.pad_token_id, 1, 0),
                         torch.where(final_gen_batch_output['responses'] != self.tokenizer.pad_token_id, 1, 0),
-                        torch.where(original_left_side['input_ids'] != self.tokenizer.pad_token_id, 1, 0)
                     ], dim=1)
                     final_gen_batch_output['position_ids'] = (torch.cumsum(final_gen_batch_output['attention_mask'], dim=1) - 1) * final_gen_batch_output['attention_mask']
                     final_gen_batch_output = DataProto.from_dict(original_right_side)
+
                     
-                    # 原始代码后续处理保持不变
+                    ####################
+                    ####################
+
                     batch.non_tensor_batch['uid'] = np.array([str(uuid.uuid4()) for _ in range(len(batch.batch))], dtype=object)
                     batch = batch.repeat(repeat_times=self.config.actor_rollout_ref.rollout.n, interleave=True)
-                    batch = batch.union(final_gen_batch_output)  # 这里使用合并后的最终输出
-
-                    ####################
-                    ####################
+                    batch = batch.union(final_gen_batch_output)
 
                     # balance the number of valid tokens on each dp rank.
                     # Note that this breaks the order of data inside the batch.

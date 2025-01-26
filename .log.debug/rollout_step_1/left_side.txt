@@ -41,21 +41,14 @@ Win when all X become √! 🎯
 
 [Cumulative Observations]:
  # 	 # 	 # 	 # 	 # 	 # 	
- # 	 _ 	 _ 	 # 	 # 	 # 	
- # 	 X 	 _ 	 # 	 # 	 # 	
- # 	 O 	 _ 	 # 	 _ 	 # 	
- # 	 O 	 _ 	 X 	 P 	 # 	
  # 	 # 	 # 	 # 	 # 	 # 	
-Decide the next action: Reference the strategy on Cumulative Observations.
+ # 	 _ 	 _ 	 _ 	 _ 	 # 	
+ # 	 _ 	 X 	 O 	 _ 	 # 	
+ # 	 P 	 X 	 O 	 _ 	 # 	
+ # 	 # 	 # 	 # 	 # 	 # 	
+Decide the next action: Up, Down, Left, Right, Push, *[MoveByKey*]
 
-Step 1: Analyze the map and identify key moving actions.
+**Final Answer**:
+2) Push, and [0/1/2/3], *[PushByKey*, *[InsertX*] 
 
-### Key Observations and Strategies
-Objects with a plus (+1) at the end are boxes that can be popped:
-- Box on target (complementary to Box in Floor)
-- All boxes (object with a +1)
-- Target (corner)
-- Moving To Key - (object with a +1)
-
-Key strategies are:
-1. Box Pop - Collect all boxes on the
+步骤 2：根据第2轮环境，玩家将处于的核心选项是垂直移动（up/down）和左/右移动，所以玩家大多会选择上/下，只有在需要使用箭头或者力量最大的操作时（张力最大时）选择左/

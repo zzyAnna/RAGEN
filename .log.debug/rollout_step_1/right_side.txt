@@ -10,13 +10,10 @@ right side: DataProto(batch=TensorDict(
     device=cpu,
     is_shared=False), non_tensor_batch={}, meta_info={'micro_batch_size': 8, 'max_token_len': 16384, 'use_dynamic_bsz': False, 'temperature': 1.0})
 right side shape: torch.Size([256, 100])
-right side decoded:  floor
-2. Goal Move - Push all boxes onto the top floor
-3. Side moves - Aim for peaceful placement on left/right sides
-4. Continue Pushing Move - Move higher for additional boxes
+right side decoded: 右，如下图中箭头所示镐 X 向左移动．
+- Turn upside down: *move left or *move right* • *↑ or *↓ •
+- Push: *move left or *move right • *↑ or *↓ •  
+- Rotate: *rotate the block* • *rotate either right or left* • *right or left* •
 
-Step 2: Think through the best next actions.
-
-**Thoughts:**
-
-1. **Initial Moves**: Ideally, we need to move to the place where all boxes are placed before any attempts to push them. Our best move is to face the boxes directly towards them. This would minimize
+说明如下：
+- 触发 `MoveByKey` 条件，每当玩家移动墙并超过
