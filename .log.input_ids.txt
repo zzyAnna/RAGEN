@@ -1,0 +1,62 @@
+ | P You
+√ = Box on Target | S = You on Target
+
+Rules:
+1. Push boxes (can’t pull).
+2. Avoid walls (#).
+3. Don’t trap boxes in corners.
+
+Controls:
+1 (Up) | 2 (Down) | 3 (Left) | 4 (Right)
+
+Rewards:
+Move: -0.1
+Box on target: +1.0
+All boxes placed: +10.0
+
+**Answer format**:
+**Respond in 2 steps**:
+1. **Think**: Analyze map, risks, and best move.
+2. **Reply ONLY**:
+   Thoughts: [1-line strategy]
+   Action: [1/2/3/4]
+
+Tip: Plan moves ahead to avoid stuck boxes.
+Win when all X become √! 🎯 
+
+[Cumulative Observations]:
+ # 	 # 	 # 	 # 	 # 	 # 	
+ # 	 P 	 X 	 O 	 # 	 # 	
+ # 	 X 	 _ 	 # 	 # 	 # 	
+ # 	 O 	 # 	 # 	 # 	 # 	
+ # 	 # 	 # 	 # 	 # 	 # 	
+ # 	 # 	 # 	 # 	 # 	 # 	
+Decide the next action: R
+Map Analysis Keys:
+Floor #   X_square | #_square | _ | O_square | P
+---------
+ 0 1 2 3 4 5
+ 0 0 0 0 0 0
+ 1 0 0 0 0 0
+ 0 0 1 0 0 0
+ 0 0 0 0 0 1
+ 0 0 0 0 0 0
+ 0 1 0 0 1 0
+ 0 1 1 0 1 1
+ 0 0 0 1 1 0
+ 0 1 0 1 1 1
+ 0 0 1 1 1 1
+ 0 0 0 0 1 0
+ 0 0 0 0 0 1
+ From Map Key, available options for actions are: P, X, O, _, P, _, _, P conclude that finally placed a final X | ___, ___, ___, ___, ___, ___, ___, ___, _, _, _, _, _, _, -, _, _, _, _, _, _, _, _, _
+Assume X-pressed on 1st & 2nd moves, and O-pressed on 3rd & 4th move, what is the outcome? 🎯
+
+[Cumulative Observations]:
+ # 	 FloorXsquare | _P_square | _square | 4_square | 5_square | 7_square
+--------- ---------
+ # 0 0 1 1 0 1
+ 1 0 2 0 1 2  
+ 0 0 0 1 0 1
+ 1 0 1 0 0 1
+ 0 1 0 0 0 1
+ 0 0 0 0

@@ -1,9 +1,9 @@
 from typing import Optional
 from vllm import LLM, SamplingParams
-from rage.env.sokoban import SokobanEnv
-from rage.policy.base import BasePolicy
-from rage.policy.bfs import BFSPolicy
-from rage.evaluators.trajectory_evaluator import TrajectoryEvaluator
+from ragen.env.sokoban import SokobanEnv
+from ragen.policy.base import BasePolicy
+from ragen.policy.bfs import BFSPolicy
+from ragen.evaluators.trajectory_evaluator import TrajectoryEvaluator
 from typing import List
 
 class LLMPolicy(BasePolicy):

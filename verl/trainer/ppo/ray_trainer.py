@@ -35,12 +35,12 @@ from verl.single_controller.ray.base import create_colocated_worker_cls
 from verl.trainer.ppo import core_algos
 from verl.utils.seqlen_balancing import get_seqlen_balanced_partitions, log_seqlen_unbalance
 
-import rage
-from rage.utils import set_seed
+import ragen
+from ragen.utils import set_seed
 
 WorkerType = Type[Worker]
 
-from rage.env.sokoban import SokobanEnv
+from ragen.env.sokoban import SokobanEnv
 
 class Role(Enum):
     """
@@ -105,7 +105,7 @@ def apply_kl_penalty(data: DataProto, kl_ctrl: core_algos.AdaptiveKLController, 
 
     token_level_rewards = token_level_scores - beta * kld
 
-    current_kl = masked_mean(kld, mask=response_mask, axis=-1)  # average over sequence
+    current_kl = masked_mean(kld, mask=response_mask, axis=-1)  # averagen over sequence
     current_kl = torch.mean(current_kl, dim=0).item()
 
     # according to https://github.com/huggingface/trl/blob/951ca1841f29114b969b57b26c7d3e80a39f75a0/trl/trainer/ppo_trainer.py#L837
@@ -547,6 +547,20 @@ class RayPPOTrainer(object):
                                                     partitions=global_partition_lst,
                                                     prefix=logging_prefix)
         metrics.update(global_balance_stats)
+    
+    def _convert_pad_structure(self, tensor, pad_token_id, pad_to_left=True):
+        """originally: [pad_left, content, pad_right]
+        want to: [pad_right, pad_left, content] / [content, pad_right, pad_left]
+        """
+        if pad_to_left:
+            mask = tensor != pad_token_id
+        else:
+            mask = tensor == pad_token_id
+
+        sorted_indices = mask.to(torch.int64).argsort(dim=1, stable=True)
+        converted_tensor = tensor.gather(1, sorted_indices)
+
+        return converted_tensor, sorted_indices
 
     def fit(self):
         """
@@ -576,8 +590,13 @@ class RayPPOTrainer(object):
         # we start from step 1
         self.global_steps += 1
 
-        K = self.config.max_interaction_steps
-        envs = [SokobanEnv(dim_room=(6, 6), num_boxes=2, max_steps=10) for _ in range(len(env_seeds))]
+        K = self.config.max_turns
+        max_start_len = self.config.data.max_start_length # the first round prompt max len
+        max_prompt_len = self.config.data.max_prompt_length # the max len of prompt
+        max_response_len = self.config.data.max_response_length # the max length of response
+        max_seq_len = max_prompt_len + max_response_len
+
+        envs = [SokobanEnv(dim_room=(6, 6), num_boxes=2, max_steps=10) for _ in range(len(self.train_dataloader))]
 
         for epoch in range(self.config.trainer.total_epochs):
             for batch_dict in self.train_dataloader:
@@ -608,79 +627,61 @@ class RayPPOTrainer(object):
                 #     batch = batch.union(gen_batch_output)
 
                 ####################
-                # ALL about agents - the "LLM + forloop" below
+                # Below is aLL about agents - the "LLM + forloop"
                 ####################
 
                 # 原始代码框架保留部分
                 with _timer('step', timing_raw):
-                    # ========== 新增加的循环生成逻辑 ==========
-                    K = self.config.actor_rollout_ref.rollout_steps  # 需要配置循环次数
-                    
-                    # 初始化滚动状态（关键！）
-                    rolling_inputs = DataProto.from_dict({
-                        'input_ids': gen_batch.input_ids.clone(),        # [256, 768] 初始prompt
-                        'position_ids': gen_batch.position_ids.clone(),  # [256, 768]
-                        'attention_mask': gen_batch.attention_mask.clone() # [256, 768]
-                    })
+                    rolling_inputs = gen_batch
+                    # the gen_batch's last max_start_length tokens
+                    rolling_inputs.batch['input_ids'] = rolling_inputs.batch['input_ids'][:, -max_start_len:].clone()
+                    rolling_inputs.batch['attention_mask'] = rolling_inputs.batch['attention_mask'][:, -max_start_len:].clone()
+                    rolling_inputs.batch['position_ids'] = rolling_inputs.batch['position_ids'][:, -max_start_len:].clone()
                     
                     # 用于累积多轮结果
                     all_responses = []      # 每轮生成的response列表
                     all_log_probs = []      # 每轮对应的log概率
-                    all_gen_outputs = []    # 存储每轮的gen_batch_output
 
-                    # 记录原始prompt信息
                     original_prompt = {
-                        'input_ids': gen_batch.input_ids[:, :256].clone(),  # 假设前256是prompt
-                        'attention_mask': gen_batch.attention_mask[:, :256].clone()
+                        'input_ids': gen_batch.batch['input_ids'][:, -max_start_len:].clone(), 
+                        'attention_mask': gen_batch.batch['attention_mask'][:, -max_start_len:].clone()
                     }
 
                     for rollout_step in range(K):
-                        # 生成当前step的输入batch（关键结构！）
-                        current_gen_batch = DataProto.from_dict({
-                            'input_ids': rolling_inputs.input_ids,
-                            'position_ids': rolling_inputs.position_ids,
-                            'attention_mask': rolling_inputs.attention_mask
-                        })
-                        
-                        # 调用生成函数（保持与原始代码兼容）
-                        with _timer(f'gen_step_{rollout_step}', timing_raw):
-                            gen_batch_output = self.actor_rollout_wg.generate_sequences(current_gen_batch)  # [IMPLEMENT]
-                        
-                        # 收集当前step的输出（假设返回结构包含这些字段）
-                        current_response = gen_batch_output.responses          # [256, 512]
-                        current_log_probs = gen_batch_output.old_log_probs     # [256, 512]
-                        
-                        # 保存到累积列表
-                        all_responses.append(current_response)
-                        all_log_probs.append(current_log_probs)
-                        all_gen_outputs.append(gen_batch_output)  # 保留原始输出结构
-                        
-                        # 准备下一轮输入（关键拼接逻辑）
+                        print(f"current gen batch: {rolling_inputs}")
+                        with _timer(f'gen', timing_raw):
+                            gen_batch_output = self.actor_rollout_wg.generate_sequences(rolling_inputs)  # [IMPLEMENT]
+
+                        current_response = gen_batch_output.batch['responses']          # [BSZ, MAX_RESP_LEN]
+                        current_log_probs = gen_batch_output.batch['old_log_probs']
+
                         new_input_ids = torch.cat([
-                            rolling_inputs.input_ids, 
+                            rolling_inputs.batch['input_ids'], 
                             current_response
                         ], dim=1)
+
+                        current_response, sorted_indices = self._convert_pad_structure(current_response, pad_token_id=self.tokenizer.pad_token_id, pad_to_left=True)
+                        current_log_probs = torch.gather(current_log_probs, 1, sorted_indices)
                         
-                        # [IMPLEMENT] 更新position_ids（示例为绝对位置编码）
-                        last_pos = rolling_inputs.position_ids[:, -1:]  # 取最后一个位置
-                        new_positions = last_pos + torch.arange(current_response.shape[1], device=last_pos.device).unsqueeze(0)
-                        new_position_ids = torch.cat([rolling_inputs.position_ids, new_positions], dim=1)
-                        
-                        # 更新attention_mask（左padding保持原mask不变）
-                        new_attention_mask = torch.cat([
-                            rolling_inputs.attention_mask,
-                            torch.ones_like(current_response)  # 假设新生成部分全为有效
-                        ], dim=1)
-                        
-                        # 截断到最大长度（示例保留左侧内容）
-                        max_seq_len = 768  # 根据实际情况调整
+                        all_responses.append(current_response)
+                        all_log_probs.append(current_log_probs)
+
+
+                        # print the current response and log_probs
+                        print(f"current response: {current_response}")
+                        print(f"current log_probs: {current_log_probs}")
+
+                        new_attention_mask = torch.where(new_input_ids != self.tokenizer.pad_token_id, 1, 0)
+                        new_position_ids = (torch.cumsum(new_attention_mask, dim=1) - 1) * new_attention_mask
+                                                
                         if new_input_ids.shape[1] > max_seq_len:
                             keep_length = max_seq_len - current_response.shape[1]
                             new_input_ids = torch.cat([
-                                new_input_ids[:, :keep_length],  # 保留左侧prompt部分
+                                new_input_ids[:, -keep_length:], 
                                 current_response
                             ], dim=1)
-                            # [IMPLEMENT] 同步调整position_ids和attention_mask
+                            new_attention_mask = new_attention_mask[:, -keep_length:]
+                            new_position_ids = new_position_ids[:, -keep_length:]
 
                         # 更新滚动输入
                         rolling_inputs = DataProto.from_dict({
@@ -688,6 +689,14 @@ class RayPPOTrainer(object):
                             'position_ids': new_position_ids,
                             'attention_mask': new_attention_mask
                         })
+                    
+                    # log input_ids[0] and position_ids[0] to the log
+                    with open('.log.input_ids.txt', 'w') as f:
+                        tokens = self.tokenizer.decode(rolling_inputs.batch['input_ids'][0], skip_special_tokens=False)
+                        f.write(tokens)
+
+                    with open('.log.position_ids.txt', 'w') as f:
+                        f.write(str(rolling_inputs.batch['position_ids'][0]))
 
                     # ========== 重组最终batch ==========
                     # 合并所有轮次的response

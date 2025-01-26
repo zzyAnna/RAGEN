@@ -56,11 +56,11 @@ if '--core' in sys.argv:
         long_description_content_type='text/markdown'
     )
 
-elif '--rage' in sys.argv:
+elif '--ragen' in sys.argv:
     setup(
-        name='verl-rage-ext',
+        name='verl-ragen-ext',
         version='0.1',
-        packages=find_packages(include=['rage']),
+        packages=find_packages(include=['ragen']),
         author='Zihan Wang, Manling Li, Yiping Lu',
         author_email='zihanwang.ai@gmail.com, manling.li@northwestern.edu, yiping.lu@northwestern.edu',
         acknowledgements='We thank DeepSeek for providing the DeepSeek-R1 model and ideas; we thank the authors of the original verl-core package for their work; we thank the authors of TinyZero for helping us doing the early exploration; we thank Runxin Xu for the insightful discussions.',
@@ -68,7 +68,7 @@ elif '--rage' in sys.argv:
         install_requires=[
             'verl-core>=0.1'
         ],
-        package_data={'rage': ['*/*.md']}, 
+        package_data={'ragen': ['*/*.md']}, 
         classifiers=[
             'Development Status :: 4 - Beta',
             'Intended Audience :: Science/Research',
@@ -78,9 +78,9 @@ elif '--rage' in sys.argv:
 else:
     setup(
         name='verl-full',
-        packages=find_packages(include=['verl', 'rage']),
+        packages=find_packages(include=['verl', 'ragen']),
         install_requires=[
             'verl-core>=0.1',
-            'verl-rage-ext>=0.1'
+            'verl-ragen-ext>=0.1'
         ]
     )

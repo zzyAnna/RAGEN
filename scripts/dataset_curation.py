@@ -13,37 +13,37 @@ from verl.utils.hdfs_io import copy, makedirs
 import argparse
 import datasets
 
-from rage.policy.bfs import BFSPolicy
-from rage.policy.heuristic import FixedPolicy
-from rage.env.sokoban import SokobanEnv
-from rage.evaluators.trajectory_evaluator import TrajectoryEvaluator
-# from rage.utils.dataset import Dataset
+from ragen.policy.bfs import BFSPolicy
+from ragen.policy.heuristic import FixedPolicy
+from ragen.env.sokoban import SokobanEnv
+from ragen.evaluators.trajectory_evaluator import TrajectoryEvaluator
+# from ragen.utils.dataset import Dataset
 
 
 def main():
     # Parse command-line arguments
     parser = argparse.ArgumentParser(description="Generate trajectories using specified environment and policy.")
     parser.add_argument("--env", type=str, default="sokoban", help="Environment name (default: 'sokoban').")
-    parser.add_argument("--num_traj", type=int, default=500, help="Number of trajectories to generate (default: 100).")
     parser.add_argument("--algo", type=str, default="bfs", choices=["bfs"], help="Algorithm to use (default: 'bfs').")
     parser.add_argument("--seed", type=int, default=10000, help="Seed for random number generation (default: 10000).")
-    parser.add_argument("--output", type=str, default="data/train-trajectories.json", help="Output file to save the trajectories (default: 'data/train-trajectories.json').")
-    parser.add_argument("--train_size", type=int, default=3000, help="Number of trajectories to generate (default: 3000).")
-    parser.add_argument("--test_size", type=int, default=100, help="Number of trajectories to generate (default: 100).")
-    parser.add_argument("--bfs_max_nodes", type=int, default=1000, help="Maximum number of nodes to use for BFS (default: 100000).")
+    parser.add_argument("--output", type=str, default="data/sokoban", help="Output file to save the trajectories (default: 'data/sokoban').")
+    parser.add_argument("--train_size", type=int, default=300, help="Number of trajectories to generate (default: 3000).")
+    parser.add_argument("--test_size", type=int, default=10, help="Number of trajectories to generate (default: 100).")
+    parser.add_argument("--bfs_max_nodes", type=int, default=1000, help="Maximum number of nodes to use for BFS (default: 100000).") # not using this now. This will usually give the best traj. To compare with SFT, we will try this later.
     args = parser.parse_args()
     
     assert args.env == "sokoban", "Unsupported environment: {args.env}"
     assert args.algo == "bfs", "Unsupported algorithm: {args.algo}"
     data_source = args.env
 
-    # env = SokobanEnv(dim_room=(6, 6), num_boxes=2, max_steps=10)
+    env = SokobanEnv(dim_room=(6, 6), num_boxes=2, max_steps=10)
+    policy = FixedPolicy()
     # policy = BFSPolicy(max_nodes=args.bfs_max_nodes)
-    # evaluator = TrajectoryEvaluator(env, policy, max_steps=10)
+    evaluator = TrajectoryEvaluator(env, policy, max_steps=1)
 
     # Generate trajectories
-    seeds = range(args.seed, args.seed + args.num_traj)
-    # trajectories = evaluator.batch_evaluate(seeds, mp=False)
+    seeds = range(args.seed, args.seed + args.train_size + args.test_size)
+    trajectories = evaluator.batch_evaluate(seeds, mp=False)
 
     # # Print metrics for BFS
     # evaluator.print_metrics()
@@ -58,19 +58,19 @@ def main():
     # test_dataset = raw_dataset.select(range(TRAIN_SIZE, TRAIN_SIZE + TEST_SIZE))
 
     # dataset just need to provide placeholders
-    def _create_instance(idx):
+    def _create_instance(idx, traj):
         """
         Actually, we are not using any information from the trajectories now except the random seed index, but just launch the envs in the training rollout process.
         """
         return {
             "data_source": data_source,
-            "prompt": [{"role": "system", "content": "You are a helpful assistant."}],
+            "prompt": [{"role": "user", "content": traj[0]['policy_input']}],
             "ability": "bfs",
             "reward_model": {"style": "rule", "ground_truth": {"target": 0, "numbers": [0, 0]}},
             "extra_info": {"split": "train", "index": idx}
         }
-    train_dataset = Dataset.from_list([_create_instance(i) for i in range(args.train_size)])
-    test_dataset = Dataset.from_list([_create_instance(i) for i in range(args.test_size)])
+    train_dataset = Dataset.from_list([_create_instance(i, trajectories[i]) for i in range(args.train_size)])
+    test_dataset = Dataset.from_list([_create_instance(i, trajectories[args.train_size + i]) for i in range(args.test_size)])
 
 
     def make_map_fn(split):
