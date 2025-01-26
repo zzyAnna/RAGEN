@@ -1,24 +1,25 @@
-right side: {'responses': tensor([[ 3138,    11,  6285,  ...,  1459,  1380,   432],
-        [  508,  4454,    14,  ...,    17,  2686, 14697],
-        [  671, 14561,   476,  ...,   387, 12510,  3489],
-        ...,
-        [  715,    16,    14,  ...,    11, 11047,   279],
-        [  220,    19,   271,  ...,    11,   358,  1969],
-        [ 3070,  2324,   334,  ...,   728,  1290,   198]]), 'old_log_probs': tensor([[ -2.7433,  -0.9105,  -0.0517,  ...,  -2.6443,  -0.1417,  -4.4302],
-        [ -3.2270,  -6.5494,  -1.4958,  ...,  -1.4973,  -8.7791,  -1.4659],
-        [ -5.5611,  -2.9381,  -2.3464,  ...,  -0.5030, -10.4617, -11.3104],
-        ...,
-        [ -3.6700,  -2.2286,  -1.9359,  ...,  -0.4757,  -7.9070,  -0.3059],
-        [ -1.0477,  -1.1748,  -2.0783,  ...,  -0.5786,  -0.3234,  -7.0010],
-        [ -2.3732,  -2.8284,  -0.5542,  ...,  -5.5665,  -2.1543,  -0.6926]])}
+right side: DataProto(batch=TensorDict(
+    fields={
+        attention_mask: Tensor(shape=torch.Size([256, 400]), device=cpu, dtype=torch.int64, is_shared=False),
+        input_ids: Tensor(shape=torch.Size([256, 400]), device=cpu, dtype=torch.int64, is_shared=False),
+        old_log_probs: Tensor(shape=torch.Size([256, 100]), device=cpu, dtype=torch.float32, is_shared=False),
+        position_ids: Tensor(shape=torch.Size([256, 400]), device=cpu, dtype=torch.int64, is_shared=False),
+        prompts: Tensor(shape=torch.Size([256, 300]), device=cpu, dtype=torch.int64, is_shared=False),
+        responses: Tensor(shape=torch.Size([256, 100]), device=cpu, dtype=torch.int64, is_shared=False)},
+    batch_size=torch.Size([256]),
+    device=cpu,
+    is_shared=False), non_tensor_batch={}, meta_info={'micro_batch_size': 8, 'max_token_len': 16384, 'use_dynamic_bsz': False, 'temperature': 1.0})
 right side shape: torch.Size([256, 100])
-right side decoded:  Up, Down, Left, Right, Push, *[MoveByKey*]
+right side decoded:  Reference the strategy on Cumulative Observations.
 
-**Final Answer**:
-2) Push, *[AnyKey*] To solve the game. 🎯
+Step 1: Analyze the map and identify key moving actions.
 
-**Your playthrough**:
-[If you had any specific choices, interact with the map to track your steps.]
+### Key Observations and Strategies
+Objects with a plus (+1) at the end are boxes that can be popped:
+- Box on target (complementary to Box in Floor)
+- All boxes (object with a +1)
+- Target (corner)
+- Moving To Key - (object with a +1)
 
-Thoughts (1 line):
-The objective is to move all boxes (X) onto ground (O) and push all these onto targets (S). Strategy is to get to a point where it
+Key strategies are:
+1. Box Pop - Collect all boxes on the

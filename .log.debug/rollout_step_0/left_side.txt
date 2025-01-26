@@ -1,10 +1,11 @@
-left side: {'input_ids': tensor([[151643, 151643, 151643,  ...,   1790,   1917,     25],
-        [151643, 151643, 151643,  ...,   1790,   1917,     25],
-        [151643, 151643, 151643,  ...,   1790,   1917,     25],
-        ...,
-        [151643, 151643, 151643,  ...,   1790,   1917,     25],
-        [151643, 151643, 151643,  ...,   1790,   1917,     25],
-        [151643, 151643, 151643,  ...,   1790,   1917,     25]])}
+left side: DataProto(batch=TensorDict(
+    fields={
+        attention_mask: Tensor(shape=torch.Size([256, 300]), device=cpu, dtype=torch.int64, is_shared=False),
+        input_ids: Tensor(shape=torch.Size([256, 300]), device=cpu, dtype=torch.int64, is_shared=False),
+        position_ids: Tensor(shape=torch.Size([256, 300]), device=cpu, dtype=torch.int64, is_shared=False)},
+    batch_size=torch.Size([256]),
+    device=None,
+    is_shared=False), non_tensor_batch={}, meta_info={})
 left side shape: torch.Size([256, 300])
 left side decoded: <|endoftext|><|endoftext|><|endoftext|>You are a Sokoban solver.
 
@@ -40,9 +41,9 @@ Win when all X become √! 🎯
 
 [Cumulative Observations]:
  # 	 # 	 # 	 # 	 # 	 # 	
- # 	 _ 	 _ 	 O 	 _ 	 # 	
- # 	 P 	 X 	 O 	 # 	 # 	
- # 	 _ 	 X 	 _ 	 _ 	 # 	
- # 	 _ 	 _ 	 _ 	 _ 	 # 	
+ # 	 _ 	 _ 	 # 	 # 	 # 	
+ # 	 X 	 _ 	 # 	 # 	 # 	
+ # 	 O 	 _ 	 # 	 _ 	 # 	
+ # 	 O 	 _ 	 X 	 P 	 # 	
  # 	 # 	 # 	 # 	 # 	 # 	
 Decide the next action:

@@ -537,7 +537,7 @@ class RayPPOTrainer(object):
         """Reorder the data on single controller such that each dp rank gets similar total tokens"""
         attention_mask = batch.batch['attention_mask']
         batch_size = attention_mask.shape[0]
-        global_seqlen_lst = batch.batch['attention_mask'].view(batch_size, -1).sum(-1).tolist()  # (train_batch_size,)
+        global_seqlen_lst = attention_mask.view(batch_size, -1).sum(-1).tolist()  # (train_batch_size,)
         world_size = self.actor_rollout_wg.world_size
         global_partition_lst = get_seqlen_balanced_partitions(global_seqlen_lst,
                                                               k_partitions=world_size,
@@ -732,7 +732,15 @@ class RayPPOTrainer(object):
                         max_len = min(max_prompt_len, effective_len)
                         original_right_side['responses'] = original_right_side['responses'][:, :max_len]
                         original_right_side['old_log_probs'] = original_right_side['old_log_probs'][:, :max_len]
-                                        
+
+
+                    final_gen_batch_output = original_right_side
+                    final_gen_batch_output['input_ids'] = original_left_side['input_ids']
+                    final_gen_batch_output['attention_mask'] = torch.concat([
+                        torch.where(final_gen_batch_output['responses'] != self.tokenizer.pad_token_id, 1, 0),
+                        torch.where(original_left_side['input_ids'] != self.tokenizer.pad_token_id, 1, 0)
+                    ], dim=1)
+                    final_gen_batch_output['position_ids'] = (torch.cumsum(final_gen_batch_output['attention_mask'], dim=1) - 1) * final_gen_batch_output['attention_mask']
                     final_gen_batch_output = DataProto.from_dict(original_right_side)
                     
                     # 原始代码后续处理保持不变
