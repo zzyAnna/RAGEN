@@ -24,7 +24,7 @@ export CUDA_HOME=$CONDA_PREFIX # /opt/conda/envs/zero
 
 
 # setup install
-pip install verl[full]
+pip install verl[full] # includes verl-core (by the verl team) and verl-rage-ext (by us)
 ```
 
 
