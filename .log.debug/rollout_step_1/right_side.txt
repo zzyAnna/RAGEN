@@ -1,0 +1,35 @@
+right side: {'responses': tensor([[  3138,     11,   6285,  ...,     40,   3900,    419],
+        [   508,   4454,     14,  ...,  31135,    553,    356],
+        [   671,  14561,    476,  ...,   1936,    264,   1815],
+        ...,
+        [   715,     16,     14,  ...,    382,  14374,  91717],
+        [   220,     19,    271,  ..., 151643, 151643, 151643],
+        [  3070,   2324,    334,  ...,   2324,    334,   3019]]), 'old_log_probs': tensor([[-2.7433e+00, -9.1045e-01, -5.1704e-02,  ..., -5.3100e+00,
+         -1.4988e+00, -7.8499e-01],
+        [-3.2270e+00, -6.5494e+00, -1.4958e+00,  ..., -4.0724e+00,
+         -6.4282e+00, -5.5789e+00],
+        [-5.5611e+00, -2.9381e+00, -2.3464e+00,  ..., -7.7888e+00,
+         -3.9129e-01, -3.5570e+00],
+        ...,
+        [-3.6700e+00, -2.2286e+00, -1.9359e+00,  ..., -1.3413e+00,
+         -1.3380e+00, -8.9877e+00],
+        [-1.0477e+00, -1.1748e+00, -2.0783e+00,  ..., -2.3449e+01,
+         -2.3071e+01, -2.2231e+01],
+        [-2.3732e+00, -2.8284e+00, -5.5416e-01,  ..., -2.7104e-01,
+         -1.1671e-02, -5.2197e-02]])}
+right side shape: torch.Size([256, 200])
+right side decoded:  Up, Down, Left, Right, Push, *[MoveByKey*]
+
+**Final Answer**:
+2) Push, *[AnyKey*] To solve the game. 🎯
+
+**Your playthrough**:
+[If you had any specific choices, interact with the map to track your steps.]
+
+Thoughts (1 line):
+The objective is to move all boxes (X) onto ground (O) and push all these onto targets (S). Strategy is to get to a point where it's impossible to escape the maze, after which go back to pushing and moving following the mastered pattern for the game. It's human judgements to be strong enough to keep moving and pushing boxes on targets onto walls/L (in the center/stone/star stone configuration). This allows to keep trying to reach Sasha's corner one after other until the puzzle is solved.
+
+Action (1/2/3/4):
+1) Use UP to go up to ensure chains stabilize and avoid pits.
+
+I hope this

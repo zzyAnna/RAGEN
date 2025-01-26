@@ -38,6 +38,8 @@ from verl.utils.seqlen_balancing import get_seqlen_balanced_partitions, log_seql
 import ragen
 from ragen.utils import set_seed
 
+import shutil
+
 WorkerType = Type[Worker]
 
 from ragen.env.sokoban import SokobanEnv
@@ -658,6 +660,9 @@ class RayPPOTrainer(object):
                         'old_log_probs': gen_batch.batch['input_ids'][:, []].clone(),
                     }
                     
+                    # if exists, remove the existing log
+                    if os.path.exists(f'.log.debug'):
+                        shutil.rmtree(f'.log.debug')
 
                     for rollout_step in range(K):
                         # print(f"current gen batch: {rollings}")
@@ -668,6 +673,17 @@ class RayPPOTrainer(object):
 
                         with _timer(f'gen', timing_raw):
                             gen_batch_output = self.actor_rollout_wg.generate_sequences(rollings)  # [IMPLEMENT]
+
+                        os.makedirs(f'.log.debug/rollout_step_{rollout_step}', exist_ok=True)
+                        with open(f'.log.debug/rollout_step_{rollout_step}/left_side.txt', 'a') as f:
+                            f.write(f"left side: {rollings}\n")
+                            f.write(f"left side shape: {rollings.batch['input_ids'].shape}\n")
+                            f.write(f"left side decoded: {self.tokenizer.decode(rollings.batch['input_ids'][0], skip_special_tokens=False)}\n")
+                        with open(f'.log.debug/rollout_step_{rollout_step}/right_side.txt', 'a') as f:
+                            f.write(f"right side: {gen_batch_output}\n")
+                            f.write(f"right side shape: {gen_batch_output.batch['responses'].shape}\n")
+                            f.write(f"right side decoded: {self.tokenizer.decode(gen_batch_output.batch['responses'][0], skip_special_tokens=False)}\n")
+
 
                         cur_responses = gen_batch_output.batch['responses']          # [BSZ, MAX_RESP_LEN]
                         cur_log_probs = gen_batch_output.batch['old_log_probs']
@@ -716,28 +732,8 @@ class RayPPOTrainer(object):
                         max_len = min(max_prompt_len, effective_len)
                         original_right_side['responses'] = original_right_side['responses'][:, :max_len]
                         original_right_side['old_log_probs'] = original_right_side['old_log_probs'][:, :max_len]
-
-                        # output both left side and right side, decode if needed, print all shapes, under .log.debug/rollout_step_{rollout_step}/{obj_name}.txt
-                        with open(f'.log.debug/rollout_step_{rollout_step}/left_side.txt', 'a') as f:
-                            f.write(f"left side: {original_left_side}\n")
-                            f.write(f"left side shape: {original_left_side['input_ids'].shape}\n")
-                            f.write(f"left side decoded: {self.tokenizer.decode(original_left_side['input_ids'][0], skip_special_tokens=False)}\n")
-                        with open(f'.log.debug/rollout_step_{rollout_step}/right_side.txt', 'a') as f:
-                            f.write(f"right side: {original_right_side}\n")
-                            f.write(f"right side shape: {original_right_side['responses'].shape}\n")
-                            f.write(f"right side decoded: {self.tokenizer.decode(original_right_side['responses'][0], skip_special_tokens=False)}\n")
-
-                    
-                    # log input_ids[0] and position_ids[0] to the log
-                    final_response = current_response
-                    final_log_probs = current_log_probs
-                    
-                    # 构造最终的gen_batch_output（需与原始代码兼容）
-                    final_gen_batch_output = DataProto.from_dict({
-                        'responses': final_response,
-                        'old_log_probs': final_log_probs,
-                        # [IMPLEMENT] 需要合并其他必要字段（参考原始gen_batch_output结构）
-                    })
+                                        
+                    final_gen_batch_output = DataProto.from_dict(original_right_side)
                     
                     # 原始代码后续处理保持不变
                     batch.non_tensor_batch['uid'] = np.array([str(uuid.uuid4()) for _ in range(len(batch.batch))], dtype=object)

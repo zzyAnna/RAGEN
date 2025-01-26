@@ -1,4 +1,12 @@
-<|endoftext|><|endoftext|><|endoftext|>You are a Sokoban solver.
+left side: {'input_ids': tensor([[151643, 151643, 151643,  ...,   1790,   1917,     25],
+        [151643, 151643, 151643,  ...,   1790,   1917,     25],
+        [151643, 151643, 151643,  ...,   1790,   1917,     25],
+        ...,
+        [151643, 151643, 151643,  ...,   1790,   1917,     25],
+        [151643, 151643, 151643,  ...,   1790,   1917,     25],
+        [151643, 151643, 151643,  ...,   1790,   1917,     25]])}
+left side shape: torch.Size([256, 300])
+left side decoded: <|endoftext|><|endoftext|><|endoftext|>You are a Sokoban solver.
 
 Sokoban Quick Guide
 Goal: Push all boxes (X) onto targets (O).
@@ -32,9 +40,9 @@ Win when all X become √! 🎯
 
 [Cumulative Observations]:
  # 	 # 	 # 	 # 	 # 	 # 	
- # 	 O 	 _ 	 _ 	 # 	 # 	
- # 	 _ 	 X 	 P 	 # 	 # 	
- # 	 _ 	 X 	 O 	 # 	 # 	
- # 	 _ 	 _ 	 _ 	 # 	 # 	
+ # 	 _ 	 _ 	 O 	 _ 	 # 	
+ # 	 P 	 X 	 O 	 # 	 # 	
+ # 	 _ 	 X 	 _ 	 _ 	 # 	
+ # 	 _ 	 _ 	 _ 	 _ 	 # 	
  # 	 # 	 # 	 # 	 # 	 # 	
 Decide the next action:
