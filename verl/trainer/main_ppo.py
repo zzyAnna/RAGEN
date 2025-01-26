@@ -96,19 +96,18 @@ import hydra
 
 @hydra.main(config_path='config', config_name='ppo_trainer', version_base=None)
 def main(config):
-    if config.multi_processing == 'ray':
-        if not ray.is_initialized():
-            ray.init(runtime_env={'env_vars': {'TOKENIZERS_PARALLELISM': 'true', 'NCCL_DEBUG': 'WARN'}})
-        # 动态创建远程任务并执行
-        remote_task = ray.remote(main_task)
-        ray.get(remote_task.remote(config))
-    else:
-        # 直接调用普通函数
-        main_task(config)
+    if not ray.is_initialized():
+        # this is for local ray cluster
+        ray.init(runtime_env={'env_vars': {'TOKENIZERS_PARALLELISM': 'true', 'NCCL_DEBUG': 'WARN'}})
 
+    ray.get(main_task.remote(config))
+
+
+@ray.remote
 def main_task(config):
     from verl.utils.fs import copy_local_path_from_hdfs
     from transformers import AutoTokenizer
+
     # print initial config
     from pprint import pprint
     from omegaconf import OmegaConf
@@ -186,8 +185,7 @@ def main_task(config):
                             ray_worker_group_cls=ray_worker_group_cls,
                             reward_fn=reward_fn,
                             val_reward_fn=val_reward_fn)
-    if config.multi_processing == 'ray':
-        trainer.init_workers()
+    trainer.init_workers()
     trainer.fit()
 
 

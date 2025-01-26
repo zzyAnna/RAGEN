@@ -1,15 +1,18 @@
 export N_GPUS=1
-export BASE_MODEL=Qwen/Qwen2.5-0.5B
 export DATA_DIR=countdown_data
-export ROLLOUT_TP_SIZE=1
 export VLLM_ATTENTION_BACKEND=XFORMERS
+
+export ROLLOUT_TP_SIZE=1
+export BASE_MODEL=Qwen/Qwen2.5-0.5B
+# export BASE_MODEL=deepseek-ai/DeepSeek-R1-Distill-Qwen-1.5B
 
 export EXPERIMENT_NAME=countdown-qwen2.5-0.5b
 export MICRO_BATCH_SIZE=1
-export RESPONSE_LENGTH=1024
+export RESPONSE_LENGTH=512
 export LOG_MODE="['console']"
-export MULTI_PROCESSING=ray
+export MULTI_PROCESSING=ray # only choice for now
 
+# default config file is verl/trainer/config/ppo_trainer.yaml
 
 python verl/trainer/main_ppo.py \
 multi_processing=$MULTI_PROCESSING \

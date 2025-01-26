@@ -586,6 +586,10 @@ class RayPPOTrainer(object):
                 with _timer('step', timing_raw):
                     # generate a batch
                     with _timer('gen', timing_raw):
+                        # make this a loop.
+                        # first, generate data through seeds
+                        # then, print all these gen_batch and gen_batch_output to local files and exit
+                        # third, see how can we do this in a loop
                         gen_batch_output = self.actor_rollout_wg.generate_sequences(gen_batch)
 
                     batch.non_tensor_batch['uid'] = np.array([str(uuid.uuid4()) for _ in range(len(batch.batch))],

@@ -24,7 +24,7 @@ export CUDA_HOME=$CONDA_PREFIX # /opt/conda/envs/zero
 
 
 # setup install
-pip install -e .
+pip install verl[full]
 ```
 
 
@@ -53,6 +53,4 @@ export MICRO_BATCH_SIZE=8
 export RESPONSE_LENGTH=1024
 export LOG_MODE=wandb
 export MULTI_PROCESSING=ray
-
-bash ./scripts/train_tiny_zero.sh
 ```
