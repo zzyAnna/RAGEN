@@ -186,8 +186,8 @@ def main_task(config):
                             ray_worker_group_cls=ray_worker_group_cls,
                             reward_fn=reward_fn,
                             val_reward_fn=val_reward_fn)
-    trainer.init_workers()
-    breakpoint()
+    if config.multi_processing == 'ray':
+        trainer.init_workers()
     trainer.fit()
 
 

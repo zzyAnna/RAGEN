@@ -7,8 +7,8 @@ export VLLM_ATTENTION_BACKEND=XFORMERS
 export EXPERIMENT_NAME=countdown-qwen2.5-0.5b
 export MICRO_BATCH_SIZE=1
 export RESPONSE_LENGTH=1024
-export LOG_MODE=console
-export MULTI_PROCESSING=null
+export LOG_MODE="['console']"
+export MULTI_PROCESSING=ray
 
 
 python verl/trainer/main_ppo.py \
@@ -32,7 +32,7 @@ critic.optim.lr=1e-5 \
 critic.model.path=$BASE_MODEL \
 critic.ppo_micro_batch_size=$MICRO_BATCH_SIZE \
 algorithm.kl_ctrl.kl_coef=0.001 \
-trainer.logger=['$LOG_MODE'] \
+trainer.logger=$LOG_MODE \
 +trainer.val_before_train=False \
 trainer.default_hdfs_dir=null \
 trainer.n_gpus_per_node=$N_GPUS \
