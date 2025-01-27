@@ -1,9 +1,9 @@
-# agent-r1
+# Agent-R1
 1. setup with (private) scripts from https://github.com/ZihanWang314/setup-new-env/blob/main/initialize.sh, L1-L40;
 2. init environment:
 ```bash
-conda create -n agent python=3.9 -y
-conda activate agent
+conda create -n ragen python=3.9 -y
+conda activate ragen
 
 
 # install torch [or you can skip this step and let vllm to install the correct version for you]
@@ -21,11 +21,12 @@ pip install wandb IPython matplotlib
 # if flash attn fails, you may need to install cuda-toolkit first
 conda install -c "nvidia/label/cuda-12.1.0" cuda-toolkit
 export CUDA_HOME=$CONDA_PREFIX # /opt/conda/envs/zero
+pip3 install flash-attn --no-build-isolation
 
 git clone git@github.com:ZihanWang314/agent-r1.git
 cd agent-r1
 # setup install
-pip install verl[full] # includes verl-core (by the verl team) and verl-rage-ext (by us)
+pip install -e . # includes verl-core (by the verl team) and verl-rage-ext (by us)
 ```
 
 
