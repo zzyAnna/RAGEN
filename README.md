@@ -43,8 +43,8 @@ export NUM_BOXES=1
 export MAX_STEPS=5
 export SEARCH_DEPTH=30
 # below is buggy
-# python scripts/dataset_curation.py \
-#     --output data/sokoban
+python scripts/dataset_curation.py \
+    --output data/sokoban
 
 # 
 ```
@@ -52,8 +52,10 @@ export SEARCH_DEPTH=30
 Export variables:
 ```bash
 export DATA_DIR=data/sokoban
-export BASE_MODEL=Qwen/Qwen2.5-0.5B-Instruct
-export EXPERIMENT_NAME=test-qwen2.5-0.5b-instruct-1mbsz
+export BASE_MODEL=Qwen/Qwen2.5-0.5B
+export EXPERIMENT_NAME=test-qwen2.5-0.5b
+# export BASE_MODEL=Qwen/Qwen2.5-0.5B-Instruct
+# export EXPERIMENT_NAME=test-qwen2.5-0.5b-instruct-1mbsz
 export MICRO_BATCH_SIZE=1
 export TRAIN_BATCH_SIZE=128 # 256
 export PPO_BATCH_SIZE=64 # 128
@@ -87,3 +89,25 @@ export LOG_MODE="['wandb']" # or 'console'
 
 bash ./train.sh # more arguments in this file
 ```
+
+
+
+
+# TODO: Cases
+
+
+
+# Why we give (s1 | a1 s2 a2 s3 a3) as input?
+1. 区分rollout和train: rollout的时候是给s生成a, 多次循环；train的时候是给s1生成后面的
+几个好处：1 多轮统一，不会搞出新的instance，让batchsize不稳定
+2. 能多学一点儿state，可能能做planning
+
+
+
+
+
+
+
+
+
+

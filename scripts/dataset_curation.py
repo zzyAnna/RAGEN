@@ -52,8 +52,7 @@ def main():
 
     # Generate trajectories
     seeds = range(args.seed, args.seed + args.train_size + args.test_size)
-    trajectories = evaluator.batch_evaluate(seeds, mp=False)
-    breakpoint()
+    trajectories = evaluator.batch_evaluate(seeds, mp=True) # mp=False is not working
 
     # # Print metrics for BFS
     # evaluator.print_metrics()

@@ -119,6 +119,6 @@ def generate_trajectory_multienv(
             for a, a_full, pinput in zip(action, action_full, policy_input):
                 if step >= max_steps: break
                 env, info, traj, done = _update_env(env, step, info, a, pinput, a_full, traj) # env_instances, history_info, trajectories are updated each step
-                breakpoint()
+                
     return trajectories
 
