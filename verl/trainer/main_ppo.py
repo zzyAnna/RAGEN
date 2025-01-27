@@ -21,6 +21,7 @@ import verl.utils.reward_score.countdown as countdown
 from verl.trainer.ppo.ray_trainer import RayPPOTrainer
 from ragen.env.sokoban import SokobanEnv
 import re
+import numpy as np
 
 ENV_CLASS_MAPPING = {
     'sokoban': SokobanEnv
