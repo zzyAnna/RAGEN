@@ -24,6 +24,8 @@ from enum import Enum
 from pprint import pprint
 from typing import Type, Dict
 
+import re
+
 import numpy as np
 from codetiming import Timer
 from omegaconf import OmegaConf, open_dict
@@ -726,9 +728,102 @@ class RayPPOTrainer(object):
                             f.write(f"\n")
 
 
+                        # Update here to plot the trajectory and thought
+                        import matplotlib.pyplot as plt
+                        from matplotlib.backends.backend_pdf import PdfPages
+                        from matplotlib.gridspec import GridSpec
+
+
+                        def save_trajectory_to_pdf(trajectory, filename='trajectory_visualization.pdf'):
+                            with PdfPages(filename) as pdf:
+                                for batch_idx, data in enumerate(trajectory):
+
+
+                                    # fig, ax = plt.subplots(2, 2, figsize=(10, 8))
+                                    
+                                    # # Plot before action image (top left)
+                                    # ax[0, 0].imshow(data.get('img_before_action'))
+                                    # ax[0, 0].set_title('Before Action')
+                                    # ax[0, 0].axis('off')
+                                    
+                                    # # Plot after action image (bottom left)
+                                    # ax[1, 0].imshow(data.get('img_after_action'))
+                                    # ax[1, 0].set_title('After Action')
+                                    # ax[1, 0].axis('off')
+
+                                    # # Display thought (top right)
+                                    # ax[0, 1].text(0.5, 0.5, f"Thought:\n{data.get('thought', '')}",
+                                    #             ha='center', va='center', fontsize=12, wrap=True)
+                                    # ax[0, 1].set_title('Thought')
+                                    # ax[0, 1].axis('off')
+                                    
+                                    # # Display action (bottom right)
+                                    # ax[1, 1].text(0.5, 0.5, f"Action:\n{data.get('action', '')}",
+                                    #             ha='center', va='center', fontsize=12, wrap=True)
+                                    # ax[1, 1].set_title('Action')
+                                    # ax[1, 1].axis('off')
+
+                                    # Create figure and custom gridspec layout
+                                    fig = plt.figure(figsize=(10, 8))
+                                    gs = GridSpec(2, 2, width_ratios=[2, 1], height_ratios=[1, 1], figure=fig)
+
+                                    # Plot before action image (top left)
+                                    ax1 = fig.add_subplot(gs[0, 0])
+                                    ax1.imshow(data.get('img_before_action'))
+                                    ax1.set_title('Before Action')
+                                    ax1.axis('off')
+
+                                    # Plot after action image (bottom left)
+                                    ax2 = fig.add_subplot(gs[1, 0])
+                                    ax2.imshow(data.get('img_after_action'))
+                                    ax2.set_title('After Action')
+                                    ax2.axis('off')
+
+                                    # Display answer (right side)
+                                    ax3 = fig.add_subplot(gs[:, 1])
+                                    ax3.text(0.5, 0.5, f"Answer:\n{data.get('answer', '')}",
+                                            ha='center', va='center', fontsize=12, wrap=True)
+                                    ax3.set_title('Answer')
+                                    ax3.axis('off')
+
+                                    
+                                    
+                                    plt.suptitle(f'Batch {batch_idx + 1}', fontsize=16)
+                                    pdf.savefig(fig)
+                                    plt.close(fig)
+                            print(f'PDF saved as {filename}')
+                        trajectory = []
+                        for env in envs[:4]:
+                            trajectory.append({
+                                "img_before_action": env.render('rgb_array'),
+                            })
                         with _timer('execute_predictions', timing_raw):
                             cur_responses_decoded = self.tokenizer.batch_decode(gen_batch_output.batch['responses'], skip_special_tokens=False)
                             next_obs = self.env_class.execute_predictions(envs, cur_responses_decoded, self.tokenizer.pad_token)
+                        
+                        for idx, (cur_response_decoded, env) in enumerate(zip(cur_responses_decoded[:4], envs[:4])):
+                            img_after_action = env.render('rgb_array')
+                            # print(f"[CUR_RESPONSE_DECODED]: {cur_response_decoded} [\CUR_RESPONSE_DECODED]")
+                            # if '<answer>' in cur_response_decoded:
+                            #     action = cur_response_decoded.split("<answer>")[1].split("</answer>")[0].strip()
+                            # else:
+                            #     action = ""
+                            # if "<think>" in cur_response_decoded:
+                            #     thought = cur_response_decoded.split("<think>")[1].split("</think>")[0].strip()
+                            # else:
+                            #     thought = ""
+                            trajectory[idx].update({
+                                "img_after_action": img_after_action,
+                                "answer": cur_response_decoded,
+                                # "action": action,
+                                # "thought": thought,
+                            })
+                        save_trajectory_to_pdf(trajectory, filename=f'.log.debug/rollout_step_{rollout_step}/trajectory_visualization.pdf')
+
+                        
+
+
+
 
                         next_obs_input_ids = self.tokenizer(next_obs, padding='longest', return_tensors='pt')['input_ids']
                         if next_obs_input_ids.shape[1] > max_obs_len:

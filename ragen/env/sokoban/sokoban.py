@@ -159,7 +159,7 @@ class SokobanEnv(gym_sokoban.envs.sokoban_env.SokobanEnv):
         
     # Add rgb_array mode
     def render(self, mode='tiny_rgb_array'):
-        assert mode in ['tiny_rgb_array', 'list', 'state']
+        assert mode in ['tiny_rgb_array', 'list', 'state', 'rgb_array']
         if mode == 'state':
             return np.where((self.room_state == 5) & (self.room_fixed == 2), 6, self.room_state)
         
