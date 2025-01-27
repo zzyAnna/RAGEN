@@ -35,6 +35,7 @@ from verl.single_controller.ray.base import create_colocated_worker_cls
 from verl.trainer.ppo import core_algos
 from verl.utils.seqlen_balancing import get_seqlen_balanced_partitions, log_seqlen_unbalance
 
+import re
 import ragen
 from ragen.utils import set_seed
 
@@ -577,6 +578,9 @@ class RayPPOTrainer(object):
                 protocol.batch[key] = protocol.batch[key][:, :effective_len]
         return protocol
 
+    def _batch_tokenize(self, responses):
+        return self.tokenizer(responses, add_special_tokens=False, return_tensors='pt', padding="longest")['input_ids']
+
     def fit(self):
         """
         The training loop of PPO.
@@ -696,8 +700,10 @@ class RayPPOTrainer(object):
                         hacked_responses = [response for response in cur_responses_decoded if re.search(hack_pattern, response)]
                         if len(hacked_responses) > 0:
                             print(f"[WARNING] HACKED RESPONSES: {hacked_responses}")
+                        # dehack responses
+                        cur_responses_decoded = [response.replace(hack_pattern, '') for response in cur_responses_decoded]
 
-                        gen_batch_output.batch['responses'] = self.tokenizer.batch_encode(cur_responses_decoded, add_special_tokens=True)
+                        gen_batch_output.batch['responses'] = self._batch_tokenize(cur_responses_decoded)
 
                         os.makedirs(f'.log.debug/rollout_step_{rollout_step}', exist_ok=True)
                         import datetime
