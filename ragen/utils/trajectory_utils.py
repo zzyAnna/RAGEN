@@ -111,15 +111,14 @@ def generate_trajectory_multienv(
 
         # execute actions
         for idx, (env, action, info, policy_input, action_full, traj) in enumerate(zip(env_instances, actions, history_info, policy_inputs, actions_full, trajectories)):
-
             if type(action) != list: action = [action]
             if type(action_full) != list: action_full = [action_full]
             if type(policy_input) != list: policy_input = [policy_input]
+            print("[HEY]")
 
-            for a, a_full, policy_input in zip(action, action_full, policy_input):
+            for a, a_full, pinput in zip(action, action_full, policy_input):
                 if step >= max_steps: break
-                env, info, traj, done = _update_env(env, step, info, a, policy_input, a_full, traj) # env_instances, history_info, trajectories are updated each step
-                if done: break
-
+                env, info, traj, done = _update_env(env, step, info, a, pinput, a_full, traj) # env_instances, history_info, trajectories are updated each step
+                breakpoint()
     return trajectories
 
