@@ -7,6 +7,7 @@ from ragen.utils import NoLoggerWarnings
 from contextlib import contextmanager
 from .room_utils import generate_room
 from ragen.utils import set_seed
+import re
 
 class SokobanEnv(gym_sokoban.envs.sokoban_env.SokobanEnv):
     def __init__(self, **kwargs):
@@ -56,19 +57,20 @@ class SokobanEnv(gym_sokoban.envs.sokoban_env.SokobanEnv):
 
     @staticmethod
     def extract_action(text):
-        DIRECTION_MAP = {"Up":"1", "Down":"2", "Left":"3", "Right":"4"}
-        pattern = r'^\s*(([1-4])\s*\((Up|Down|Left|Right)\)|(Up|Down|Left|Right)|([1-4]))\s*$'
-        match = re.fullmatch(pattern, text.strip(), flags=re.X)
-        if not match:
-            return 0
+        DIRECTION_MAP = {"Up": 1, "Down": 2, "Left": 3, "Right": 4}
+        pattern = r'^\s*(([1-4])\s*\((up|down|left|right)\)|(up|down|left|right)|([1-4]))\s*$'
+        match = re.fullmatch(pattern, text.strip(), flags=re.IGNORECASE | re.X)
         
-        # 按优先级解析匹配结果
-        if match.group(1):  # 数字 (方向) 格式
-            return match.group(1)
-        elif match.group(3):  # 纯方向
-            return DIRECTION_MAP[match.group(3)]
-        elif match.group(4):  # 纯数字
-            return match.group(4)
+        if not match:
+            return 0 
+        
+        if match.group(2):   
+            return int(match.group(2))
+        elif match.group(4): 
+            return DIRECTION_MAP[match.group(4).capitalize()]
+        elif match.group(5): 
+            return int(match.group(5))
+        
         return 0
 
 
@@ -86,7 +88,7 @@ class SokobanEnv(gym_sokoban.envs.sokoban_env.SokobanEnv):
 
                 action = SokobanEnv.extract_action(action)
                 if action == 0:
-                    print(f"[Invalid action]: \n{prediction}\n")
+                    # print(f"[Invalid action]: \n{prediction}\n")
                     action_is_valid.append(False)
                 else:
                     action_is_valid.append(True)
