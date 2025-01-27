@@ -17,6 +17,7 @@ cd agent-r1
 
 # setup install
 pip install -e . # includes verl-rage-ext (by us) and verl-core (by the verl team)
+pip install torch==2.4.0 --index-url https://download.pytorch.org/whl/cu121
 pip install -r requirements.txt # other packages
 
 # flash attention 2
