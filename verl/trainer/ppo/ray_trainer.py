@@ -653,7 +653,7 @@ class RayPPOTrainer(object):
                 #     batch = batch.union(gen_batch_output)
 
                 #     # output batch to file
-                #     self._record_batch(batch, path=f'.log.debug/gen_batch.txt')
+                #     self._record_batch(batch, path=f'.log/{self.config.trainer.experiment_name}/gen_batch.txt')
 
                 ####################
                 # Below is aLL about agents - the "LLM + forloop"
@@ -684,8 +684,8 @@ class RayPPOTrainer(object):
                     meta_info = {}
                     
                     # # if exists, remove the existing log
-                    # if os.path.exists(f'.log.debug'):
-                    #     shutil.rmtree(f'.log.debug')
+                    # if os.path.exists(f'.log/{self.config.trainer.experiment_name}'):
+                    #     shutil.rmtree(f'.log/{self.config.trainer.experiment_name}')
 
                     for rollout_step in range(K):
                         with _timer(f'gen', timing_raw):
@@ -708,10 +708,10 @@ class RayPPOTrainer(object):
                                 print(f"[DEBUG] No hack left in responses.")
                             gen_batch_output.batch['responses'] = self._batch_tokenize(cur_responses_decoded)
 
-                        os.makedirs(f'.log.debug/rollout_step_{rollout_step}', exist_ok=True)
+                        os.makedirs(f'.log/{self.config.trainer.experiment_name}/rollout_step_{rollout_step}', exist_ok=True)
                         import datetime
                         now = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-                        with open(f'.log.debug/rollout_step_{rollout_step}/left_side.txt', 'w') as f:
+                        with open(f'.log/{self.config.trainer.experiment_name}/rollout_step_{rollout_step}/left_side.txt', 'w') as f:
                             f.write(f"{now}\n")
                             f.write(f"[left side]: \n{rollings}\n")
                             f.write(f"[left side shape]: \n{rollings.batch['input_ids'].shape}\n")
@@ -719,7 +719,7 @@ class RayPPOTrainer(object):
                                 f.write(f"[left side decoded]: \n{self.tokenizer.decode(rollings.batch['input_ids'][idx], skip_special_tokens=False)}\n")
                             f.write(f"\n")
 
-                        with open(f'.log.debug/rollout_step_{rollout_step}/right_side.txt', 'w') as f:
+                        with open(f'.log/{self.config.trainer.experiment_name}/rollout_step_{rollout_step}/right_side.txt', 'w') as f:
                             f.write(f"{now}\n")
                             f.write(f"[right side]: \n{gen_batch_output}\n")
                             f.write(f"[right side shape]: \n{gen_batch_output.batch['responses'].shape}\n")

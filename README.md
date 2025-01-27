@@ -57,10 +57,10 @@ python scripts/dataset_curation.py \
 Export variables:
 ```bash
 export DATA_DIR=data/sokoban
-export BASE_MODEL=Qwen/Qwen2.5-0.5B
-export EXPERIMENT_NAME=test-qwen2.5-0.5b
-# export BASE_MODEL=Qwen/Qwen2.5-0.5B-Instruct
-# export EXPERIMENT_NAME=test-qwen2.5-0.5b-instruct-1mbsz
+# export BASE_MODEL=Qwen/Qwen2.5-0.5B
+# export EXPERIMENT_NAME=test-qwen2.5-0.5b
+export BASE_MODEL=Qwen/Qwen2.5-0.5B-Instruct
+export EXPERIMENT_NAME=test-qwen2.5-0.5b-instruct-1mbsz
 export MICRO_BATCH_SIZE=1
 export TRAIN_BATCH_SIZE=128 # 256
 export PPO_BATCH_SIZE=64 # 128
