@@ -38,11 +38,11 @@ Create data:
 
 # below is buggy
 
-# export DIM_X=6
-# export DIM_Y=6
-# export NUM_BOXES=1
-# export MAX_STEPS=5
-# export SEARCH_DEPTH=30
+export DIM_X=6
+export DIM_Y=6
+export NUM_BOXES=1
+export MAX_STEPS=5
+export SEARCH_DEPTH=30
 # python scripts/dataset_curation.py \
 #     --output data/sokoban
 
@@ -55,8 +55,8 @@ export DATA_DIR=data/sokoban
 export BASE_MODEL=Qwen/Qwen2.5-0.5B-Instruct
 export EXPERIMENT_NAME=test-qwen2.5-0.5b-instruct-1mbsz
 export MICRO_BATCH_SIZE=1
-export TRAIN_BATCH_SIZE=32 # 256
-export PPO_BATCH_SIZE=16 # 128
+export TRAIN_BATCH_SIZE=128 # 256
+export PPO_BATCH_SIZE=64 # 128
 export MAX_START_LENGTH=400 # the first round prompt max length
 export MAX_RESPONSE_LENGTH=100
 export MAX_OBS_LENGTH=120
