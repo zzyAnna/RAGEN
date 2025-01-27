@@ -22,7 +22,8 @@ pip install wandb IPython matplotlib
 conda install -c "nvidia/label/cuda-12.1.0" cuda-toolkit
 export CUDA_HOME=$CONDA_PREFIX # /opt/conda/envs/zero
 
-
+git clone git@github.com:ZihanWang314/agent-r1.git
+cd agent-r1
 # setup install
 pip install verl[full] # includes verl-core (by the verl team) and verl-rage-ext (by us)
 ```
