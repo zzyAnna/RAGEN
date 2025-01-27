@@ -58,10 +58,24 @@ class SokobanEnv(gym_sokoban.envs.sokoban_env.SokobanEnv):
             if type(prediction) == str:
                 if "<answer>" in prediction:
                     action = prediction.split("<answer>")[1].strip()
-                    action = action[0] if action else action
+                    if "up" in action.lower():
+                        action = 1
+                    elif "down" in action.lower():
+                        action = 2
+                    elif "left" in action.lower():
+                        action = 3
+                    elif "right" in action.lower():
+                        action = 4
+                    if "1" in action:
+                        action = 1
+                    elif "2" in action:
+                        action = 2
+                    elif "3" in action:
+                        action = 3
+                    elif "4" in action:
+                        action = 4
                 else:
                     action = prediction.strip()[-1]
-                action = int(action) if action in ['1', '2', '3', '4'] else 0
             elif type(prediction) == int:
                 action = prediction if prediction in [1, 2, 3, 4] else 0
             elif type(prediction) == list:
