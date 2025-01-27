@@ -686,22 +686,9 @@ class RayPPOTrainer(object):
                             f.write(f"right side shape: {gen_batch_output.batch['responses'].shape}\n")
                             f.write(f"right side decoded: {self.tokenizer.decode(gen_batch_output.batch['responses'][0], skip_special_tokens=False)}\n")
                         
-                        cur_responses_decoded = self.tokenizer.decode(gen_batch_output.batch['responses'], skip_special_tokens=False)
-                        cur_actions = self.env.postprocess_predictions(cur_responses_decoded)
-                        next_obs = []
-                        for env, action, response in zip(envs, cur_actions, cur_responses_decoded):
-                            # 1. check whether cur_response has the end token
-                            obs = ""
-                            if "</answer>" not in response:
-                                obs += "</answer>"
+                        cur_responses_decoded = self.tokenizer.bathdecode(gen_batch_output.batch['responses'], skip_special_tokens=False)
+                        next_obs = SokobanEnv.execute_predictions(envs, cur_responses_decoded, self.tokenizer.pad_token)
 
-                            # 2. check whether the env is done
-                            if env.done:
-                                obs += self.tokenizer.pad_token
-                            else:
-                                env_feedback = SokobanEnv.parse_update_info_to_obs(env.step(action))
-                                obs += "<|im_start|>user\n" + env_feedback + "<|im_end|>" + "<|im_start|>assistant\n<think>"
-                            next_obs.append(obs)
                         
                         # output it to file
                         # make dir of .log.debug/rollout_step_{rollout_step}
