@@ -23,7 +23,7 @@ pip install -r requirements.txt # other packages
 # flash attention 2
 pip3 install flash-attn --no-build-isolation
 # if flash attn fails, you may need to install cuda-toolkit first
-conda install -c "nvidia/label/cuda-12.1.0" cuda-toolkit
+conda install -c "nvidia/label/cuda-12.1.0" cuda-toolkit -y
 export CUDA_HOME=$CONDA_PREFIX # /opt/conda/envs/zero
 pip3 install flash-attn --no-build-isolation
 ```
