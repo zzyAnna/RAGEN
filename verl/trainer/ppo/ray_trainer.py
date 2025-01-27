@@ -688,6 +688,16 @@ class RayPPOTrainer(object):
                             gen_batch_output = self.actor_rollout_wg.generate_sequences(rollings)
                             meta_info.update(gen_batch_output.meta_info)
 
+                        # process gen_batch_output, remove all things like reward: xxx \n to forbid reward hacking
+                        # decode responses, remove all things like reward: xxx \n to forbid reward hacking
+                        cur_responses_decoded = self.tokenizer.batch_decode(gen_batch_output.batch['responses'], skip_special_tokens=False)
+                        # ifthere has been hacks, output this to a log 
+                        hack_pattern = r'reward: \d+\.\d+\n|done: (True|False)\n'
+                        hacked_responses = [response for response in cur_responses_decoded if re.search(hack_pattern, response)]
+                        if len(hacked_responses) > 0:
+                            print(f"[WARNING] HACKED RESPONSES: {hacked_responses}")
+
+                        gen_batch_output.batch['responses'] = self.tokenizer.batch_encode(cur_responses_decoded, add_special_tokens=True)
 
                         os.makedirs(f'.log.debug/rollout_step_{rollout_step}', exist_ok=True)
                         import datetime
@@ -715,7 +725,7 @@ class RayPPOTrainer(object):
 
                         next_obs_input_ids = self.tokenizer(next_obs, padding='longest', return_tensors='pt')['input_ids']
                         if next_obs_input_ids.shape[1] > max_obs_len:
-                            print("NO!!!!")
+                            print("[WARNING] OBSERVATION TOO LONG, CONSIDER CHANGING YOUR CONFIG")
                             print(next_obs_input_ids.shape)
                             next_obs_input_ids = next_obs_input_ids[:, :max_obs_len]
 
