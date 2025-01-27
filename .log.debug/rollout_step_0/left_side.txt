@@ -1,13 +1,16 @@
 left side: DataProto(batch=TensorDict(
     fields={
-        attention_mask: Tensor(shape=torch.Size([256, 300]), device=cpu, dtype=torch.int64, is_shared=False),
-        input_ids: Tensor(shape=torch.Size([256, 300]), device=cpu, dtype=torch.int64, is_shared=False),
-        position_ids: Tensor(shape=torch.Size([256, 300]), device=cpu, dtype=torch.int64, is_shared=False)},
+        attention_mask: Tensor(shape=torch.Size([256, 400]), device=cpu, dtype=torch.int64, is_shared=False),
+        input_ids: Tensor(shape=torch.Size([256, 400]), device=cpu, dtype=torch.int64, is_shared=False),
+        position_ids: Tensor(shape=torch.Size([256, 400]), device=cpu, dtype=torch.int64, is_shared=False)},
     batch_size=torch.Size([256]),
     device=None,
     is_shared=False), non_tensor_batch={}, meta_info={})
-left side shape: torch.Size([256, 300])
-left side decoded: <|endoftext|><|endoftext|><|endoftext|>You are a Sokoban solver.
+left side shape: torch.Size([256, 400])
+left side decoded: <|endoftext|><|endoftext|><|endoftext|><|endoftext|><|endoftext|><|endoftext|><|endoftext|><|endoftext|><|im_start|>system
+You are a helpful assistant. You first thinks about the reasoning process in the mind and then provides the user with the answer.<|im_end|>
+<|im_start|>user
+You are a Sokoban solver.
 
 Sokoban Quick Guide
 Goal: Push all boxes (X) onto targets (O).
@@ -41,9 +44,13 @@ Win when all X become √! 🎯
 
 [Cumulative Observations]:
  # 	 # 	 # 	 # 	 # 	 # 	
- # 	 # 	 # 	 # 	 # 	 # 	
- # 	 # 	 # 	 P 	 _ 	 # 	
- # 	 O 	 X 	 X 	 _ 	 # 	
- # 	 _ 	 _ 	 O 	 _ 	 # 	
+ # 	 O 	 _ 	 X 	 P 	 # 	
+ # 	 _ 	 _ 	 X 	 _ 	 # 	
+ # 	 _ 	 O 	 _ 	 # 	 # 	
+ # 	 _ 	 _ 	 # 	 # 	 # 	
  # 	 # 	 # 	 # 	 # 	 # 	
 Decide the next action:
+Show your work in <think> </think> tags. And return the final answer in <answer> </answer> tags, for example <think> [Your thoughts] </think> <answer> 1 </answer><|im_end|>
+<|im_start|>assistant
+Let me solve this step by step.
+<think>

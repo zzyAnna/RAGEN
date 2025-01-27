@@ -1,13 +1,16 @@
 left side: DataProto(batch=TensorDict(
     fields={
-        attention_mask: Tensor(shape=torch.Size([256, 497]), device=cpu, dtype=torch.int64, is_shared=False),
-        input_ids: Tensor(shape=torch.Size([256, 497]), device=cpu, dtype=torch.int64, is_shared=False),
-        position_ids: Tensor(shape=torch.Size([256, 497]), device=cpu, dtype=torch.int64, is_shared=False)},
+        attention_mask: Tensor(shape=torch.Size([256, 592]), device=cpu, dtype=torch.int64, is_shared=False),
+        input_ids: Tensor(shape=torch.Size([256, 592]), device=cpu, dtype=torch.int64, is_shared=False),
+        position_ids: Tensor(shape=torch.Size([256, 592]), device=cpu, dtype=torch.int64, is_shared=False)},
     batch_size=torch.Size([256]),
     device=None,
     is_shared=False), non_tensor_batch={}, meta_info={})
-left side shape: torch.Size([256, 497])
-left side decoded: You are a Sokoban solver.
+left side shape: torch.Size([256, 592])
+left side decoded: <|endoftext|><|endoftext|><|endoftext|><|endoftext|><|endoftext|><|endoftext|><|endoftext|><|endoftext|><|endoftext|><|endoftext|><|endoftext|><|endoftext|><|endoftext|><|endoftext|><|endoftext|><|endoftext|><|endoftext|><|endoftext|><|endoftext|><|endoftext|><|endoftext|><|endoftext|><|endoftext|><|endoftext|><|endoftext|><|endoftext|><|endoftext|><|endoftext|><|endoftext|><|endoftext|><|endoftext|><|endoftext|><|endoftext|><|endoftext|><|endoftext|><|endoftext|><|endoftext|><|endoftext|><|endoftext|><|endoftext|><|endoftext|><|endoftext|><|endoftext|><|endoftext|><|endoftext|><|endoftext|><|endoftext|><|endoftext|><|endoftext|><|endoftext|><|endoftext|><|endoftext|><|endoftext|><|endoftext|><|endoftext|><|endoftext|><|endoftext|><|endoftext|><|endoftext|><|endoftext|><|endoftext|><|endoftext|><|endoftext|><|endoftext|><|endoftext|><|endoftext|><|endoftext|><|endoftext|><|endoftext|><|endoftext|><|endoftext|><|endoftext|><|endoftext|><|endoftext|><|endoftext|><|endoftext|><|endoftext|><|endoftext|><|endoftext|><|endoftext|><|endoftext|><|endoftext|><|endoftext|><|endoftext|><|endoftext|><|endoftext|><|endoftext|><|endoftext|><|endoftext|><|endoftext|><|endoftext|><|endoftext|><|endoftext|><|endoftext|><|endoftext|><|endoftext|><|endoftext|><|endoftext|><|endoftext|><|endoftext|><|endoftext|><|endoftext|><|endoftext|><|endoftext|><|endoftext|><|endoftext|><|endoftext|><|endoftext|><|endoftext|><|endoftext|><|endoftext|><|endoftext|><|endoftext|><|endoftext|><|endoftext|><|endoftext|><|endoftext|><|endoftext|><|endoftext|><|endoftext|><|endoftext|><|endoftext|><|endoftext|><|endoftext|><|endoftext|><|endoftext|><|endoftext|><|endoftext|><|endoftext|><|endoftext|><|endoftext|><|endoftext|><|endoftext|><|endoftext|><|endoftext|><|endoftext|><|endoftext|><|endoftext|><|endoftext|><|endoftext|><|endoftext|><|endoftext|><|endoftext|><|endoftext|><|im_start|>system
+You are a helpful assistant. You first thinks about the reasoning process in the mind and then provides the user with the answer.<|im_end|>
+<|im_start|>user
+You are a Sokoban solver.
 
 Sokoban Quick Guide
 Goal: Push all boxes (X) onto targets (O).
@@ -41,22 +44,16 @@ Win when all X become √! 🎯
 
 [Cumulative Observations]:
  # 	 # 	 # 	 # 	 # 	 # 	
+ # 	 O 	 _ 	 X 	 P 	 # 	
+ # 	 _ 	 _ 	 X 	 _ 	 # 	
+ # 	 _ 	 O 	 _ 	 # 	 # 	
+ # 	 _ 	 _ 	 # 	 # 	 # 	
  # 	 # 	 # 	 # 	 # 	 # 	
- # 	 # 	 # 	 P 	 _ 	 # 	
- # 	 O 	 X 	 X 	 _ 	 # 	
- # 	 _ 	 _ 	 O 	 _ 	 # 	
- # 	 # 	 # 	 # 	 # 	 # 	
-Decide the next action: 
+Decide the next action:
+Show your work in <think> </think> tags. And return the final answer in <answer> </answer> tags, for example <think> [Your thoughts] </think> <answer> 1 </answer><|im_end|>
+<|im_start|>assistant
+Let me solve this step by step.
+<think> After observing this lever arm reinforcement, it appears I should take the right path. The box will eventually disappear, and I'll minimize the chance of trapped boxes towards the goal. Therefore, the optimal strategy is: </think> 3 (Right)
 
-Thoughts: First, push the *wall* to the *LEFT* to avoid breaking the target when minimizing movement.
-Action: 3
+Action: 3<|im_end|>
 
-Tip: Battle walls by pushing boxes containing walls and breaking barriers.
-Reinforce your solution!
-
-Now you are ready to enter to the game.
-Good luck! 🌟
-Thoughts: Now I push all Xs to Break your path if possible.initialize Sokoban with the initial puzzles and get mapped.So I will print this J.K.'s Save state
-Thoughts: Sokoban for solving NEEDS MAP !! use the Sokoban map.add_boxes(dx, dy, box)s on positions愦ssizione !! LISTEN WHEN PLANE DLTBOX!!
-Thoughts: The M display inside the byteFinds the target and calculates it.MOVE TO THE NEXT GOAL ON THAT PLATFORM
-Impazione temporale: Initially, the input library is located at your GitHub repository.Static FS observable then squadort descriptor to make the game

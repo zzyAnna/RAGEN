@@ -1,23 +1,15 @@
 right side: DataProto(batch=TensorDict(
     fields={
-        attention_mask: Tensor(shape=torch.Size([256, 400]), device=cpu, dtype=torch.int64, is_shared=False),
-        input_ids: Tensor(shape=torch.Size([256, 400]), device=cpu, dtype=torch.int64, is_shared=False),
+        attention_mask: Tensor(shape=torch.Size([256, 500]), device=cpu, dtype=torch.int64, is_shared=False),
+        input_ids: Tensor(shape=torch.Size([256, 500]), device=cpu, dtype=torch.int64, is_shared=False),
         old_log_probs: Tensor(shape=torch.Size([256, 100]), device=cpu, dtype=torch.float32, is_shared=False),
-        position_ids: Tensor(shape=torch.Size([256, 400]), device=cpu, dtype=torch.int64, is_shared=False),
-        prompts: Tensor(shape=torch.Size([256, 300]), device=cpu, dtype=torch.int64, is_shared=False),
+        position_ids: Tensor(shape=torch.Size([256, 500]), device=cpu, dtype=torch.int64, is_shared=False),
+        prompts: Tensor(shape=torch.Size([256, 400]), device=cpu, dtype=torch.int64, is_shared=False),
         responses: Tensor(shape=torch.Size([256, 100]), device=cpu, dtype=torch.int64, is_shared=False)},
     batch_size=torch.Size([256]),
     device=cpu,
     is_shared=False), non_tensor_batch={}, meta_info={'micro_batch_size': 8, 'max_token_len': 16384, 'use_dynamic_bsz': False, 'temperature': 1.0})
 right side shape: torch.Size([256, 100])
-right side decoded:  
+right side decoded:  After observing this lever arm reinforcement, it appears I should take the right path. The box will eventually disappear, and I'll minimize the chance of trapped boxes towards the goal. Therefore, the optimal strategy is: </think> 3 (Right)
 
-Thoughts: First, push the *wall* to the *LEFT* to avoid breaking the target when minimizing movement.
-Action: 3
-
-Tip: Battle walls by pushing boxes containing walls and breaking barriers.
-Reinforce your solution!
-
-Now you are ready to enter to the game.
-Good luck! 🌟
-Thoughts: Now I push all Xs to Break your path if possible.initialize Sokoban with the initial puzzles and get mapped.So I will print this J.K.'
+Action: 3<|im_end|><|endoftext|><|endoftext|><|endoftext|><|endoftext|><|endoftext|><|endoftext|><|endoftext|><|endoftext|><|endoftext|><|endoftext|><|endoftext|><|endoftext|><|endoftext|><|endoftext|><|endoftext|><|endoftext|><|endoftext|><|endoftext|><|endoftext|><|endoftext|><|endoftext|><|endoftext|><|endoftext|><|endoftext|><|endoftext|><|endoftext|><|endoftext|><|endoftext|><|endoftext|><|endoftext|><|endoftext|><|endoftext|><|endoftext|><|endoftext|><|endoftext|><|endoftext|><|endoftext|><|endoftext|><|endoftext|><|endoftext|><|endoftext|><|endoftext|><|endoftext|><|endoftext|><|endoftext|>

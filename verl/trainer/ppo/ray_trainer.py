@@ -666,7 +666,7 @@ class RayPPOTrainer(object):
                     }
                     meta_info = {}
                     
-                    if exists, remove the existing log
+                    # if exists, remove the existing log
                     if os.path.exists(f'.log.debug'):
                         shutil.rmtree(f'.log.debug')
 

@@ -1,16 +1,13 @@
 right side: DataProto(batch=TensorDict(
     fields={
-        attention_mask: Tensor(shape=torch.Size([256, 597]), device=cpu, dtype=torch.int64, is_shared=False),
-        input_ids: Tensor(shape=torch.Size([256, 597]), device=cpu, dtype=torch.int64, is_shared=False),
+        attention_mask: Tensor(shape=torch.Size([256, 692]), device=cpu, dtype=torch.int64, is_shared=False),
+        input_ids: Tensor(shape=torch.Size([256, 692]), device=cpu, dtype=torch.int64, is_shared=False),
         old_log_probs: Tensor(shape=torch.Size([256, 100]), device=cpu, dtype=torch.float32, is_shared=False),
-        position_ids: Tensor(shape=torch.Size([256, 597]), device=cpu, dtype=torch.int64, is_shared=False),
-        prompts: Tensor(shape=torch.Size([256, 497]), device=cpu, dtype=torch.int64, is_shared=False),
+        position_ids: Tensor(shape=torch.Size([256, 692]), device=cpu, dtype=torch.int64, is_shared=False),
+        prompts: Tensor(shape=torch.Size([256, 592]), device=cpu, dtype=torch.int64, is_shared=False),
         responses: Tensor(shape=torch.Size([256, 100]), device=cpu, dtype=torch.int64, is_shared=False)},
     batch_size=torch.Size([256]),
     device=cpu,
     is_shared=False), non_tensor_batch={}, meta_info={'micro_batch_size': 8, 'max_token_len': 16384, 'use_dynamic_bsz': False, 'temperature': 1.0})
 right side shape: torch.Size([256, 100])
-right side decoded: ys.
-Thoughts: The initial puzzle states are already loaded and ready. Verify this by the inside SMD.Any problem with Sokoban initialization is now resolved.Check all necessary libraries and assert they are properly loaded.
-Thoughts: Reilyusing the Loaded data is finally implemented. Focus on properly structuring and arranging the initial puzzle and get ready to get stuck, push the boxes on target and breakpoints and play! KEEP朘 and you LOVED it! 🎯
-Thoughts: Defined
+right side decoded: <|endoftext|><|endoftext|><|endoftext|><|endoftext|><|endoftext|><|endoftext|><|endoftext|><|endoftext|><|endoftext|><|endoftext|><|endoftext|><|endoftext|><|endoftext|><|endoftext|><|endoftext|><|endoftext|><|endoftext|><|endoftext|><|endoftext|><|endoftext|><|endoftext|><|endoftext|><|endoftext|><|endoftext|><|endoftext|><|endoftext|><|endoftext|><|endoftext|><|endoftext|><|endoftext|><|endoftext|><|endoftext|><|endoftext|><|endoftext|><|endoftext|><|endoftext|><|endoftext|><|endoftext|><|endoftext|><|endoftext|><|endoftext|><|endoftext|><|endoftext|><|endoftext|><|endoftext|><|endoftext|><|endoftext|><|endoftext|><|endoftext|><|endoftext|><|endoftext|><|endoftext|><|endoftext|><|endoftext|><|endoftext|><|endoftext|><|endoftext|><|endoftext|><|endoftext|><|endoftext|><|endoftext|><|endoftext|><|endoftext|><|endoftext|><|endoftext|><|endoftext|><|endoftext|><|endoftext|><|endoftext|><|endoftext|><|endoftext|><|endoftext|><|endoftext|><|endoftext|><|endoftext|><|endoftext|><|endoftext|><|endoftext|><|endoftext|><|endoftext|><|endoftext|><|endoftext|><|endoftext|><|endoftext|><|endoftext|><|endoftext|><|endoftext|><|endoftext|><|endoftext|><|endoftext|><|endoftext|><|endoftext|><|endoftext|><|endoftext|><|endoftext|><|endoftext|><|endoftext|><|endoftext|><|endoftext|><|endoftext|>
