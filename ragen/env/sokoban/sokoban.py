@@ -157,6 +157,7 @@ class SokobanEnv(gym_sokoban.envs.sokoban_env.SokobanEnv):
         self.player_position = np.argwhere(self.room_state == 5)[0]
         
         
+    # Add rgb_array mode
     def render(self, mode='tiny_rgb_array'):
         assert mode in ['tiny_rgb_array', 'list', 'state']
         if mode == 'state':
@@ -172,6 +173,9 @@ class SokobanEnv(gym_sokoban.envs.sokoban_env.SokobanEnv):
             lookup = lambda cell: GRID_LOOKUP.get(cell, "?")
             return "\n".join("".join(lookup(cell) for cell in row) for row in room_state)
     
+        if mode == 'rgb_array':
+            img = self.get_image(mode, scale=1)
+            return img
     
     def copy(self):
         new_self = SokobanEnv(
