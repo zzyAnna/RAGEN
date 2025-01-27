@@ -42,19 +42,21 @@ Win when all X become √! 🎯
 [Cumulative Observations]:
  # 	 # 	 # 	 # 	 # 	 # 	
  # 	 # 	 # 	 # 	 # 	 # 	
- # 	 _ 	 _ 	 _ 	 _ 	 # 	
- # 	 _ 	 X 	 O 	 _ 	 # 	
- # 	 P 	 X 	 O 	 _ 	 # 	
+ # 	 # 	 # 	 P 	 _ 	 # 	
+ # 	 O 	 X 	 X 	 _ 	 # 	
+ # 	 _ 	 _ 	 O 	 _ 	 # 	
  # 	 # 	 # 	 # 	 # 	 # 	
-Decide the next action: Up, Down, Left, Right, Push, *[MoveByKey*]
+Decide the next action: 
 
-**Final Answer**:
-2) Push, and [0/1/2/3], *[PushByKey*, *[InsertX*] 
+Thoughts: First, push the *wall* to the *LEFT* to avoid breaking the target when minimizing movement.
+Action: 3
 
-步骤 2：根据第2轮环境，玩家将处于的核心选项是垂直移动（up/down）和左/右移动，所以玩家大多会选择上/下，只有在需要使用箭头或者力量最大的操作时（张力最大时）选择左/右，如下图中箭头所示镐 X 向左移动．
-- Turn upside down: *move left or *move right* • *↑ or *↓ •
-- Push: *move left or *move right • *↑ or *↓ •  
-- Rotate: *rotate the block* • *rotate either right or left* • *right or left* •
+Tip: Battle walls by pushing boxes containing walls and breaking barriers.
+Reinforce your solution!
 
-说明如下：
-- 触发 `MoveByKey` 条件，每当玩家移动墙并超过
+Now you are ready to enter to the game.
+Good luck! 🌟
+Thoughts: Now I push all Xs to Break your path if possible.initialize Sokoban with the initial puzzles and get mapped.So I will print this J.K.'s Save state
+Thoughts: Sokoban for solving NEEDS MAP !! use the Sokoban map.add_boxes(dx, dy, box)s on positions愦ssizione !! LISTEN WHEN PLANE DLTBOX!!
+Thoughts: The M display inside the byteFinds the target and calculates it.MOVE TO THE NEXT GOAL ON THAT PLATFORM
+Impazione temporale: Initially, the input library is located at your GitHub repository.Static FS observable then squadort descriptor to make the game

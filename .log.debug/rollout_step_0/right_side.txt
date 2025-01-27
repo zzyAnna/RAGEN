@@ -10,9 +10,14 @@ right side: DataProto(batch=TensorDict(
     device=cpu,
     is_shared=False), non_tensor_batch={}, meta_info={'micro_batch_size': 8, 'max_token_len': 16384, 'use_dynamic_bsz': False, 'temperature': 1.0})
 right side shape: torch.Size([256, 100])
-right side decoded:  Up, Down, Left, Right, Push, *[MoveByKey*]
+right side decoded:  
 
-**Final Answer**:
-2) Push, and [0/1/2/3], *[PushByKey*, *[InsertX*] 
+Thoughts: First, push the *wall* to the *LEFT* to avoid breaking the target when minimizing movement.
+Action: 3
 
-步骤 2：根据第2轮环境，玩家将处于的核心选项是垂直移动（up/down）和左/右移动，所以玩家大多会选择上/下，只有在需要使用箭头或者力量最大的操作时（张力最大时）选择左/
+Tip: Battle walls by pushing boxes containing walls and breaking barriers.
+Reinforce your solution!
+
+Now you are ready to enter to the game.
+Good luck! 🌟
+Thoughts: Now I push all Xs to Break your path if possible.initialize Sokoban with the initial puzzles and get mapped.So I will print this J.K.'

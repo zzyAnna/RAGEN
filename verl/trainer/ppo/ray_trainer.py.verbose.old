@@ -564,6 +564,12 @@ class RayPPOTrainer(object):
 
         return converted_tensor, sorted_indices
 
+    # def _record_batch(self, batch: DataProto, path: str):
+    #     dirname = os.path.dirname(path)
+    #     os.makedirs(dirname, exist_ok=True)
+    #     with open(path, 'w') as f:
+    #         f.write(f"gen batch: {batch}\n")
+
     def fit(self):
         """
         The training loop of PPO.
@@ -666,25 +672,25 @@ class RayPPOTrainer(object):
                     }
                     meta_info = {}
                     
-                    if exists, remove the existing log
-                    if os.path.exists(f'.log.debug'):
-                        shutil.rmtree(f'.log.debug')
+                    # if exists, remove the existing log
+                    # if os.path.exists(f'.log.debug'):
+                    #     shutil.rmtree(f'.log.debug')
 
                     for rollout_step in range(K):
+                        # print(f"current gen batch: {rollings}")
                         with _timer(f'gen', timing_raw):
                             gen_batch_output = self.actor_rollout_wg.generate_sequences(rollings)  # [IMPLEMENT]
                             meta_info.update(gen_batch_output.meta_info)
 
-
-                        os.makedirs(f'.log.debug/rollout_step_{rollout_step}', exist_ok=True)
-                        with open(f'.log.debug/rollout_step_{rollout_step}/left_side.txt', 'a') as f:
-                            f.write(f"left side: {rollings}\n")
-                            f.write(f"left side shape: {rollings.batch['input_ids'].shape}\n")
-                            f.write(f"left side decoded: {self.tokenizer.decode(rollings.batch['input_ids'][0], skip_special_tokens=False)}\n")
-                        with open(f'.log.debug/rollout_step_{rollout_step}/right_side.txt', 'a') as f:
-                            f.write(f"right side: {gen_batch_output}\n")
-                            f.write(f"right side shape: {gen_batch_output.batch['responses'].shape}\n")
-                            f.write(f"right side decoded: {self.tokenizer.decode(gen_batch_output.batch['responses'][0], skip_special_tokens=False)}\n")
+                        # os.makedirs(f'.log.debug/rollout_step_{rollout_step}', exist_ok=True)
+                        # with open(f'.log.debug/rollout_step_{rollout_step}/left_side.txt', 'a') as f:
+                        #     f.write(f"left side: {rollings}\n")
+                        #     f.write(f"left side shape: {rollings.batch['input_ids'].shape}\n")
+                        #     f.write(f"left side decoded: {self.tokenizer.decode(rollings.batch['input_ids'][0], skip_special_tokens=False)}\n")
+                        # with open(f'.log.debug/rollout_step_{rollout_step}/right_side.txt', 'a') as f:
+                        #     f.write(f"right side: {gen_batch_output}\n")
+                        #     f.write(f"right side shape: {gen_batch_output.batch['responses'].shape}\n")
+                        #     f.write(f"right side decoded: {self.tokenizer.decode(gen_batch_output.batch['responses'][0], skip_special_tokens=False)}\n")
 
 
                         cur_responses = gen_batch_output.batch['responses']          # [BSZ, MAX_RESP_LEN]

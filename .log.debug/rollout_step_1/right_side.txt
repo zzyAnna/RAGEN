@@ -10,10 +10,7 @@ right side: DataProto(batch=TensorDict(
     device=cpu,
     is_shared=False), non_tensor_batch={}, meta_info={'micro_batch_size': 8, 'max_token_len': 16384, 'use_dynamic_bsz': False, 'temperature': 1.0})
 right side shape: torch.Size([256, 100])
-right side decoded: 右，如下图中箭头所示镐 X 向左移动．
-- Turn upside down: *move left or *move right* • *↑ or *↓ •
-- Push: *move left or *move right • *↑ or *↓ •  
-- Rotate: *rotate the block* • *rotate either right or left* • *right or left* •
-
-说明如下：
-- 触发 `MoveByKey` 条件，每当玩家移动墙并超过
+right side decoded: s Save state
+Thoughts: Sokoban for solving NEEDS MAP !! use the Sokoban map.add_boxes(dx, dy, box)s on positions愦ssizione !! LISTEN WHEN PLANE DLTBOX!!
+Thoughts: The M display inside the byteFinds the target and calculates it.MOVE TO THE NEXT GOAL ON THAT PLATFORM
+Impazione temporale: Initially, the input library is located at your GitHub repository.Static FS observable then squadort descriptor to make the game

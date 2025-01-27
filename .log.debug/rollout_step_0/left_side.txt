@@ -42,8 +42,8 @@ Win when all X become √! 🎯
 [Cumulative Observations]:
  # 	 # 	 # 	 # 	 # 	 # 	
  # 	 # 	 # 	 # 	 # 	 # 	
- # 	 _ 	 _ 	 _ 	 _ 	 # 	
- # 	 _ 	 X 	 O 	 _ 	 # 	
- # 	 P 	 X 	 O 	 _ 	 # 	
+ # 	 # 	 # 	 P 	 _ 	 # 	
+ # 	 O 	 X 	 X 	 _ 	 # 	
+ # 	 _ 	 _ 	 O 	 _ 	 # 	
  # 	 # 	 # 	 # 	 # 	 # 	
 Decide the next action:

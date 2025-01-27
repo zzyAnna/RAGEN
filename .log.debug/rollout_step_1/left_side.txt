@@ -42,13 +42,18 @@ Win when all X become √! 🎯
 [Cumulative Observations]:
  # 	 # 	 # 	 # 	 # 	 # 	
  # 	 # 	 # 	 # 	 # 	 # 	
- # 	 _ 	 _ 	 _ 	 _ 	 # 	
- # 	 _ 	 X 	 O 	 _ 	 # 	
- # 	 P 	 X 	 O 	 _ 	 # 	
+ # 	 # 	 # 	 P 	 _ 	 # 	
+ # 	 O 	 X 	 X 	 _ 	 # 	
+ # 	 _ 	 _ 	 O 	 _ 	 # 	
  # 	 # 	 # 	 # 	 # 	 # 	
-Decide the next action: Up, Down, Left, Right, Push, *[MoveByKey*]
+Decide the next action: 
 
-**Final Answer**:
-2) Push, and [0/1/2/3], *[PushByKey*, *[InsertX*] 
+Thoughts: First, push the *wall* to the *LEFT* to avoid breaking the target when minimizing movement.
+Action: 3
 
-步骤 2：根据第2轮环境，玩家将处于的核心选项是垂直移动（up/down）和左/右移动，所以玩家大多会选择上/下，只有在需要使用箭头或者力量最大的操作时（张力最大时）选择左/
+Tip: Battle walls by pushing boxes containing walls and breaking barriers.
+Reinforce your solution!
+
+Now you are ready to enter to the game.
+Good luck! 🌟
+Thoughts: Now I push all Xs to Break your path if possible.initialize Sokoban with the initial puzzles and get mapped.So I will print this J.K.'

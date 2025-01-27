@@ -19,6 +19,10 @@ from ragen.env.sokoban import SokobanEnv
 from ragen.evaluators.trajectory_evaluator import TrajectoryEvaluator
 # from ragen.utils.dataset import Dataset
 
+templates = {
+    'qwen-instruct': '<|im_start|>system\nYou are a helpful assistant. You first thinks about the reasoning process in the mind and then provides the user with the answer.<|im_end|>\n<|im_start|>user\n{prompt}\nShow your work in <think> </think> tags. And return the final answer in <answer> </answer> tags, for example <answer> 1 </answer><|im_end|>\n<|im_start|>assistant\nLet me solve this step by step.\n<think>',
+    'base': 'A conversation between User and Assistant. The user asks a question, and the Assistant solves it. The assistant first thinks about the reasoning process in the mind and then provides the user with the answer.\nUser: {prompt}\nShow your work in <think> </think> tags. And return the final answer in <answer> </answer> tags, for example <answer> 1 </answer>\nAssistant: Let me solve this step by step.\n<think>'
+}
 
 def main():
     # Parse command-line arguments
@@ -30,6 +34,8 @@ def main():
     parser.add_argument("--train_size", type=int, default=300, help="Number of trajectories to generate (default: 3000).")
     parser.add_argument("--test_size", type=int, default=10, help="Number of trajectories to generate (default: 100).")
     parser.add_argument("--bfs_max_nodes", type=int, default=1000, help="Maximum number of nodes to use for BFS (default: 100000).") # not using this now. This will usually give the best traj. To compare with SFT, we will try this later.
+    parser.add_argument("--prefix", type=str, default='qwen-instruct', choices=['qwen-instruct', 'base'])
+
     args = parser.parse_args()
     
     assert args.env == "sokoban", "Unsupported environment: {args.env}"
@@ -59,12 +65,11 @@ def main():
 
     # dataset just need to provide placeholders
     def _create_instance(idx, traj):
-        """
-        Actually, we are not using any information from the trajectories now except the random seed index, but just launch the envs in the training rollout process.
-        """
+        prompt_formatted = templates[args.prefix].format(prompt=traj[0]['policy_input'])
+
         return {
             "data_source": data_source,
-            "prompt": [{"role": "user", "content": traj[0]['policy_input']}],
+            "prompt": [{"role": "user", "content": prompt_formatted}],
             "ability": "bfs",
             "reward_model": {"style": "rule", "ground_truth": {"target": 0, "numbers": [0, 0]}},
             "extra_info": {"split": "train", "index": idx}
