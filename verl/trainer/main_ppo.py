@@ -34,9 +34,17 @@ def _select_rm_score_fn(data_source):
             solution = kwargs['solution_str']
             # 1. reward based on the game:
             # find all patterns like reward: -0.1\n, add them together as reward.
-            pattern = r'reward: (-?\d+\.\d+)\n'
+            # 1. game reward
+            pattern = r'reward: (-?\d+\.\d+)\ndone: (True|False)'
             matches = re.findall(pattern, solution)
-            reward = sum(float(match) for match in matches)
+            reward = sum(float(match[0]) for match in matches)
+            print(f"reward: {reward}")
+            # 2. format reward, find "action is invalid", add -0.1 to reward
+            pattern = r'Action is invalid. You stay in the same position.'
+            matches = re.findall(pattern, solution)
+            reward -= len(matches) * 0.1
+            if reward > 15:
+                print(f"[REWARD TOO MUCH]. solution: \n{solution}")
             print(f"reward: {reward}")
             return reward
 

@@ -24,17 +24,20 @@ class SokobanEnv(gym_sokoban.envs.sokoban_env.SokobanEnv):
         # search depth should be smaller than max steps to ensure the game can be finished
     
     @staticmethod
-    def parse_update_info_to_obs(update_info):
+    def parse_update_info_to_obs(update_info, action_is_valid):
         observation, reward, done, _ = update_info
-        output_str = f"After you take this action, the observation is: \n{observation}\nreward: {reward}\ndone: {done}\n"
+        if not action_is_valid:
+            output_str = f"Action is invalid. You stay in the same position. The observation is: \n{observation}\nreward: {reward}\ndone: {done}\n"
+        else:
+            output_str = f"After you take this action, the observation is: \n{observation}\nreward: {reward}\ndone: {done}\n"
         return output_str
 
     @classmethod
     def execute_predictions(cls, envs, predictions, pad_token):
         # print length of envs, predictions
-        cur_actions = cls.postprocess_predictions(predictions)
+        cur_actions, action_is_valid = cls.postprocess_predictions(predictions)
         next_obs = []
-        for env, action, response in zip(envs, cur_actions, predictions):
+        for env, action, response, av in zip(envs, cur_actions, predictions, action_is_valid):
             # 1. check whether cur_response has the end token
             obs = ""
             # if "</answer>" not in response:
@@ -46,7 +49,7 @@ class SokobanEnv(gym_sokoban.envs.sokoban_env.SokobanEnv):
             if env.success():
                 obs += pad_token
             else:
-                env_feedback = cls.parse_update_info_to_obs(env.step(action))
+                env_feedback = cls.parse_update_info_to_obs(env.step(action), av)
                 obs += "\n <|im_start|>user\n" + env_feedback + "<|im_end|>\n" + "<|im_start|>assistant\n<think>"
             next_obs.append(obs)
         return next_obs
@@ -54,28 +57,39 @@ class SokobanEnv(gym_sokoban.envs.sokoban_env.SokobanEnv):
     @staticmethod
     def postprocess_predictions(predictions):
         actions = []
+        action_is_valid = []
         for prediction in predictions:
             if type(prediction) == str:
                 if "<answer>" in prediction:
-                    action = prediction.split("<answer>")[1].strip()
-                    if "up" in action.lower():
-                        action = 1
-                    elif "down" in action.lower():
-                        action = 2
-                    elif "left" in action.lower():
-                        action = 3
-                    elif "right" in action.lower():
-                        action = 4
-                    if "1" in action:
-                        action = 1
-                    elif "2" in action:
-                        action = 2
-                    elif "3" in action:
-                        action = 3
-                    elif "4" in action:
-                        action = 4
+                    action = prediction.split("<answer>")[1].split("</answer>")[0].strip()
                 else:
                     action = prediction.strip()[-1]
+                print(f"[Action]: \n{action}\n")
+
+                if "up" in action.lower():
+                    action = 1
+                elif "down" in action.lower():
+                    action = 2
+                elif "left" in action.lower():
+                    action = 3
+                elif "right" in action.lower():
+                    action = 4
+                elif "1" in action:
+                    action = 1
+                elif "2" in action:
+                    action = 2
+                elif "3" in action:
+                    action = 3
+                elif "4" in action:
+                    action = 4
+                
+                if action not in [1, 2, 3, 4]:
+                    action_is_valid.append(False)
+                    print(f"[Invalid action]: \n{prediction}\n")
+                    action = 0
+                else:
+                    action_is_valid.append(True)
+                    print(f"[Valid action]: \n{prediction}\n")
             elif type(prediction) == int:
                 action = prediction if prediction in [1, 2, 3, 4] else 0
             elif type(prediction) == list:
@@ -85,7 +99,7 @@ class SokobanEnv(gym_sokoban.envs.sokoban_env.SokobanEnv):
             else:
                 raise ValueError(f"Invalid prediction type: {type(prediction)}")
             actions.append(action)
-        return actions
+        return actions, action_is_valid
     
     def get_all_actions(self):
         return list(range(self.action_space.start, self.action_space.start + self.action_space.n))
