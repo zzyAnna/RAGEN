@@ -55,41 +55,43 @@ class SokobanEnv(gym_sokoban.envs.sokoban_env.SokobanEnv):
         return next_obs
 
     @staticmethod
+    def extract_action(text):
+        DIRECTION_MAP = {"Up":"1", "Down":"2", "Left":"3", "Right":"4"}
+        pattern = r'^\s*(([1-4])\s*\((Up|Down|Left|Right)\)|(Up|Down|Left|Right)|([1-4]))\s*$'
+        match = re.fullmatch(pattern, text.strip(), flags=re.X)
+        if not match:
+            return 0
+        
+        # 按优先级解析匹配结果
+        if match.group(1):  # 数字 (方向) 格式
+            return match.group(1)
+        elif match.group(3):  # 纯方向
+            return DIRECTION_MAP[match.group(3)]
+        elif match.group(4):  # 纯数字
+            return match.group(4)
+        return 0
+
+
+    @staticmethod
     def postprocess_predictions(predictions):
         actions = []
         action_is_valid = []
         for prediction in predictions:
             if type(prediction) == str:
+                # for llms
                 if "<answer>" in prediction:
                     action = prediction.split("<answer>")[1].split("</answer>")[0].strip()
                 else:
-                    action = prediction.strip()[-1]
-                print(f"[Action]: \n{action}\n")
+                    action = prediction.strip()
 
-                if "up" in action.lower():
-                    action = 1
-                elif "down" in action.lower():
-                    action = 2
-                elif "left" in action.lower():
-                    action = 3
-                elif "right" in action.lower():
-                    action = 4
-                elif "1" in action:
-                    action = 1
-                elif "2" in action:
-                    action = 2
-                elif "3" in action:
-                    action = 3
-                elif "4" in action:
-                    action = 4
-                
-                if action not in [1, 2, 3, 4]:
-                    action_is_valid.append(False)
+                action = SokobanEnv.extract_action(action)
+                if action == 0:
                     print(f"[Invalid action]: \n{prediction}\n")
-                    action = 0
+                    action_is_valid.append(False)
                 else:
                     action_is_valid.append(True)
-                    print(f"[Valid action]: \n{prediction}\n")
+
+            # below is for non-llm strategies later
             elif type(prediction) == int:
                 action = prediction if prediction in [1, 2, 3, 4] else 0
             elif type(prediction) == list:
