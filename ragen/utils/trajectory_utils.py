@@ -114,7 +114,6 @@ def generate_trajectory_multienv(
             if type(action) != list: action = [action]
             if type(action_full) != list: action_full = [action_full]
             if type(policy_input) != list: policy_input = [policy_input]
-            print("[HEY]")
 
             for a, a_full, pinput in zip(action, action_full, policy_input):
                 if step >= max_steps: break
