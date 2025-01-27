@@ -694,18 +694,18 @@ class RayPPOTrainer(object):
                         now = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
                         with open(f'.log.debug/rollout_step_{rollout_step}/left_side.txt', 'w') as f:
                             f.write(f"{now}\n")
-                            f.write(f"left side: \n{rollings}\n")
-                            f.write(f"left side shape: \n{rollings.batch['input_ids'].shape}\n")
+                            f.write(f"[left side]: \n{rollings}\n")
+                            f.write(f"[left side shape]: \n{rollings.batch['input_ids'].shape}\n")
                             for idx in range(4):
-                                f.write(f"left side decoded: \n{self.tokenizer.decode(rollings.batch['input_ids'][idx], skip_special_tokens=False)}\n")
+                                f.write(f"[left side decoded]: \n{self.tokenizer.decode(rollings.batch['input_ids'][idx], skip_special_tokens=False)}\n")
                             f.write(f"\n")
 
                         with open(f'.log.debug/rollout_step_{rollout_step}/right_side.txt', 'w') as f:
                             f.write(f"{now}\n")
-                            f.write(f"right side: \n{gen_batch_output}\n")
-                            f.write(f"right side shape: \n{gen_batch_output.batch['responses'].shape}\n")
+                            f.write(f"[right side]: \n{gen_batch_output}\n")
+                            f.write(f"[right side shape]: \n{gen_batch_output.batch['responses'].shape}\n")
                             for idx in range(4):
-                                f.write(f"right side decoded: \n{self.tokenizer.decode(gen_batch_output.batch['responses'][idx], skip_special_tokens=False)}\n")
+                                f.write(f"[right side decoded]: \n{self.tokenizer.decode(gen_batch_output.batch['responses'][idx], skip_special_tokens=False)}\n")
                             f.write(f"\n")
 
 
@@ -715,6 +715,8 @@ class RayPPOTrainer(object):
 
                         next_obs_input_ids = self.tokenizer(next_obs, padding='longest', return_tensors='pt')['input_ids']
                         if next_obs_input_ids.shape[1] > max_obs_len:
+                            print("NO!!!!")
+                            print(next_obs_input_ids.shape)
                             next_obs_input_ids = next_obs_input_ids[:, :max_obs_len]
 
                         cur_responses = gen_batch_output.batch['responses']          # [BSZ, MAX_RESP_LEN]

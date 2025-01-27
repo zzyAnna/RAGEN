@@ -37,8 +37,8 @@ class SokobanEnv(gym_sokoban.envs.sokoban_env.SokobanEnv):
         for env, action, response in zip(envs, cur_actions, predictions):
             # 1. check whether cur_response has the end token
             obs = ""
-            if "</answer>" not in response:
-                obs += "</answer>"
+            # if "</answer>" not in response:
+            #     obs += "</answer>"
             if "<|im_end|>" not in response:
                 obs += "<|im_end|>"
 
@@ -47,7 +47,7 @@ class SokobanEnv(gym_sokoban.envs.sokoban_env.SokobanEnv):
                 obs += pad_token
             else:
                 env_feedback = cls.parse_update_info_to_obs(env.step(action))
-                obs += "<|im_start|>user\n" + env_feedback + "<|im_end|>" + "<|im_start|>assistant\n<think>"
+                obs += "\n <|im_start|>user\n" + env_feedback + "<|im_end|>\n" + "<|im_start|>assistant\n<think>"
             next_obs.append(obs)
         return next_obs
 
@@ -61,13 +61,13 @@ class SokobanEnv(gym_sokoban.envs.sokoban_env.SokobanEnv):
                     action = action[0] if action else action
                 else:
                     action = prediction.strip()[-1]
-                action = int(action) if action in ['1', '2', '3', '4'] else 1
+                action = int(action) if action in ['1', '2', '3', '4'] else 0
             elif type(prediction) == int:
-                action = prediction if prediction in [1, 2, 3, 4] else 1
+                action = prediction if prediction in [1, 2, 3, 4] else 0
             elif type(prediction) == list:
                 action = prediction
             elif prediction == None:
-                action = 1 # BFS did not find a solution
+                action = 0 # BFS did not find a solution
             else:
                 raise ValueError(f"Invalid prediction type: {type(prediction)}")
             actions.append(action)
@@ -92,7 +92,7 @@ class SokobanEnv(gym_sokoban.envs.sokoban_env.SokobanEnv):
                 next_seed = hash(str(seed)) if seed is not None else None
                 return self.reset(mode, next_seed)
             
-            self.action_sequence = self._reverse_action_sequence(action_sequence)
+            # self.action_sequence = self._reverse_action_sequence(action_sequence)
             self.player_position = np.argwhere(self.room_state == 5)[0]
             self.num_env_steps = self.reward_last = self.boxes_on_target = 0
             return self.render(mode)
@@ -101,10 +101,10 @@ class SokobanEnv(gym_sokoban.envs.sokoban_env.SokobanEnv):
         return self.boxes_on_target == self.num_boxes
     
      
-    def _reverse_action_sequence(self, action_sequence):
-        def reverse_action(action):
-            return (action % 2 + 1) % 2 + 2 * (action // 2) # 0 <-> 1, 2 <-> 3
-        return [reverse_action(action) + 1 for action in action_sequence[::-1]] # action + 1 to match the action space
+    # def _reverse_action_sequence(self, action_sequence):
+    #     def reverse_action(action):
+    #         return (action % 2 + 1) % 2 + 2 * (action // 2) # 0 <-> 1, 2 <-> 3
+    #     return [reverse_action(action) + 1 for action in action_sequence[::-1]] # action + 1 to match the action space
 
     def step(self, action: int or list):
         actions = [action] if isinstance(action, int) else action
@@ -167,6 +167,7 @@ GRID_LOOKUP = {
         }
 
 ACTION_LOOKUP = {
+    0: "none",
     1: "up",
     2: "down",
     3: "left",

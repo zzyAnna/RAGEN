@@ -27,7 +27,7 @@ class TrajectoryTransformation:
             "\n"
             "Rules:\n" + "1. Push boxes (can't pull).\n" + "2. Avoid walls (#).\n"
             "\n"
-            "Answers:\n" + "1 (Up) | 2 (Down) | 3 (Left) | 4 (Right)\n"
+            "Answers:\n" + "<answer> 1 (Up) </answer> | <answer> 2 (Down) </answer> | <answer> 3 (Left) </answer> | <answer> 4 (Right) </answer>\n"
             "\n"
             "Rewards:\n" + "Move: -0.1\n" + "Box on target: +1.0\n" + "All boxes placed: +10.0\n"
             "\n"
