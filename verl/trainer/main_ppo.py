@@ -77,6 +77,8 @@ class RewardManager():
 
         reward_tensor = torch.zeros_like(data.batch['responses'], dtype=torch.float32)
 
+        all_scores = []
+
         already_print_data_sources = {}
 
         for i in range(len(data)):
@@ -105,6 +107,7 @@ class RewardManager():
 
             score = compute_score_fn(solution_str=sequences_str, ground_truth=ground_truth)
             reward_tensor[i, valid_response_length - 1] = score
+            all_scores.append(score)
 
             if data_source not in already_print_data_sources:
                 already_print_data_sources[data_source] = 0
@@ -113,11 +116,12 @@ class RewardManager():
                 already_print_data_sources[data_source] += 1
                 print(sequences_str)
         
-        print(f"[DEBUG] reward_tensor: {reward_tensor}")
-        print(f"[DEBUG] reward_tensor shape: {reward_tensor.shape}")
-        print(f"[DEBUG] reward_tensor mean value: {reward_tensor.mean()}")
-        print(f"[DEBUG] reward_tensor max value: {reward_tensor.max()}")
-        print(f"[DEBUG] reward_tensor min value: {reward_tensor.min()}")
+        print(f"[DEBUG] all_scores: {all_scores}")
+        print(f"[DEBUG] all_scores shape: {np.array(all_scores).shape}")
+        print(f"[DEBUG] all_scores mean: {np.mean(all_scores)}")
+        print(f"[DEBUG] all_scores max: {np.max(all_scores)}")
+        print(f"[DEBUG] all_scores min: {np.min(all_scores)}")
+        print(f"[DEBUG] all_scores std: {np.std(all_scores)}")
 
         return reward_tensor
 
