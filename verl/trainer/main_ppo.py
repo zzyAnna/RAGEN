@@ -45,7 +45,6 @@ def _select_rm_score_fn(data_source):
             reward -= len(matches) * 0.1
             if reward > 15:
                 print(f"[REWARD TOO MUCH]. solution: \n{solution}")
-            print(f"reward: {reward}")
             return reward
 
             # # 2. reward based on success:
@@ -113,6 +112,12 @@ class RewardManager():
             if already_print_data_sources[data_source] < self.num_examine:
                 already_print_data_sources[data_source] += 1
                 print(sequences_str)
+        
+        print(f"[DEBUG] reward_tensor: {reward_tensor}")
+        print(f"[DEBUG] reward_tensor shape: {reward_tensor.shape}")
+        print(f"[DEBUG] reward_tensor mean value: {reward_tensor.mean()}")
+        print(f"[DEBUG] reward_tensor max value: {reward_tensor.max()}")
+        print(f"[DEBUG] reward_tensor min value: {reward_tensor.min()}")
 
         return reward_tensor
 

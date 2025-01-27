@@ -700,13 +700,11 @@ class RayPPOTrainer(object):
                         hacked_responses = [response for response in cur_responses_decoded if re.search(hack_pattern, response)]
                         if len(hacked_responses) > 0:
                             print(f"[WARNING] HACKED RESPONSES: {hacked_responses}")
-                        # dehack responses
-                        cur_responses_decoded = [re.sub(hack_pattern, '', response) for response in cur_responses_decoded]
-                        # see if there is any hack left
-                        if len(hacked_responses) == 0:
-                            print(f"[DEBUG] No hack left in responses: {cur_responses_decoded}")
-
-                        gen_batch_output.batch['responses'] = self._batch_tokenize(cur_responses_decoded)
+                            cur_responses_decoded = [re.sub(hack_pattern, '', response) for response in cur_responses_decoded]
+                            # see if there is any hack left
+                            if len(hacked_responses) == 0:
+                                print(f"[DEBUG] No hack left in responses.")
+                            gen_batch_output.batch['responses'] = self._batch_tokenize(cur_responses_decoded)
 
                         os.makedirs(f'.log.debug/rollout_step_{rollout_step}', exist_ok=True)
                         import datetime
