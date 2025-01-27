@@ -11,8 +11,8 @@ export EXPERIMENT_NAME=test-qwen2.5-0.5b-instruct
 export MICRO_BATCH_SIZE=1
 export MAX_START_LENGTH=400 # the first round prompt max length
 export MAX_RESPONSE_LENGTH=100
-export MAX_OBS_LENGTH=100
-export MAX_TURNS=3
+export MAX_OBS_LENGTH=200
+export MAX_TURNS=2
 export MAX_PROMPT_LENGTH=$(($MAX_START_LENGTH + ($MAX_RESPONSE_LENGTH + $MAX_OBS_LENGTH) * ($MAX_TURNS - 1)))
 echo "MAX_PROMPT_LENGTH: $MAX_PROMPT_LENGTH"
 
@@ -36,6 +36,7 @@ data.val_batch_size=1312 \
 data.max_prompt_length=$MAX_PROMPT_LENGTH \
 data.max_response_length=$MAX_RESPONSE_LENGTH \
 data.max_start_length=$MAX_START_LENGTH \
+data.max_obs_length=$MAX_OBS_LENGTH \
 actor_rollout_ref.model.path=$BASE_MODEL \
 actor_rollout_ref.model.enable_gradient_checkpointing=True \
 actor_rollout_ref.actor.optim.lr=1e-6 \

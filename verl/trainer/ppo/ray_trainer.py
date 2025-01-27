@@ -662,7 +662,7 @@ class RayPPOTrainer(object):
                     }
                     original_right_side = {
                         'responses': gen_batch.batch['input_ids'][:, []].clone(),
-                        'old_log_probs': gen_batch.batch['input_ids'][:, []].clone(),
+                        ## 'old_log_probs': gen_batch.batch['input_ids'][:, []].clone(),
                     }
                     meta_info = {}
                     
@@ -685,15 +685,44 @@ class RayPPOTrainer(object):
                             f.write(f"right side: {gen_batch_output}\n")
                             f.write(f"right side shape: {gen_batch_output.batch['responses'].shape}\n")
                             f.write(f"right side decoded: {self.tokenizer.decode(gen_batch_output.batch['responses'][0], skip_special_tokens=False)}\n")
+                        
+                        cur_responses_decoded = self.tokenizer.decode(gen_batch_output.batch['responses'], skip_special_tokens=False)
+                        cur_actions = self.env.postprocess_predictions(cur_responses_decoded)
+                        next_obs = []
+                        for env, action, response in zip(envs, cur_actions, cur_responses_decoded):
+                            # 1. check whether cur_response has the end token
+                            obs = ""
+                            if "</answer>" not in response:
+                                obs += "</answer>"
+
+                            # 2. check whether the env is done
+                            if env.done:
+                                obs += self.tokenizer.pad_token
+                            else:
+                                env_feedback = SokobanEnv.parse_update_info_to_obs(env.step(action))
+                                obs += "<|im_start|>user\n" + env_feedback + "<|im_end|>" + "<|im_start|>assistant\n<think>"
+                            next_obs.append(obs)
+                        
+                        # output it to file
+                        # make dir of .log.debug/rollout_step_{rollout_step}
+                        os.makedirs(f'.log.debug/rollout_step_{rollout_step}', exist_ok=True)
+                        with open(f'.log.debug/rollout_step_{rollout_step}/next_obs.txt', 'a') as f:
+                            f.write(f"next obs: {next_obs}\n")
+
+                        # encode next_obs
+                        next_obs_input_ids = self.tokenizer.encode(next_obs, padding='longest', return_tensors='pt')
+                        if next_obs_input_ids.shape[1] > max_obs_len:
+                            next_obs_input_ids = next_obs_input_ids[:, :max_obs_len]
 
 
                         cur_responses = gen_batch_output.batch['responses']          # [BSZ, MAX_RESP_LEN]
-                        cur_log_probs = gen_batch_output.batch['old_log_probs']
+                        ## cur_log_probs = gen_batch_output.batch['old_log_probs']
 
                         # add responses to the rollings
                         new_input_ids = torch.cat([
                             rollings.batch['input_ids'], 
-                            cur_responses
+                            cur_responses,
+                            next_obs_input_ids
                         ], dim=1)
 
                         # update rollings, pad to the left
@@ -721,19 +750,20 @@ class RayPPOTrainer(object):
                             original_right_side['responses'],
                             cur_responses
                         ], dim=1)
-                        original_right_side['old_log_probs'] = torch.cat([
-                            original_right_side['old_log_probs'],
-                            cur_log_probs
-                        ], dim=1)
+                        ## original_right_side['old_log_probs'] = torch.cat([
+                        ##     original_right_side['old_log_probs'],
+                        ##     cur_log_probs
+                        ## ], dim=1)
                         
                         original_right_side['responses'], indices = self._convert_pad_structure(original_right_side['responses'], pad_token_id=self.tokenizer.pad_token_id, pad_to_left=False)
-                        original_right_side['old_log_probs'] = torch.gather(original_right_side['old_log_probs'], 1, indices)
+                        ## original_right_side['old_log_probs'] = torch.gather(original_right_side['old_log_probs'], 1, indices)
                         
                         # also make a cut
                         effective_len = torch.where(original_right_side['responses'] != self.tokenizer.pad_token_id, 1, 0).sum(dim=1).max()
                         max_len = min(max_prompt_len, effective_len)
                         original_right_side['responses'] = original_right_side['responses'][:, :max_len]
-                        original_right_side['old_log_probs'] = original_right_side['old_log_probs'][:, :max_len]
+                        ## original_right_side['old_log_probs'] = original_right_side['old_log_probs'][:, :max_len]
+
 
 
                     # compose final gen batch output
@@ -748,6 +778,18 @@ class RayPPOTrainer(object):
                         torch.where(final_gen_batch_output['responses'] != self.tokenizer.pad_token_id, 1, 0),
                     ], dim=1)
                     final_gen_batch_output['position_ids'] = (torch.cumsum(final_gen_batch_output['attention_mask'], dim=1) - 1) * final_gen_batch_output['attention_mask']
+
+                    # run again to get the old_log_probs
+                    with _timer('ref_probs_forward', timing_raw):
+                        with torch.no_grad():
+                            i, m, p = final_gen_batch_output['input_ids'], final_gen_batch_output['attention_mask'], final_gen_batch_output['position_ids']
+                            output = self.actor_model(input_ids=i, attention_mask=m, position_ids=p)  # [IMPLEMENT]
+                        all_log_probs = torch.log_softmax(output.logits, dim=-1)
+                        all_log_probs = all_log_probs.gather(dim=1, index=i)
+                        response_len = original_right_side['responses'].shape[1]
+                        final_gen_batch_output['old_log_probs'] = all_log_probs[:, -response_len:]
+
+
                     final_gen_batch_output = DataProto.from_dict(original_right_side)
 
                     batch.non_tensor_batch['uid'] = np.array([str(uuid.uuid4()) for _ in range(len(batch.batch))], dtype=object)
