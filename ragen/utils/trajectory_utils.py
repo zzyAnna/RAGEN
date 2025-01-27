@@ -32,10 +32,9 @@ def _init_environments(env, seeds=None):
     if seeds:
         trajectories = [[] for _ in seeds]
         for seed in seeds:
-            with set_seed(seed):
-                new_env = env.copy()
-                new_env.reset()
-                env_instances.append(new_env)
+            new_env = env.copy()
+            new_env.reset(seed=seed)
+            env_instances.append(new_env)
     else:
         trajectories = [[]]
         env_instances.append(env.copy())

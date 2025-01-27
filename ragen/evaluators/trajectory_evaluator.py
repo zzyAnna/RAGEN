@@ -9,8 +9,7 @@ class TrajectoryEvaluator:
         self.results = []
 
     def evaluate(self, seed):
-        with set_seed(seed):
-            self.env.reset()
+        self.env.reset(seed=seed)
         return generate_trajectory(self.env, self.policy, self.max_steps)
 
     def batch_evaluate(self, seeds, pool_size=8, mp=True):

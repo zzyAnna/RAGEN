@@ -564,12 +564,6 @@ class RayPPOTrainer(object):
 
         return converted_tensor, sorted_indices
 
-    # def _record_batch(self, batch: DataProto, path: str):
-    #     dirname = os.path.dirname(path)
-    #     os.makedirs(dirname, exist_ok=True)
-    #     with open(path, 'w') as f:
-    #         f.write(f"gen batch: {batch}\n")
-
     def fit(self):
         """
         The training loop of PPO.
@@ -603,8 +597,13 @@ class RayPPOTrainer(object):
         max_prompt_len = self.config.data.max_prompt_length # the max len of prompt
         max_response_len = self.config.data.max_response_length # the max length of response
         max_seq_len = max_prompt_len + max_response_len
+        max_obs_len = self.config.data.max_obs_length
 
-        envs = [SokobanEnv(dim_room=(6, 6), num_boxes=2, max_steps=10) for _ in range(len(self.train_dataloader))]
+        dim_room_x, dim_room_y = self.config.env.dim_x, self.config.env.dim_y
+        num_boxes = self.config.env.num_boxes
+        max_steps = self.config.env.max_steps
+        search_depth = self.config.env.search_depth
+        envs = [SokobanEnv(dim_room=(dim_room_x, dim_room_y), num_boxes=num_boxes, max_steps=max_steps, search_depth=search_depth) for _ in range(self.config.data.train_batch_size)]
 
         for epoch in range(self.config.trainer.total_epochs):
             for batch_dict in self.train_dataloader:
@@ -668,19 +667,19 @@ class RayPPOTrainer(object):
                     }
                     original_right_side = {
                         'responses': gen_batch.batch['input_ids'][:, []].clone(),
-                        'old_log_probs': gen_batch.batch['input_ids'][:, []].clone(),
+                        ## 'old_log_probs': gen_batch.batch['input_ids'][:, []].clone(),
                     }
                     meta_info = {}
                     
                     # if exists, remove the existing log
-                    # if os.path.exists(f'.log.debug'):
-                    #     shutil.rmtree(f'.log.debug')
+                    if os.path.exists(f'.log.debug'):
+                        shutil.rmtree(f'.log.debug')
 
                     for rollout_step in range(K):
-                        # print(f"current gen batch: {rollings}")
                         with _timer(f'gen', timing_raw):
                             gen_batch_output = self.actor_rollout_wg.generate_sequences(rollings)  # [IMPLEMENT]
                             meta_info.update(gen_batch_output.meta_info)
+
 
                         # os.makedirs(f'.log.debug/rollout_step_{rollout_step}', exist_ok=True)
                         # with open(f'.log.debug/rollout_step_{rollout_step}/left_side.txt', 'a') as f:
@@ -691,15 +690,31 @@ class RayPPOTrainer(object):
                         #     f.write(f"right side: {gen_batch_output}\n")
                         #     f.write(f"right side shape: {gen_batch_output.batch['responses'].shape}\n")
                         #     f.write(f"right side decoded: {self.tokenizer.decode(gen_batch_output.batch['responses'][0], skip_special_tokens=False)}\n")
+                        
+                        with _timer('execute_predictions', timing_raw):
+                            cur_responses_decoded = self.tokenizer.batch_decode(gen_batch_output.batch['responses'], skip_special_tokens=False)
+                            next_obs = SokobanEnv.execute_predictions(envs, cur_responses_decoded, self.tokenizer.pad_token)
+
+                        # output it to file
+                        # make dir of .log.debug/rollout_step_{rollout_step}
+                        # os.makedirs(f'.log.debug/rollout_step_{rollout_step}', exist_ok=True)
+                        # with open(f'.log.debug/rollout_step_{rollout_step}/next_obs.txt', 'a') as f:
+                        #     f.write(f"next obs: {next_obs}\n")
+
+                        # encode next_obs
+                        next_obs_input_ids = self.tokenizer(next_obs, padding='longest', return_tensors='pt')['input_ids']
+                        if next_obs_input_ids.shape[1] > max_obs_len:
+                            next_obs_input_ids = next_obs_input_ids[:, :max_obs_len]
 
 
                         cur_responses = gen_batch_output.batch['responses']          # [BSZ, MAX_RESP_LEN]
-                        cur_log_probs = gen_batch_output.batch['old_log_probs']
+                        ## cur_log_probs = gen_batch_output.batch['old_log_probs']
 
                         # add responses to the rollings
                         new_input_ids = torch.cat([
                             rollings.batch['input_ids'], 
-                            cur_responses
+                            cur_responses,
+                            next_obs_input_ids
                         ], dim=1)
 
                         # update rollings, pad to the left
@@ -725,21 +740,23 @@ class RayPPOTrainer(object):
                         # update original right side, pad to the right
                         original_right_side['responses'] = torch.cat([
                             original_right_side['responses'],
-                            cur_responses
+                            cur_responses,
+                            next_obs_input_ids
                         ], dim=1)
-                        original_right_side['old_log_probs'] = torch.cat([
-                            original_right_side['old_log_probs'],
-                            cur_log_probs
-                        ], dim=1)
+                        ## original_right_side['old_log_probs'] = torch.cat([
+                        ##     original_right_side['old_log_probs'],
+                        ##     cur_log_probs
+                        ## ], dim=1)
                         
                         original_right_side['responses'], indices = self._convert_pad_structure(original_right_side['responses'], pad_token_id=self.tokenizer.pad_token_id, pad_to_left=False)
-                        original_right_side['old_log_probs'] = torch.gather(original_right_side['old_log_probs'], 1, indices)
+                        ## original_right_side['old_log_probs'] = torch.gather(original_right_side['old_log_probs'], 1, indices)
                         
                         # also make a cut
                         effective_len = torch.where(original_right_side['responses'] != self.tokenizer.pad_token_id, 1, 0).sum(dim=1).max()
                         max_len = min(max_prompt_len, effective_len)
                         original_right_side['responses'] = original_right_side['responses'][:, :max_len]
-                        original_right_side['old_log_probs'] = original_right_side['old_log_probs'][:, :max_len]
+                        ## original_right_side['old_log_probs'] = original_right_side['old_log_probs'][:, :max_len]
+
 
 
                     # compose final gen batch output
@@ -754,12 +771,23 @@ class RayPPOTrainer(object):
                         torch.where(final_gen_batch_output['responses'] != self.tokenizer.pad_token_id, 1, 0),
                     ], dim=1)
                     final_gen_batch_output['position_ids'] = (torch.cumsum(final_gen_batch_output['attention_mask'], dim=1) - 1) * final_gen_batch_output['attention_mask']
+
                     final_gen_batch_output = DataProto.from_dict(original_right_side)
+                    final_gen_batch_output.meta_info.update(meta_info)
+
+                    # to get the old_log_probs
+                    with _timer('ref_probs_forward', timing_raw):
+                        with torch.no_grad():
+                            output = self.actor_rollout_wg.compute_log_prob(final_gen_batch_output)  # [IMPLEMENT]
+                            final_gen_batch_output = final_gen_batch_output.union(output)
+                            # print output length
+                            print(f"everything about output like length: {output}")
+                        # response_len = original_right_side['responses'].shape[1]
+                    #     final_gen_batch_output['old_log_probs'] = output[:, -response_len:]
 
                     batch.non_tensor_batch['uid'] = np.array([str(uuid.uuid4()) for _ in range(len(batch.batch))], dtype=object)
                     batch = batch.repeat(repeat_times=self.config.actor_rollout_ref.rollout.n, interleave=True)
                     batch = batch.union(final_gen_batch_output)
-                    batch.meta_info.update(meta_info)
 
                     ####################
                     ####################

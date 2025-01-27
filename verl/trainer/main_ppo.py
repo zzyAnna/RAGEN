@@ -17,31 +17,36 @@ Note that we don't combine the main with ray_trainer as ray_trainer is used by o
 
 from verl import DataProto
 import torch
-from verl.utils.reward_score import gsm8k, math, multiply, countdown
+import verl.utils.reward_score.countdown as countdown
 from verl.trainer.ppo.ray_trainer import RayPPOTrainer
+from ragen.env.sokoban import SokobanEnv
+import re
 
+ENV_CLASS_MAPPING = {
+    'sokoban': SokobanEnv
+}
 
 def _select_rm_score_fn(data_source):
-    if data_source == 'openai/gsm8k':
-        return gsm8k.compute_score
-    elif data_source == 'lighteval/MATH':
-        return math.compute_score
-    elif "multiply" in data_source or "arithmetic" in data_source:
-        return multiply.compute_score
-    elif "countdown" in data_source:
+    if "countdown" in data_source:
         return countdown.compute_score
     elif "sokoban" in data_source:
         def judge_fn(*args, **kwargs):
             solution = kwargs['solution_str']
             # 1. reward based on the game:
             # find all patterns like reward: -0.1\n, add them together as reward.
-            # 2. reward based on success:
-            # if there is done: True, it is 1, otherwise 0.
-            if "done: True" in solution:
-                reward = 1.0
-            else:
-                reward = 0.0
+            pattern = r'reward: (-?\d+\.\d+)\n'
+            matches = re.findall(pattern, solution)
+            reward = sum(float(match) for match in matches)
+            print(f"reward: {reward}")
             return reward
+
+            # # 2. reward based on success:
+            # # if there is done: True, it is 1, otherwise 0.
+            # if "done: True" in solution:
+            #     reward = 1.0
+            # else:
+            #     reward = 0.0
+            # return reward
 
         return judge_fn
     else:
@@ -128,6 +133,8 @@ def main_task(config):
     pprint(OmegaConf.to_container(config, resolve=True))  # resolve=True will eval symbol values
     OmegaConf.resolve(config)
 
+    env_class = ENV_CLASS_MAPPING[config.env.name]
+
     # download the checkpoint from hdfs
     local_path = copy_local_path_from_hdfs(config.actor_rollout_ref.model.path)
 
@@ -198,7 +205,9 @@ def main_task(config):
                             resource_pool_manager=resource_pool_manager,
                             ray_worker_group_cls=ray_worker_group_cls,
                             reward_fn=reward_fn,
-                            val_reward_fn=val_reward_fn)
+                            val_reward_fn=val_reward_fn,
+                            env=env_class(dim_room=(config.env.dim_x, config.env.dim_y), num_boxes=config.env.num_boxes, max_steps=config.env.max_steps, search_depth=config.env.search_depth),
+                            env_class=env_class)
     trainer.init_workers()
     trainer.fit()
 

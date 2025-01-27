@@ -20,8 +20,8 @@ from ragen.evaluators.trajectory_evaluator import TrajectoryEvaluator
 # from ragen.utils.dataset import Dataset
 
 templates = {
-    'qwen-instruct': '<|im_start|>system\nYou are a helpful assistant. You first think briefly about the reasoning process in the mind and then provides the user with the answer.<|im_end|>\n<|im_start|>user\n{prompt}\nShow your work in <think> </think> tags. And return the final answer in <answer> </answer> tags, for example <think> [Your thoughts] </think> <answer> 1 </answer><|im_end|>\n<|im_start|>assistant\nLet me solve this step by step.\n<think>',
-    'base': 'A conversation between User and Assistant. The user asks a question, and the Assistant solves it. The assistant first thinks briefly about the reasoning process in the mind and then provides the user with the answer.\nUser: {prompt}\nShow your work in <think> </think> tags. And return the final answer in <answer> </answer> tags, for example <think> [Thoughts] </think> <answer> 1 </answer>\nAssistant: Let me solve this step by step.\n<think>'
+    'qwen-instruct': '<|im_start|>system\nYou are a helpful assistant. You first think briefly about the reasoning process in the mind and then provides the user with the answer.<|im_end|>\n<|im_start|>user\n{prompt}\nShow your work in <think> </think> tags. And return the final answer in <answer> </answer> tags, for example <think> [Your thoughts] </think> <answer> 1 </answer><|im_end|>\n<|im_start|>assistant\n<think>',
+    'base': 'A conversation between User and Assistant. The user asks a question, and the Assistant solves it. The assistant first thinks briefly about the reasoning process in the mind and then provides the user with the answer.\nUser: {prompt}\nShow your work in <think> </think> tags. And return the final answer in <answer> </answer> tags, for example <think> [Thoughts] </think> <answer> 1 </answer>\nAssistant: \n<think>'
 }
 
 def main():
@@ -41,8 +41,11 @@ def main():
     assert args.env == "sokoban", "Unsupported environment: {args.env}"
     assert args.algo == "bfs", "Unsupported algorithm: {args.algo}"
     data_source = args.env
+    
+    dim_x, dim_y, num_boxes, max_steps, search_depth = os.environ.get("DIM_X"), os.environ.get("DIM_Y"), os.environ.get("NUM_BOXES"), os.environ.get("MAX_STEPS"), os.environ.get("SEARCH_DEPTH")
+    dim_x, dim_y, num_boxes, max_steps, search_depth = int(dim_x), int(dim_y), int(num_boxes), int(max_steps), int(search_depth)
 
-    env = SokobanEnv(dim_room=(6, 6), num_boxes=2, max_steps=10)
+    env = SokobanEnv(dim_room=(dim_x, dim_y), num_boxes=num_boxes, max_steps=max_steps, search_depth=search_depth)
     policy = FixedPolicy()
     # policy = BFSPolicy(max_nodes=args.bfs_max_nodes)
     evaluator = TrajectoryEvaluator(env, policy, max_steps=1)
@@ -74,8 +77,8 @@ def main():
             "reward_model": {"style": "rule", "ground_truth": {"target": 0, "numbers": [0, 0]}},
             "extra_info": {"split": "train", "index": idx}
         }
-    train_dataset = Dataset.from_list([_create_instance(i, trajectories[i]) for i in range(args.train_size)])
-    test_dataset = Dataset.from_list([_create_instance(i, trajectories[args.train_size + i]) for i in range(args.test_size)])
+    train_dataset = Dataset.from_list([_create_instance(args.seed + i, trajectories[i]) for i in range(args.train_size)])
+    test_dataset = Dataset.from_list([_create_instance(args.seed + i, trajectories[i]) for i in range(args.train_size, args.train_size + args.test_size)])
 
 
     def make_map_fn(split):

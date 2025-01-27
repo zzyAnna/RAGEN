@@ -1,32 +1,30 @@
 # Agent-R1
+
+Agent-R1 is a reproduction of the DeepSeek-R1(-Zero) methods for *training agentic models*.
+
+
+
+
+## Setup
 1. setup with (private) scripts from https://github.com/ZihanWang314/setup-new-env/blob/main/initialize.sh, L1-L40;
 2. init environment:
 ```bash
 conda create -n ragen python=3.9 -y
 conda activate ragen
 
+git clone git@github.com:ZihanWang314/agent-r1.git
+cd agent-r1
 
-# install torch [or you can skip this step and let vllm to install the correct version for you]
-pip install torch==2.4.0 --index-url https://download.pytorch.org/whl/cu121
-# install vllm
-pip3 install vllm==0.6.3 # or you can install 0.5.4, 0.4.2 and 0.3.1
-pip3 install ray
-pip3 install peft
+# setup install
+pip install -e . # includes verl-rage-ext (by us) and verl-core (by the verl team)
+pip install -r requirements.txt # other packages
+
 # flash attention 2
 pip3 install flash-attn --no-build-isolation
-# quality of life
-pip install wandb IPython matplotlib
-
-
 # if flash attn fails, you may need to install cuda-toolkit first
 conda install -c "nvidia/label/cuda-12.1.0" cuda-toolkit
 export CUDA_HOME=$CONDA_PREFIX # /opt/conda/envs/zero
 pip3 install flash-attn --no-build-isolation
-
-git clone git@github.com:ZihanWang314/agent-r1.git
-cd agent-r1
-# setup install
-pip install -e . # includes verl-core (by the verl team) and verl-rage-ext (by us)
 ```
 
 
@@ -34,27 +32,54 @@ pip install -e . # includes verl-core (by the verl team) and verl-rage-ext (by u
 
 Create data:
 ```bash
-# it's normal to see some SOKOBAN errors, but the data will be created
+# sokoban env settings. will determine game difficulty
+# it's normal to see some SOKOBAN errors, but the data will be created and it's fine
+
+export DIM_X=6
+export DIM_Y=6
+export NUM_BOXES=1
+export MAX_STEPS=5
+export SEARCH_DEPTH=30
 python scripts/dataset_curation.py \
     --output data/sokoban
+
 ```
 
 Export variables:
 ```bash
-bash ./train.sh
+export DATA_DIR=data/sokoban
+export BASE_MODEL=deepseek-ai/DeepSeek-R1-Distill-Qwen-1.5B
+export EXPERIMENT_NAME=test-deepseek-r1-qwen-1.5b
+export MICRO_BATCH_SIZE=1
+export TRAIN_BATCH_SIZE=8 # 256
+export PPO_BATCH_SIZE=4 # 128
+export MAX_START_LENGTH=400 # the first round prompt max length
+export MAX_RESPONSE_LENGTH=100
+export MAX_OBS_LENGTH=100
+export MAX_TURNS=5
+export NUM_UPDATE_PER_ROLL=1 # roll out for a batch, then the model do N times of update. Currently not implemented.
+export LOG_MODE="['wandb']" # or 'console'
+export GCP=True # gradient checkpointing
+bash ./train.sh # more arguments in this file
+
+# default config file is verl/trainer/config/ppo_trainer.yaml
+
 ```
 
 
 Or for 3B:
 ```bash
-export N_GPUS=2
-export BASE_MODEL=Qwen/Qwen2.5-3B
-export DATA_DIR=countdown_data
-export ROLLOUT_TP_SIZE=2
-export VLLM_ATTENTION_BACKEND=XFORMERS
-export EXPERIMENT_NAME=countdown-qwen2.5-3b-grad_ckpt
-export MICRO_BATCH_SIZE=8
-export RESPONSE_LENGTH=1024
-export LOG_MODE=wandb
-export MULTI_PROCESSING=ray
+export DATA_DIR=data/sokoban
+export BASE_MODEL=Qwen/Qwen2.5-3B-Instruct
+export EXPERIMENT_NAME=test-qwen2.5-3b-instruct-1mbsz
+export MICRO_BATCH_SIZE=1
+export MAX_START_LENGTH=400 # the first round prompt max length
+export MAX_RESPONSE_LENGTH=400
+export MAX_OBS_LENGTH=200
+export MAX_TURNS=5
+export NUM_UPDATE_PER_ROLL=1 # roll out for a batch, then the model do N times of update. Currently not implemented.
+export LOG_MODE="['wandb']" # or 'console'
+# default config file is verl/trainer/config/ppo_trainer.yaml
+
+bash ./train.sh # more arguments in this file
 ```

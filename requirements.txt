@@ -1,3 +1,9 @@
+torch==2.4.0 --index-url https://download.pytorch.org/whl/cu121
+IPython
+matplotlib
+gym
+gym_sokoban
+peft
 accelerate
 codetiming
 datasets

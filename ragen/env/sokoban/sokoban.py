@@ -6,7 +6,7 @@ import random
 from ragen.utils import NoLoggerWarnings
 from contextlib import contextmanager
 from .room_utils import generate_room
-
+from ragen.utils import set_seed
 
 class SokobanEnv(gym_sokoban.envs.sokoban_env.SokobanEnv):
     def __init__(self, **kwargs):
@@ -26,7 +26,7 @@ class SokobanEnv(gym_sokoban.envs.sokoban_env.SokobanEnv):
     @staticmethod
     def parse_update_info_to_obs(update_info):
         observation, reward, done, _ = update_info
-        output_str = f"observation: {observation}\nreward: {reward}\ndone: {done}\n"
+        output_str = f"After you take this action, the observation is: \n{observation}\nreward: {reward}\ndone: {done}\n"
         return output_str
 
     @classmethod
@@ -39,6 +39,8 @@ class SokobanEnv(gym_sokoban.envs.sokoban_env.SokobanEnv):
             obs = ""
             if "</answer>" not in response:
                 obs += "</answer>"
+            if "<|im_end|>" not in response:
+                obs += "<|im_end|>"
 
             # 2. check whether the env is done
             if env.success():
@@ -74,19 +76,21 @@ class SokobanEnv(gym_sokoban.envs.sokoban_env.SokobanEnv):
     def get_all_actions(self):
         return list(range(self.action_space.start, self.action_space.start + self.action_space.n))
 
-    def reset(self, mode='tiny_rgb_array'):
+    def reset(self, mode='tiny_rgb_array', seed=None):
         with NoLoggerWarnings():
             try:
-                self.room_fixed, self.room_state, self.box_mapping, action_sequence = generate_room(
-                    dim=self.dim_room,
-                    num_steps=self.num_gen_steps,
-                    num_boxes=self.num_boxes,
-                    search_depth=self.search_depth
-                )
+                with set_seed(seed):
+                    self.room_fixed, self.room_state, self.box_mapping, action_sequence = generate_room(
+                        dim=self.dim_room,
+                        num_steps=self.num_gen_steps,
+                        num_boxes=self.num_boxes,
+                        search_depth=self.search_depth
+                    )
             except (RuntimeError, RuntimeWarning) as e:
                 print("[SOKOBAN] Runtime Error/Warning: {}".format(e))
                 print("[SOKOBAN] Retry . . .")
-                return self.reset(mode)
+                next_seed = hash(str(seed)) if seed is not None else None
+                return self.reset(mode, next_seed)
             
             self.action_sequence = self._reverse_action_sequence(action_sequence)
             self.player_position = np.argwhere(self.room_state == 5)[0]
@@ -136,8 +140,6 @@ class SokobanEnv(gym_sokoban.envs.sokoban_env.SokobanEnv):
             lookup = lambda cell: GRID_LOOKUP.get(cell, "?")
             return "\n".join("".join(lookup(cell) for cell in row) for row in room_state)
     
-    def __del__(self):
-        self.close()
     
     def copy(self):
         new_self = SokobanEnv(

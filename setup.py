@@ -60,6 +60,7 @@ elif '--ragen' in sys.argv:
     setup(
         name='verl-ragen-ext',
         version='0.1',
+        package_dir={'': '.'},
         packages=find_packages(include=['ragen']),
         author='Zihan Wang, Manling Li, Yiping Lu',
         author_email='zihanwang.ai@gmail.com, manling.li@northwestern.edu, yiping.lu@northwestern.edu',
@@ -78,9 +79,7 @@ elif '--ragen' in sys.argv:
 else:
     setup(
         name='verl-full',
+        package_dir={'': '.'},
         packages=find_packages(include=['verl', 'ragen']),
-        install_requires=[
-            'verl-core>=0.1',
-            'verl-ragen-ext>=0.1'
-        ]
+        install_requires=[]
     )
