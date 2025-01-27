@@ -31,7 +31,19 @@ def _select_rm_score_fn(data_source):
     elif "countdown" in data_source:
         return countdown.compute_score
     elif "sokoban" in data_source:
-        return lambda *args, **kwargs: 1.0
+        def judge_fn(*args, **kwargs):
+            solution = kwargs['solution_str']
+            # 1. reward based on the game:
+            # find all patterns like reward: -0.1\n, add them together as reward.
+            # 2. reward based on success:
+            # if there is done: True, it is 1, otherwise 0.
+            if "done: True" in solution:
+                reward = 1.0
+            else:
+                reward = 0.0
+            return reward
+
+        return judge_fn
     else:
         raise NotImplementedError
 

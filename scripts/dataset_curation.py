@@ -20,8 +20,8 @@ from ragen.evaluators.trajectory_evaluator import TrajectoryEvaluator
 # from ragen.utils.dataset import Dataset
 
 templates = {
-    'qwen-instruct': '<|im_start|>system\nYou are a helpful assistant. You first thinks about the reasoning process in the mind and then provides the user with the answer.<|im_end|>\n<|im_start|>user\n{prompt}\nShow your work in <think> </think> tags. And return the final answer in <answer> </answer> tags, for example <think> [Your thoughts] </think> <answer> 1 </answer><|im_end|>\n<|im_start|>assistant\nLet me solve this step by step.\n<think>',
-    'base': 'A conversation between User and Assistant. The user asks a question, and the Assistant solves it. The assistant first thinks about the reasoning process in the mind and then provides the user with the answer.\nUser: {prompt}\nShow your work in <think> </think> tags. And return the final answer in <answer> </answer> tags, for example <think> [Your thoughts] </think> <answer> 1 </answer>\nAssistant: Let me solve this step by step.\n<think>'
+    'qwen-instruct': '<|im_start|>system\nYou are a helpful assistant. You first think briefly about the reasoning process in the mind and then provides the user with the answer.<|im_end|>\n<|im_start|>user\n{prompt}\nShow your work in <think> </think> tags. And return the final answer in <answer> </answer> tags, for example <think> [Your thoughts] </think> <answer> 1 </answer><|im_end|>\n<|im_start|>assistant\nLet me solve this step by step.\n<think>',
+    'base': 'A conversation between User and Assistant. The user asks a question, and the Assistant solves it. The assistant first thinks briefly about the reasoning process in the mind and then provides the user with the answer.\nUser: {prompt}\nShow your work in <think> </think> tags. And return the final answer in <answer> </answer> tags, for example <think> [Thoughts] </think> <answer> 1 </answer>\nAssistant: Let me solve this step by step.\n<think>'
 }
 
 def main():
