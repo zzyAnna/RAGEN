@@ -121,7 +121,7 @@ class SokobanEnv(gym_sokoban.envs.sokoban_env.SokobanEnv):
             except (RuntimeError, RuntimeWarning) as e:
                 print("[SOKOBAN] Runtime Error/Warning: {}".format(e))
                 print("[SOKOBAN] Retry . . .")
-                next_seed = hash(str(seed)) if seed is not None else None
+                next_seed = abs(hash(str(seed))) % (2 ** 32) if seed is not None else None
                 return self.reset(mode, next_seed)
             
             # self.action_sequence = self._reverse_action_sequence(action_sequence)

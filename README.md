@@ -42,9 +42,14 @@ export DIM_Y=6
 export NUM_BOXES=1
 export MAX_STEPS=5
 export SEARCH_DEPTH=30
-# below is buggy
+
+
 python scripts/dataset_curation.py \
-    --output data/sokoban
+    --output data/sokoban \
+    --seed 10000 \
+    --train_size 10000 \
+    --test_size 10 \
+    --prefix qwen-instruct
 
 # 
 ```
