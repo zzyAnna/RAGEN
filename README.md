@@ -78,9 +78,9 @@ export CUDA_VISIBLE_DEVICES=1
 export BASE_MODEL=deepseek-ai/DeepSeek-R1-Distill-Qwen-1.5B
 export EXPERIMENT_NAME=test-r1-distill-1.5b
 
-# export CUDA_VISIBLE_DEVICES=0
-# export BASE_MODEL=Qwen/Qwen2.5-3B
-# export EXPERIMENT_NAME=test-qwen2.5-3b
+export CUDA_VISIBLE_DEVICES=0,1
+export BASE_MODEL=Qwen/Qwen2.5-3B
+export EXPERIMENT_NAME=test-qwen2.5-3b
 
 # TODO: Run this
 # export CUDA_VISIBLE_DEVICES=1
