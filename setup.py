@@ -62,9 +62,9 @@ elif '--ragen' in sys.argv:
         version='0.1',
         package_dir={'': '.'},
         packages=find_packages(include=['ragen']),
-        author='Zihan Wang, Manling Li, Yiping Lu',
-        author_email='zihanwang.ai@gmail.com, manling.li@northwestern.edu, yiping.lu@northwestern.edu',
-        acknowledgements='We thank DeepSeek for providing the DeepSeek-R1 model and ideas; we thank the veRL team for their infrastructure; we thank the TinyZero team for their discoveries that inspired our early exploration.',
+        author='Northwestern-MLL-Lab',
+        author_email='zihanwang.ai@gmail.com',
+        acknowledgements='',
         description='VERL + R1 + AGENT',
         install_requires=[
             'verl-core>=0.1'

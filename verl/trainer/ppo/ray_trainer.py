@@ -37,14 +37,15 @@ from verl.single_controller.ray import RayResourcePool, RayWorkerGroup, RayClass
 from verl.single_controller.ray.base import create_colocated_worker_cls
 from verl.trainer.ppo import core_algos
 from verl.utils.seqlen_balancing import get_seqlen_balanced_partitions, log_seqlen_unbalance
-from verl.utils.plot_utils import (
-    save_trajectory_to_pdf,
-    parse_llm_output
-)
+
 
 import re
 import ragen
 from ragen.utils import set_seed
+from ragen.utils.plot_utils import (
+    save_trajectory_to_pdf,
+    parse_llm_output
+)
 
 import shutil
 
@@ -753,7 +754,7 @@ class RayPPOTrainer(object):
                         if trajectory is not None:
                             for idx, (cur_response_decoded, env) in enumerate(zip(cur_responses_decoded[:n_visualize], envs[:n_visualize])):
                                 img_after_action = env.render('rgb_array')
-                                parsed_response = parse_llm_output(cur_response_decoded, strategy="formated")
+                                parsed_response = parse_llm_output(cur_response_decoded, strategy="raw")
                                 trajectory[idx]['img_after_action'].append(img_after_action)
                                 trajectory[idx]['answer'].append(cur_response_decoded)
                                 trajectory[idx]['parsed_response'].append(parsed_response)

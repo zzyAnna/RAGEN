@@ -1,19 +1,46 @@
-# Agent-R1
+# RAGEN
 
-Agent-R1 is a reproduction of the DeepSeek-R1(-Zero) methods for *training agentic models*.
+<p align="center" style="font-size: 18px;">
+  <strong>RAGEN</strong> is the first reproduction of the <strong>DeepSeek-R1(-Zero)</strong> methods for <em>training agentic models</em>.<br>
+  We strongly believe in the future of RL + LLM + Agents. The release is a minimally viable leap forward.
+</p>
+
+
+## Framework
+
+<img src="./public/framework.png" width="800px" alt="s" />
+
+
+
+## Performance
+
+We evaluate RAGEN on Qwen-2.5-{0.5B, 3B}-{Instruct, None} and DeepSeek-R1-Distill-Qwen-1.5B, on the [Gym-Sokoban](https://github.com/mpSchrader/gym-sokoban?tab=readme-ov-file) task. The maximum reward of this environment is **10.9**.
+
+<img src="./public/loss_curve.png" width="800px" alt="s" />
+
+The loss curve have not converged (since our compute is currently limited...). But we already see some trends:
+ - Instruct-finetuned models are not significantly advantaged ahead Pretrained-only models, although they are better at start.
+ - 3B models are performing better than 0.5B models as well, but the advantages are also not that obvious at around 40 steps.
+ - Interestingly, R1-distilled 1.5B model do less well than 0.5B models for now.
+
+We prepare to release a complete wandb plot for these experiment runs, although you can try it your own and it may even be faster than our run (reasons ahead).
 
 
 
 
-## Setup
-1. setup with (private) scripts from https://github.com/ZihanWang314/setup-new-env/blob/main/initialize.sh, L1-L40;
-2. init environment:
+
+
+
+
+
+## Environment Setup
+
 ```bash
 conda create -n ragen python=3.9 -y
 conda activate ragen
 
-git clone git@github.com:ZihanWang314/agent-r1.git
-cd agent-r1
+git clone git@github.com:ZihanWang314/ragen.git
+cd ragen
 
 # setup install
 pip install -e . # includes verl-ragen (by us) and verl-core (by the verl team)
@@ -32,7 +59,7 @@ pip install -r requirements.txt # other packages
 ```
 
 
-## basic processes
+## Train Models
 
 Create data:
 ```bash
@@ -52,9 +79,7 @@ python scripts/dataset_curation.py \
     --seed 10000 \
     --train_size 10000 \
     --test_size 10 \
-    --prefix qwen-instruct
-
-# 
+    --prefix qwen-instruct # we find it works well for base models
 ```
 
 Export variables:
@@ -70,22 +95,9 @@ export SEARCH_DEPTH=30
 # export BASE_MODEL=Qwen/Qwen2.5-0.5B
 # export EXPERIMENT_NAME=test-qwen2.5-0.5b
 
-# export CUDA_VISIBLE_DEVICES=1
-# export BASE_MODEL=Qwen/Qwen2.5-0.5B-Instruct
-# export EXPERIMENT_NAME=test-qwen2.5-0.5b-instruct
-
-export CUDA_VISIBLE_DEVICES=1
-export BASE_MODEL=deepseek-ai/DeepSeek-R1-Distill-Qwen-1.5B
-export EXPERIMENT_NAME=test-r1-distill-1.5b
-
-export CUDA_VISIBLE_DEVICES=0,1
-export BASE_MODEL=Qwen/Qwen2.5-3B
-export EXPERIMENT_NAME=test-qwen2.5-3b
-
-# TODO: Run this
-# export CUDA_VISIBLE_DEVICES=1
-# export BASE_MODEL=Qwen/Qwen2.5-3B-Instruct
-# export EXPERIMENT_NAME=test-qwen2.5-3b-Instruct
+export CUDA_VISIBLE_DEVICES=0
+export BASE_MODEL=checkpoints/Agent-R1/test-qwen2.5-0.5b-instruct-1mbsz/actor/global_step_100
+export EXPERIMENT_NAME=test-qwen2.5-0.5b-imagetest
 
 
 export MICRO_BATCH_SIZE=1
@@ -131,21 +143,29 @@ logging.log_n_image_per_batch=8 # save _ images per batch
 
 
 
-# TODO: Cases
+## Cases
+Please see cases/ file.
+There are only limited cases for now, including [reward hacking](https://github.com/ZihanWang314/agent-r1/blob/main/cases/reward_hacking.txt) and the [suck moment](https://github.com/ZihanWang314/agent-r1/blob/main/cases/suck_moment.txt). we will add more cases recently.
+
+
+## Authors
+
+[Zihan Wang*](https://zihanwang314.github.io/)
+
+[Kangrui Wang](https://jameskrw.github.io/)
+
+[Qineng Wang](https://qinengwang-aiden.github.io/)
+
+[Pingyue Zhang](https://williamzhangsjtu.github.io/)
+
+[Manling Li†](https://limanling.github.io)
+
+*: Project Lead; †: Advising.
+Remaining authors are alphabetical order.
 
 
 
-# Why we give (s1 | a1 s2 a2 s3 a3) as input?
-1. 区分rollout和train: rollout的时候是给s生成a, 多次循环；train的时候是给s1生成后面的
-几个好处：1 多轮统一，不会搞出新的instance，让batchsize不稳定
-2. 能多学一点儿state，可能能做planning
+## Acknowledgements
 
 
-
-
-
-
-
-
-
-
+We thank [DeepSeek](https://github.com/deepseek-ai/DeepSeek-R1) for providing the DeepSeek-R1 model and ideas. We thank the [veRL](https://github.com/volcengine/verl) team for their infrastructure. We thank the [TinyZero](https://github.com/Jiayi-Pan/TinyZero) team for their discoveries that inspired our early exploration. We thank Yiping Lu, Runxin Xu, Kyunghyun Cho for insightful discussions with them.
