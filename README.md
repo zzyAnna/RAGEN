@@ -214,7 +214,7 @@ We thank [DeepSeek](https://github.com/deepseek-ai/DeepSeek-R1) for providing th
 ```md
 @misc{RAGEN,
   author       = {Zihan Wang and Kangrui Wang and Qineng Wang and Pingyue Zhang and Manling Li},
-  title        = {Reasoning Agent: A General-Purpose Agent Learning Framework},
+  title        = {REGAN: A General-Purpose Agent Learning Framework},
   year         = {2025},
   organization = {GitHub},
   url          = {https://github.com/ZihanWang314/ragen},
