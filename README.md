@@ -36,7 +36,7 @@ The process flow is as follows:
 During the update phase:
 * Compute and back propagate loss for the tokens in orange
 * Reward calculation: parsing $r_t,...r_t$ from the trajectory tokens using regex-based rules
-* Final reward computation: $r_i = sum(r_t,...r_t)$ for each rollout generated
+* Final reward computation: $r_i = {\rm sum}(r_t,...r_t)$ for each rollout generated
 
 
 ### Benefits

@@ -31,70 +31,68 @@ def save_trajectory_to_pdf(trajectory, save_dir):
                 # Calculate figure size based on image aspect ratio
                 img_height, img_width = data['img_before_action'][step].shape[:2]
                 aspect_ratio = img_width / img_height
-                fig_width = 12  # Fixed width
-                fig_height = (fig_width / aspect_ratio) * 3.5  # Scale height based on aspect ratio and space needs
                 
-                # Create figure without constrained_layout
+                # Adjust figure size calculation
+                fig_width = 8  # Reduced width for better proportions
+                # Calculate height based on content needs
+                img_space = fig_width / aspect_ratio  # Space needed for each image
+                text_space = fig_width * 0.2  # Minimal space for text
+                fig_height = img_space * 2 + text_space  # Total height needed
+                
+                # Create figure
                 fig = plt.figure(figsize=(fig_width, fig_height))
                 
-                # Create grid with appropriate height ratios for images and text
-                gs = fig.add_gridspec(3, 1, height_ratios=[1.2, 0.3, 1.2], hspace=0.1)
-                
+                # Create grid with minimal text section
+                gs = fig.add_gridspec(3, 1, height_ratios=[1, 0.15, 1], hspace=0.05)
                 
                 # Before Action Image
                 ax_before = fig.add_subplot(gs[0])
                 ax_before.imshow(data['img_before_action'][step])
                 ax_before.set_title(f'Step {step+1} - Before Action', 
-                                  fontsize=16, pad=10)
+                                  fontsize=12, pad=5)
                 ax_before.axis('off')
-                ax_before.set_aspect('equal')  # Preserve aspect ratio
+                ax_before.set_aspect('equal')
                 
-                # Text Response Section
+                # Text Response Section - Minimized
                 ax_text = fig.add_subplot(gs[1])
-                # Clean and format the response text
-                parsed_response = "<think>" + data['parsed_response'][step]['raw'].replace("<|im_end|>", "").replace("<|endoftext|>", "")
-                # 先替换所有的 \n 为实际换行
+                parsed_response = "Model Response: \n<think>" + data['parsed_response'][step]['raw'].replace("<|im_end|>", "").replace("<|endoftext|>", "")
                 parsed_response = parsed_response.replace('\\n', '\n')
-                # 然后在 </think> 和 <answer> 之间添加换行
                 parsed_response = re.sub(r'(</think>)\s*(<answer>)', r'\1\n\2', parsed_response)
                 
-                # Wrap text with improved parameters
+                # Simplified text wrapping
                 wrapped_text = textwrap.fill(
                     parsed_response,
-                    width=65,
-                    initial_indent='  ',
-                    subsequent_indent='    ',
+                    width=80,  # Increased width to reduce height
+                    initial_indent='',
+                    subsequent_indent='  ',
                     break_long_words=True,
                     break_on_hyphens=True
                 )
                 
-                # Display text with optimized parameters
+                # Compact text display
                 ax_text.text(
-                    0.02, 0.97,
-                    f"Model Response:\n{wrapped_text}",
+                    0.02, 0.5,
+                    wrapped_text,
                     transform=ax_text.transAxes,
                     ha='left',
-                    va='top',
+                    va='center',
                     wrap=True,
-                    fontsize=13,
-                    linespacing=1.4,
-                    bbox=dict(facecolor='#f8f8f8', alpha=0.9, pad=8),
-                    family='DejaVu Sans'  # 确保使用支持中文的字体
+                    fontsize=10,  # Reduced font size
+                    linespacing=1.1,  # Reduced line spacing
+                    bbox=dict(facecolor='#f8f8f8', alpha=0.9, pad=2)
                 )
                 ax_text.axis('off')
                 
                 # After Action Image
                 ax_after = fig.add_subplot(gs[2])
                 ax_after.imshow(data['img_after_action'][step])
-                ax_after.set_title('After Action', fontsize=16, pad=10)
+                ax_after.set_title('After Action', fontsize=12, pad=5)
                 ax_after.axis('off')
-                ax_after.set_aspect('equal')  # Preserve aspect ratio
+                ax_after.set_aspect('equal')
                 
-                # Save the page
-                # 使用 bbox_layout='tight' 来自动调整布局
-                pdf.savefig(fig, bbox_inches='tight', pad_inches=0.3)
+                # Save with minimal padding
+                pdf.savefig(fig, bbox_inches='tight', pad_inches=0.1)
                 plt.close(fig)
-
 
 def parse_llm_output(llm_output: str, strategy: str):
     """
