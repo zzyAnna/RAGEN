@@ -1,4 +1,4 @@
-# RAGEN
+# RAGEN (Reasoning Agent: A General-Purpose Agent Learning Framework)
 
 <p align="center" style="font-size: 18px;">
   <strong>RAGEN</strong> is the first reproduction of the <strong>DeepSeek-R1(-Zero)</strong> methods for <em>training agentic models</em>.<br>
@@ -214,7 +214,7 @@ We thank [DeepSeek](https://github.com/deepseek-ai/DeepSeek-R1) for providing th
 ```md
 @misc{RAGEN,
   author       = {Zihan Wang and Kangrui Wang and Qineng Wang and Pingyue Zhang and Manling Li},
-  title        = {RAGEN Repository},
+  title        = {Reasoning Agent: A General-Purpose Agent Learning Framework},
   year         = {2025},
   organization = {GitHub},
   url          = {https://github.com/ZihanWang314/ragen},
