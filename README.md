@@ -59,7 +59,7 @@ The loss curve have not converged (since our compute is currently limited...). B
  - 3B models are performing better than 0.5B models as well, but the advantages are also not that obvious at around 40 steps.
  - Interestingly, R1-distilled 1.5B model do less well than 0.5B models for now.
 
-We prepare to release a complete wandb plot for these experiment runs, although you can try it your own and it may even be faster than our run (reasons ahead).
+We prepare to release a complete wandb plot for these experiment runs, although you can try it your own and it may even be faster than our run (reasons above).
 
 
 
