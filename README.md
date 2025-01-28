@@ -46,7 +46,14 @@ During the update phase:
 
 ## Performance
 
-We run RAGEN on Qwen-2.5-{0.5B, 3B}-{Instruct, None} and DeepSeek-R1-Distill-Qwen-1.5B, on the [Gym-Sokoban](https://github.com/mpSchrader/gym-sokoban?tab=readme-ov-file) task. The maximum reward of this environment is **10.9**. Action spaces are 0-4 (0: Stand, 1: Up, 2: Down, 3: Left, 4: Right).
+We run RAGEN on Qwen-2.5-{0.5B, 3B}-{Instruct, None} and DeepSeek-R1-Distill-Qwen-1.5B, on the [Gym-Sokoban](https://github.com/mpSchrader/gym-sokoban) task. 
+
+About the sokoban task (from the official repo):
+```md
+Sokoban is Japanese for warehouse keeper and a traditional video game. The game is a transportation puzzle, where the player has to push all boxes in the room on the storage locations/ targets. The possibility of making irreversible mistakes makes these puzzles so challenging especially for Reinforcement Learning algorithms, which mostly lack the ability to think ahead.
+```
+
+The maximum reward of this environment is **10.9**. Action spaces are 0-4 (0: Stand, 1: Up, 2: Down, 3: Left, 4: Right).
 
 <img src="./public/loss_curve.png" width="800px" alt="s" />
 
@@ -94,10 +101,11 @@ pip install -r requirements.txt # other packages
 ## Train Models
 
 ### Create data
+
+We create 10k data for training and run for 1 epoch. See [Visualization](https://github.com/ZihanWang314/ragen/#visualization) Section for details.
 ```bash
 # sokoban env settings. will determine game difficulty
 # it's normal to see some SOKOBAN errors, but the data will be created and it's fine
-
 
 export DIM_X=6
 export DIM_Y=6
