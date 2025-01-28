@@ -2,7 +2,7 @@
 
 <p align="center" style="font-size: 18px;">
   <strong>RAGEN</strong> is the first reproduction of the <strong>DeepSeek-R1(-Zero)</strong> methods for <em>training agentic models</em>.<br>
-  We strongly believe in the future of RL + LLM + Agents. The release is a minimally viable leap forward.
+  <em>We strongly believe in the future of RL + LLM + Agents. The release is a minimally viable leap forward.</em>
 </p>
 
 
@@ -46,7 +46,7 @@ During the update phase:
 
 ## Performance
 
-We run RAGEN on Qwen-2.5-{0.5B, 3B}-{Instruct, None} and DeepSeek-R1-Distill-Qwen-1.5B, on the [Gym-Sokoban](https://github.com/mpSchrader/gym-sokoban?tab=readme-ov-file) task. The maximum reward of this environment is **10.9**.
+We run RAGEN on Qwen-2.5-{0.5B, 3B}-{Instruct, None} and DeepSeek-R1-Distill-Qwen-1.5B, on the [Gym-Sokoban](https://github.com/mpSchrader/gym-sokoban?tab=readme-ov-file) task. The maximum reward of this environment is **10.9**. Action spaces are 0-4 (0: Stand, 1: Up, 2: Down, 3: Left, 4: Right).
 
 <img src="./public/loss_curve.png" width="800px" alt="s" />
 
