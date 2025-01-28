@@ -108,6 +108,26 @@ bash ./train.sh # more arguments in this file
 ```
 
 
+## Visualization
+1. By setting arguments in `train.sh`, you can visualize the trajectory:
+```bash
+logging.log_images=True # set to True to log images
+logging.log_image_dir=.log.debug/trajectory # set to the directory to save images
+logging.log_image_step_size=1 # save image every _ steps
+logging.log_n_image_per_batch=8 # save _ images per batch   
+```
+
+2. Example image for one trajectory: 
+<p align="center" style="display: flex; justify-content: center; gap: 10px;">
+    <img src="./public/step_1.png" width="200px" alt="s" />
+    <img src="./public/step_2.png" width="200px" alt="s" />
+    <img src="./public/step_3.png" width="200px" alt="s" />
+    <img src="./public/step_4.png" width="200px" alt="s" />
+    <img src="./public/step_5.png" width="200px" alt="s" />
+</p>
+
+
+
 
 
 

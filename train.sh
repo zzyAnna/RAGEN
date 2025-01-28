@@ -44,7 +44,11 @@ env.dim_y=$DIM_Y \
 env.num_boxes=$NUM_BOXES \
 env.max_steps=$MAX_STEPS \
 env.search_depth=$SEARCH_DEPTH \
-max_turns=$MAX_TURNS
-#  2>&1 | tee verl_demo.log
+max_turns=$MAX_TURNS \
+logging.log_images=True \
+logging.log_image_dir=.log.debug/trajectory \
+logging.log_image_step_size=1 \
+logging.log_n_image_per_batch=8 \
+2>&1 | tee verl_demo.log
 
 
