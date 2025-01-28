@@ -1,4 +1,4 @@
-# RAGEN (Reasoning Agent: A General-Purpose Agent Learning Framework)
+# RAGEN: A General-Purpose Reasoning Agent Training Framework
 
 <p align="center" style="font-size: 18px;">
   <strong>RAGEN</strong> is the first reproduction of the <strong>DeepSeek-R1(-Zero)</strong> methods for <em>training agentic models</em>.<br>
