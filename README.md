@@ -41,7 +41,7 @@ During the update phase:
 
 ### Benefits
 * **Unified Multi-round Processing**: Maintains consistency by avoiding new instance creation that could destabilize batch sizes
-* **World Modeling**: Potentially enables world modeling (state and reward predition), helps LLM-agent to plan
+* **World Modeling**: Potentially enables world modeling (state and reward prediction), helps LLM-agent to plan
 
 
 ## Performance
@@ -93,7 +93,7 @@ pip install -r requirements.txt # other packages
 
 ## Train Models
 
-Create data:
+### Create data
 ```bash
 # sokoban env settings. will determine game difficulty
 # it's normal to see some SOKOBAN errors, but the data will be created and it's fine
@@ -111,10 +111,10 @@ python scripts/dataset_curation.py \
     --seed 10000 \
     --train_size 10000 \
     --test_size 10 \
-    --prefix qwen-instruct # we find it works well for base models
+    --prefix qwen-instruct # we find it could work for base models
 ```
 
-Export variables:
+### Export variables and train
 ```bash
 export DATA_DIR=data/sokoban
 export DIM_X=6
