@@ -97,7 +97,7 @@ pip install -r requirements.txt # other packages
 
 ### Create data
 
-On the [Gym-Sokoban](https://github.com/mpSchrader/gym-sokoban) task, We create 10k data for training and run for <=1 epoch. 
+On the [Gym-Sokoban](https://github.com/mpSchrader/gym-sokoban) task, We create 10k first-round-observation data for training and run for <=1 epoch. 
 ```bash
 # sokoban env settings. will determine game difficulty
 # it's normal to see some SOKOBAN errors, but the data will be created and it's fine
