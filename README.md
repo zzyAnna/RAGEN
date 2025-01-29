@@ -173,9 +173,9 @@ sudo apt-get install fonts-noto-cjk
 <p align="center" style="display: flex; justify-content: center; gap: 10px;">
     <img src="./public/step_1.png" width="200px" alt="s" />
     <img src="./public/step_2.png" width="200px" alt="s" />
-    <img src="./public/step_3.png" width="200px" alt="s" />
+<!--     <img src="./public/step_3.png" width="200px" alt="s" />
     <img src="./public/step_4.png" width="200px" alt="s" />
-    <img src="./public/step_5.png" width="200px" alt="s" />
+    <img src="./public/step_5.png" width="200px" alt="s" /> -->
 </p>
 
 
