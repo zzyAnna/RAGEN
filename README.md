@@ -160,7 +160,7 @@ NOTE: Only tested with 1 GPU
   - BFS is used to generate shortest action path for a given sokoban environment
   - The data then fomulated as chat dataset.
 ```bash
-bash sft/data/generate_data.sh
+bash sft/generate_data.sh
 ```
 
 2. Finetune the model (with LoRA)

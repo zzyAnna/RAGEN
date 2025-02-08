@@ -11,7 +11,7 @@ export SEARCH_DEPTH=30
 
 export CUDA_VISIBLE_DEVICES=0 # For multi-gpus, please make sure MICRO_BATCH_SIZE >= gpu_count
 export BASE_MODEL=sft/output/sokoban-output-lora-qwen-2.5-0.5b-base/global_step_255_merged
-export EXPERIMENT_NAME=test-qwen2.5-0.5b-base-lora-sft
+export EXPERIMENT_NAME=test-qwen2.5-0.5b-base-lora-sft-kl-coef-0.0001
 
 
 export MICRO_BATCH_SIZE=2
@@ -58,7 +58,7 @@ actor_rollout_ref.ref.log_prob_micro_batch_size=$MICRO_BATCH_SIZE \
 critic.optim.lr=1e-5 \
 critic.model.path=$BASE_MODEL \
 critic.ppo_micro_batch_size=$MICRO_BATCH_SIZE \
-algorithm.kl_ctrl.kl_coef=0.001 \
+algorithm.kl_ctrl.kl_coef=0.0001 \
 trainer.logger=$LOG_MODE \
 +trainer.val_before_train=False \
 trainer.default_hdfs_dir=null \
