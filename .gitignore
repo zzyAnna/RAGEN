@@ -19,6 +19,8 @@ tensorflow/my_graph/*
 *.so
 data/sokoban/*
 data/spatial/*
+sft/output/*
+sft/data/*
 
 # Distribution / packaging
 .Python
