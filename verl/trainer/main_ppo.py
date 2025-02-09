@@ -41,7 +41,7 @@ def _select_rm_score_fn(data_source):
             pattern = r'reward: (-?\d+\.\d+)\ndone: (True|False)'
             matches = re.findall(pattern, solution)
             reward = sum(float(match[0]) for match in matches)
-            print(f"reward: {reward}")
+            # print(f"reward: {reward}")
             # 2. format reward, find "action is invalid", add -0.1 to reward
             pattern = r'Action is invalid. You stay in the same position.'
             matches = re.findall(pattern, solution)
@@ -116,8 +116,8 @@ class RewardManager():
                 else:
                     score = data_item.non_tensor_batch['reward']
                 score = float(score)
-                print(f"reward: {score}")
-                if score > 15:
+                # print(f"reward: {score}")
+                if score > 20:
                     print(f"[REWARD TOO MUCH]. solution: \n{sequences_str}")
                 # score = compute_score_fn(solution_str=sequences_str, ground_truth=ground_truth)
             else:

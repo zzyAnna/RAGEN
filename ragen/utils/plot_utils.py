@@ -1,98 +1,136 @@
-import matplotlib.pyplot as plt
-from matplotlib.backends.backend_pdf import PdfPages
-from matplotlib.gridspec import GridSpec
-from collections import defaultdict
+import base64
+from io import BytesIO
+from PIL import Image
 import os
-import textwrap
 import re
+import html
 
-def save_trajectory_to_pdf(trajectory, save_dir):
+def image_to_base64(img_array):
+    """Convert numpy array to base64 string"""
+    img = Image.fromarray(img_array)
+    buffered = BytesIO()
+    img.save(buffered, format="PNG")
+    return base64.b64encode(buffered.getvalue()).decode()
+
+def save_trajectory_to_output(trajectory, save_dir):
     """
-    Save the trajectory to a pdf file with improved layout that maintains image aspect ratios
-    =========================
+    Save the trajectory to HTML files with better multi-language support
+    
     Arguments:
         - trajectory (list): The trajectory to save
-        - save_dir (str): Directory to save the PDF files
-    =========================
+        - save_dir (str): Directory to save the HTML files
     """
-    import matplotlib
-    # 设置支持中文的字体
-    matplotlib.rcParams['font.sans-serif'] = ['Noto Sans CJK JP', 'Noto Sans CJK SC', 'DejaVu Sans']
-    matplotlib.rcParams['axes.unicode_minus'] = False
-    
     os.makedirs(save_dir, exist_ok=True)
-
+    
+    # CSS styles as a separate string
+    css_styles = '''
+        body {
+            font-family: "Noto Sans CJK SC", "Noto Sans CJK JP", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .trajectory-step {
+            background: white;
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .image-container {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 15px;
+        }
+        .image-box {
+            width: 48%;
+        }
+        .image-box img {
+            width: 100%;
+            height: auto;
+            border-radius: 4px;
+        }
+        .image-title {
+            font-size: 16px;
+            font-weight: bold;
+            margin-bottom: 10px;
+            color: #333;
+        }
+        .response-box {
+            background: #f8f8f8;
+            border-radius: 4px;
+            padding: 15px;
+            margin: 10px 0;
+            white-space: pre-wrap;
+            font-size: 14px;
+            line-height: 1.5;
+        }
+        .step-number {
+            font-size: 18px;
+            font-weight: bold;
+            color: #2196F3;
+            margin-bottom: 15px;
+        }
+    '''
+    
     for data_idx, data in enumerate(trajectory):
-        filename = os.path.join(save_dir, f"trajectory_data_{data_idx}.pdf")
-        with PdfPages(filename) as pdf:
-            n_steps = len(data['img_before_action'])
+        steps_html = []
+        n_steps = len(data['img_before_action'])
+        
+        for step in range(n_steps):
+            # Convert images to base64
+            img_before = image_to_base64(data['img_before_action'][step])
+            img_after = image_to_base64(data['img_after_action'][step])
             
-            for step in range(n_steps):
-                # Calculate figure size based on image aspect ratio
-                img_height, img_width = data['img_before_action'][step].shape[:2]
-                aspect_ratio = img_width / img_height
-                
-                # Adjust figure size calculation
-                fig_width = 8  # Reduced width for better proportions
-                # Calculate height based on content needs
-                img_space = fig_width / aspect_ratio  # Space needed for each image
-                text_space = fig_width * 0.2  # Minimal space for text
-                fig_height = img_space * 2 + text_space  # Total height needed
-                
-                # Create figure
-                fig = plt.figure(figsize=(fig_width, fig_height))
-                
-                # Create grid with minimal text section
-                gs = fig.add_gridspec(3, 1, height_ratios=[1, 0.15, 1], hspace=0.05)
-                
-                # Before Action Image
-                ax_before = fig.add_subplot(gs[0])
-                ax_before.imshow(data['img_before_action'][step])
-                ax_before.set_title(f'Step {step+1} - Before Action', 
-                                  fontsize=12, pad=5)
-                ax_before.axis('off')
-                ax_before.set_aspect('equal')
-                
-                # Text Response Section - Minimized
-                ax_text = fig.add_subplot(gs[1])
-                parsed_response = "Model Response: \n<think>" + data['parsed_response'][step]['raw'].replace("<|im_end|>", "").replace("<|endoftext|>", "")
-                parsed_response = parsed_response.replace('\\n', '\n')
-                parsed_response = re.sub(r'(</think>)\s*(<answer>)', r'\1\n\2', parsed_response)
-                
-                # Simplified text wrapping
-                wrapped_text = textwrap.fill(
-                    parsed_response,
-                    width=80,  # Increased width to reduce height
-                    initial_indent='',
-                    subsequent_indent='  ',
-                    break_long_words=True,
-                    break_on_hyphens=True
-                )
-                
-                # Compact text display
-                ax_text.text(
-                    0.02, 0.5,
-                    wrapped_text,
-                    transform=ax_text.transAxes,
-                    ha='left',
-                    va='center',
-                    wrap=True,
-                    fontsize=10,  # Reduced font size
-                    linespacing=1.1,  # Reduced line spacing
-                    bbox=dict(facecolor='#f8f8f8', alpha=0.9, pad=2)
-                )
-                ax_text.axis('off')
-                
-                # After Action Image
-                ax_after = fig.add_subplot(gs[2])
-                ax_after.imshow(data['img_after_action'][step])
-                ax_after.set_title('After Action', fontsize=12, pad=5)
-                ax_after.axis('off')
-                ax_after.set_aspect('equal')
-                
-                # Save with minimal padding
-                pdf.savefig(fig, bbox_inches='tight', pad_inches=0.1)
-                plt.close(fig)
+            # Process response text
+            parsed_response = data['parsed_response'][step]['raw']
+            parsed_response = parsed_response.replace("<|im_end|>", "").replace("<|endoftext|>", "")
+            parsed_response = parsed_response.replace('\\n', '\n')
+            parsed_response = re.sub(r'(</think>)\s*(<answer>)', r'\1\n\2', parsed_response)
+            parsed_response = html.escape(parsed_response)
+            
+            # Create step HTML
+            step_html = f'''
+            <div class="trajectory-step">
+                <div class="step-number">Step {step + 1}</div>
+                <div class="image-container">
+                    <div class="image-box">
+                        <div class="image-title">Before Action</div>
+                        <img src="data:image/png;base64,{img_before}" alt="Before Action">
+                    </div>
+                    <div class="image-box">
+                        <div class="image-title">After Action</div>
+                        <img src="data:image/png;base64,{img_after}" alt="After Action">
+                    </div>
+                </div>
+                <div class="response-box">
+                    Model Response:
+                    {parsed_response}
+                </div>
+            </div>
+            '''
+            steps_html.append(step_html)
+        
+        # Combine all content into final HTML
+        final_html = f'''
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <meta charset="UTF-8">
+            <style>
+                {css_styles}
+            </style>
+        </head>
+        <body>
+            {''.join(steps_html)}
+        </body>
+        </html>
+        '''
+        
+        # Save to file
+        filename = os.path.join(save_dir, f"trajectory_data_{data_idx}.html")
+        with open(filename, 'w', encoding='utf-8') as f:
+            f.write(final_html)
 
 def parse_llm_output(llm_output: str, strategy: str):
     """

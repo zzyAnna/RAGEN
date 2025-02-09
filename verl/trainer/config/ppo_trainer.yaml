@@ -176,7 +176,7 @@ env:
 
 logging:
   log_images: True
-  log_image_dir: .log.debug/trajectory
+  log_image_dir: log/trajectory
   log_image_step_size: 1
   log_n_image_per_batch: 4
   log_n_sample_per_batch: 1

@@ -1,0 +1,9 @@
+# Environment settings
+env:
+  name: "sokoban"
+  data_dir: "data/sokoban"
+  dim_x: 6
+  dim_y: 6
+  num_boxes: 1
+  max_steps: 5
+  search_depth: 30

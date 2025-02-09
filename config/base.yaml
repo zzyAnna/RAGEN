@@ -1,0 +1,50 @@
+# System settings
+system:
+  cuda_visible_devices: 0
+  python_hash_seed: 10000
+  n_gpus: 1
+  multi_processing: "ray"
+  vllm_attention_backend: "XFORMERS"
+
+# Model settings
+model:
+  base_model: "Qwen/Qwen2.5-0.5B-Instruct"
+  experiment_name: "ragen-main-exp"
+  gradient_checkpointing: true
+
+# Training parameters
+training:
+  micro_batch_size: 1
+  train_batch_size: 128
+  ppo_batch_size: 64
+  max_start_length: 400
+  max_response_length: 200
+  max_obs_length: 200
+  max_turns: 5
+  rollout_tp_size: 1
+  total_epochs: 5
+
+# Optimization parameters
+optimization:
+  actor_lr: 1e-6
+  critic_lr: 1e-5
+  kl_coef: 0.001
+  gpu_memory_utilization: 0.4
+
+# Logging settings
+logging:
+  mode: "['wandb']"
+  log_images: true
+  log_image_dir: "log/trajectory"
+  log_image_step_size: 1
+  log_n_image_per_batch: 8
+
+# Trainer settings
+trainer:
+  val_before_train: false
+  default_hdfs_dir: null
+  nnodes: 1
+  save_freq: 100
+  test_freq: 100
+  project_name: "Agent-R1"
+
