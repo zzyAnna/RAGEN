@@ -95,7 +95,7 @@ pip install -r requirements.txt # other packages
 
 ## Train Models
 
-### Create data
+### Create Sokoban data
 
 On the [Gym-Sokoban](https://github.com/mpSchrader/gym-sokoban) task, We create 10k first-round-observation data for training and run for <=1 epoch. 
 ```bash
@@ -117,14 +117,37 @@ python scripts/dataset_curation.py \
     --prefix qwen-instruct # we find it could work for base models
 ```
 
+### Create FrozenLake data
+
+On the [FrozenLake](https://gymnasium.farama.org/environments/toy_text/frozen_lake/) task, We create 10k first-round-observation data for training and run for <=1 epoch. 
+```bash
+# frozenlake env settings. will determine game difficulty
+
+export SIZE=6 # size * size grid
+export P=0.8 # percetage of frozen tiles
+
+
+python scripts/dataset_curation_frozenlake.py \
+    --output data/frozenlake \
+    --seed 10000 \
+    --train_size 10000 \
+    --test_size 10 \
+    --prefix qwen-instruct # we find it could work for base models
+```
+
 ### Export variables and train
 ```bash
-export DATA_DIR=data/sokoban
+export DATA_DIR=data/sokoban # or data/frozenlake
+# for sokoban
 export DIM_X=6
 export DIM_Y=6
 export NUM_BOXES=1
 export MAX_STEPS=5
 export SEARCH_DEPTH=30
+
+# for frozenlake
+# export SIZE=6
+# export P=0.8
 
 # export CUDA_VISIBLE_DEVICES=0
 # export BASE_MODEL=Qwen/Qwen2.5-0.5B

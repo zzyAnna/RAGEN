@@ -20,17 +20,19 @@ import torch
 import verl.utils.reward_score.countdown as countdown
 from verl.trainer.ppo.ray_trainer import RayPPOTrainer
 from ragen.env.sokoban import SokobanEnv
+from ragen.env.frozen_lake import FrozenLakeEnv
 import re
 import numpy as np
 
 ENV_CLASS_MAPPING = {
-    'sokoban': SokobanEnv
+    'sokoban': SokobanEnv,
+    'frozenlake': FrozenLakeEnv
 }
 
 def _select_rm_score_fn(data_source):
     if "countdown" in data_source:
         return countdown.compute_score
-    elif "sokoban" in data_source:
+    elif "sokoban" in data_source or "frozenlake" in data_source:
         def judge_fn(*args, **kwargs):
             solution = kwargs['solution_str']
             # 1. reward based on the game:
@@ -106,7 +108,7 @@ class RewardManager():
             data_source = data_item.non_tensor_batch['data_source']
             compute_score_fn = _select_rm_score_fn(data_source)
 
-            if data_source == 'sokoban':
+            if data_source in ['sokoban', 'frozenlake']:
                 if 'reward' not in data_item.non_tensor_batch.keys():
                     # TODO: currently validate is not implemented
                     score = compute_score_fn(solution_str=sequences_str, ground_truth=ground_truth)
@@ -231,6 +233,10 @@ def main_task(config):
 
     resource_pool_manager = ResourcePoolManager(resource_pool_spec=resource_pool_spec, mapping=mapping)
 
+    if config.env.name == 'frozenlake':
+        env = env_class(size=config.env.size, p=config.env.p)
+    elif config.env.name == 'sokoban':
+        env = env_class(dim_room=(config.env.dim_x, config.env.dim_y), num_boxes=config.env.num_boxes, max_steps=config.env.max_steps, search_depth=config.env.search_depth)
     trainer = RayPPOTrainer(config=config,
                             tokenizer=tokenizer,
                             role_worker_mapping=role_worker_mapping,
@@ -238,7 +244,7 @@ def main_task(config):
                             ray_worker_group_cls=ray_worker_group_cls,
                             reward_fn=reward_fn,
                             val_reward_fn=val_reward_fn,
-                            env=env_class(dim_room=(config.env.dim_x, config.env.dim_y), num_boxes=config.env.num_boxes, max_steps=config.env.max_steps, search_depth=config.env.search_depth),
+                            env=env,
                             env_class=env_class)
     trainer.init_workers()
     trainer.fit()

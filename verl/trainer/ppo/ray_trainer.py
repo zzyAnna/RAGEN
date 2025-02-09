@@ -624,10 +624,10 @@ class RayPPOTrainer(object):
         max_seq_len = max_prompt_len + max_response_len
         max_obs_len = self.config.data.max_obs_length
 
-        dim_room_x, dim_room_y = self.config.env.dim_x, self.config.env.dim_y
-        num_boxes = self.config.env.num_boxes
-        max_steps = self.config.env.max_steps
-        search_depth = self.config.env.search_depth
+        # dim_room_x, dim_room_y = self.config.env.dim_x, self.config.env.dim_y
+        # num_boxes = self.config.env.num_boxes
+        # max_steps = self.config.env.max_steps
+        # search_depth = self.config.env.search_depth
         envs = [self.env.copy() for _ in range(self.config.data.train_batch_size)]
 
         for epoch in range(self.config.trainer.total_epochs):
