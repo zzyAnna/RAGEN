@@ -107,6 +107,7 @@ export DIM_Y=6
 export NUM_BOXES=1
 export MAX_STEPS=5
 export SEARCH_DEPTH=30
+export PYTHONHASHSEED=10000 # fix next seed generation by hash()
 
 
 python scripts/dataset_curation.py \
@@ -125,6 +126,7 @@ export DIM_Y=6
 export NUM_BOXES=1
 export MAX_STEPS=5
 export SEARCH_DEPTH=30
+export PYTHONHASHSEED=10000 # fix next seed generation by hash()
 
 # export CUDA_VISIBLE_DEVICES=0
 # export BASE_MODEL=Qwen/Qwen2.5-0.5B
