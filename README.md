@@ -156,6 +156,37 @@ bash ./train.sh # more arguments in this file
 
 ```
 
+## Supervised Finetuning (Optional)
+NOTE: Only tested with 1 GPU
+1. Create supervised finetuning data, and parquet files will be saved in `sft/data/`
+  - BFS is used to generate shortest action path for a given sokoban environment
+  - The data then fomulated as chat dataset.
+```bash
+bash sft/generate_data.sh
+```
+
+2. Finetune the model (with LoRA)
+  - By setting `model.lora_rank=0`, we can turn off lora finetuning
+
+```bash
+bash sft/finetune_lora.sh <num_gpus> <save_path>
+```
+
+3. Merge the LoRA weights with the base model
+  - Currently verl main_ppo.py seems not support loading LoRA weights, so we need to merge them with the base model.
+```bash
+python sft/utils/merge_lora.py \
+    --base_model_name <base_model_name> \
+    --lora_model_path <lora_model_path> \
+    --output_path <output_path>
+```
+
+4. Use SFT model for RL training
+  - By setting `BASE_MODEL` to the merged model path, we can use the SFT model for RL training.
+
+
+
+
 
 ## Visualization
 1. By setting arguments in `train.sh`, you can visualize the trajectory:
