@@ -149,13 +149,17 @@ We provide a default config file in `verl/trainer/config/ppo_trainer.yaml`. You 
 NOTE: All possible arguments are in config/base.yaml and other yaml files.
 
 ```bash
-bash train.sh sokoban # more arguments in this file, change ENV_NAME to sokoban or frozenlake here
+bash train.sh sokoban \
+    model.experiment_name=new_test
+    
+    
+     # more arguments in this file, change ENV_NAME to sokoban or frozenlake here
 
 # override config
 bash train.sh sokoban \
-    training.micro_batch_size=2 \
-    model.experiment_name=new_test \
-    optimization.actor_lr=2e-6
+    model.experiment_name=new_test_debug \
+    training.train_batch_size=128 \
+    training.ppo_batch_size=64
 
 # For developers, if you want to add your own config keys, please check [ base.yaml | train.sh | ragen/train.py | verl/trainer/config/ppo_trainer.yaml | and the main_ppo.py in verl/trainer/ppo ] to make sure the changes are reflected coherently.
 
@@ -199,9 +203,15 @@ python sft/utils/merge_lora.py \
 1. By setting arguments in `train.sh`, you can visualize the trajectory:
 ```bash
 logging.log_images=True # set to True to log images
-logging.log_image_dir=.log.debug/trajectory # set to the directory to save images
+logging.log_image_dir=log/trajectory # set to the directory to save images
 logging.log_image_step_size=1 # save image every _ steps
-logging.log_n_image_per_batch=8 # save _ images per batch   
+logging.log_n_image_per_batch=8 # save _ images per batch
+```
+
+You may use this command to visualize the trajectory:
+```bash
+cd log/trajectory
+python -m http.server 8000
 ```
 
 2. You may also need to install fonts to make the figures displayed correctly:

@@ -40,7 +40,14 @@ from verl.utils.seqlen_balancing import get_seqlen_balanced_partitions, log_seql
 
 
 import re
-from ragen.llm.generation_utils import LLMGenerationManager, GenerationConfig
+import ragen
+from ragen.utils import set_seed
+from ragen.utils.plot_utils import (
+    save_trajectory_to_output,
+    parse_llm_output
+)
+
+import shutil
 
 WorkerType = Type[Worker]
 
@@ -552,9 +559,36 @@ class RayPPOTrainer(object):
         batch.reorder(global_idx)
         global_balance_stats = log_seqlen_unbalance(seqlen_list=global_seqlen_lst,
                                                     partitions=global_partition_lst,
-                                                    prefix=logging_prefix) 
+                                                    prefix=logging_prefix)
         metrics.update(global_balance_stats)
     
+    def _convert_pad_structure(self, tensor, pad_token_id, pad_to_left=True):
+        """originally: [pad_left, content, pad_right]
+        want to: [pad_right, pad_left, content] / [content, pad_right, pad_left]
+        """
+        if pad_to_left:
+            mask = tensor != pad_token_id
+        else:
+            mask = tensor == pad_token_id
+
+        sorted_indices = mask.to(torch.int64).argsort(dim=1, stable=True)
+        converted_tensor = tensor.gather(1, sorted_indices)
+
+        return converted_tensor, sorted_indices
+
+    def _cut_to_effective_len(self, protocol, keys, cut_left=True):
+        assert 'attention_mask' in protocol.batch, 'attention_mask is required'
+        effective_len = protocol.batch['attention_mask'].sum(dim=1).max()
+        for key in keys:
+            if cut_left:
+                protocol.batch[key] = protocol.batch[key][:, -effective_len:]
+            else:
+                protocol.batch[key] = protocol.batch[key][:, :effective_len]
+        return protocol
+
+    def _batch_tokenize(self, responses):
+        return self.tokenizer(responses, add_special_tokens=False, return_tensors='pt', padding="longest")['input_ids']
+
     def fit(self):
         """
         The training loop of PPO.
@@ -583,30 +617,19 @@ class RayPPOTrainer(object):
         # we start from step 1
         self.global_steps += 1
 
+        K = self.config.max_turns
+        max_start_len = self.config.data.max_start_length # the first round prompt max len
+        max_prompt_len = self.config.data.max_prompt_length # the max len of prompt
+        max_response_len = self.config.data.max_response_length # the max length of response
+        max_seq_len = max_prompt_len + max_response_len
+        max_obs_len = self.config.data.max_obs_length
 
-
-        # Agent config preparation
-        gen_config = GenerationConfig(
-            max_turns=self.config.max_turns,
-            max_start_length=self.config.data.max_start_length,
-            max_prompt_length=self.config.data.max_prompt_length,
-            max_response_length=self.config.data.max_response_length,
-            max_obs_length=self.config.data.max_obs_length,
-            logging=self.config.logging
-        )
-
-        generation_manager = LLMGenerationManager(
-            tokenizer=self.tokenizer,
-            actor_rollout_wg=self.actor_rollout_wg,
-            env_class=self.env_class,
-            config=gen_config
-        )
-
+        # dim_room_x, dim_room_y = self.config.env.dim_x, self.config.env.dim_y
+        # num_boxes = self.config.env.num_boxes
+        # max_steps = self.config.env.max_steps
+        # search_depth = self.config.env.search_depth
         envs = [self.env.copy() for _ in range(self.config.data.train_batch_size)]
 
-
-
-        # start training loop
         for epoch in range(self.config.trainer.total_epochs):
             for batch_dict in self.train_dataloader:
                 print(f'epoch {epoch}, step {self.global_steps}')
@@ -642,6 +665,9 @@ class RayPPOTrainer(object):
                 # Below is aLL about agents - the "LLM + forloop"
                 ####################
 
+                # keep the very first input_ids
+                first_input_ids = gen_batch.batch['input_ids'][:, -max_start_len:].clone()
+
                 with _timer('step', timing_raw):
                     """
                     keep rolling to generate K turns of responses.
@@ -651,24 +677,189 @@ class RayPPOTrainer(object):
                     Left-pad prompts, right-gen flow, Tensors dance like stardust glow.
                     Errors swarm? Stay calm, don't fret- Code with coffee, debug sunset.
                     """
+                
+                    rollings = gen_batch
+                                        
+                    original_left_side = {
+                        'input_ids': gen_batch.batch['input_ids'][:, -max_start_len:].clone(), 
+                    }
+                    original_right_side = {
+                        'responses': gen_batch.batch['input_ids'][:, []].clone(),
+                        ## 'old_log_probs': gen_batch.batch['input_ids'][:, []].clone(),
+                    }
+                    meta_info = {}
+                    
+                    # # if exists, remove the existing log
+                    # if os.path.exists(f'.log/{self.config.trainer.experiment_name}'):
+                    #     shutil.rmtree(f'.log/{self.config.trainer.experiment_name}')
 
-                    first_input_ids = gen_batch.batch['input_ids'][:, -gen_config.max_start_length:].clone()
-                    output_dir = (f"{self.config.logging.log_image_dir}/"
-                                 f"{self.config.trainer.experiment_name}/"
-                                 f"step_{self.global_steps}")
 
-                    final_gen_batch_output = generation_manager.run_llm_loop(
-                        gen_batch=gen_batch,
-                        envs=envs,
-                        initial_input_ids=first_input_ids,
-                        output_dir=output_dir,
-                        global_steps=self.global_steps
-                    )
+                    if self.config.logging.log_images:
+                        n_visualize = self.config.logging.log_n_image_per_batch # TODO set in config
+                        trajectory = [defaultdict(list) for _ in range(n_visualize)] # for visualization
+                    else:
+                        trajectory = None
 
-                    with torch.no_grad():
-                        output = self.actor_rollout_wg.compute_log_prob(final_gen_batch_output)
-                        final_gen_batch_output = final_gen_batch_output.union(output)
+                    for rollout_step in range(K):
+                        with _timer(f'gen', timing_raw):
+                            # cut to effective length
+                            rollings = self._cut_to_effective_len(rollings, keys=['input_ids', 'attention_mask', 'position_ids'], cut_left=True)
+                            gen_batch_output = self.actor_rollout_wg.generate_sequences(rollings)
+                            meta_info.update(gen_batch_output.meta_info)
+
+                        # process gen_batch_output, remove all things like reward: xxx \n to forbid reward hacking
+                        # decode responses, remove all things like reward: xxx \n to forbid reward hacking. 
+                        cur_responses_decoded = self.tokenizer.batch_decode(gen_batch_output.batch['responses'], skip_special_tokens=False)
+
+                        # remove everything after </answer>. But keep the </answer>. If there is no </answer>, do nothing.
+                        cur_responses_decoded = [response.split('</answer>')[0] + '</answer>' if '</answer>' in response else response for response in cur_responses_decoded]
+
+                        # ifthere has been hacks, output this to a log 
+                        hack_pattern = r'reward: \d+\.\d+\n|done: (True|False)\n'
+                        hacked_responses = [response for response in cur_responses_decoded if re.search(hack_pattern, response)]
+                        if len(hacked_responses) > 0:
+                            print(f"[WARNING] HACKED RESPONSES: {hacked_responses}")
+                            cur_responses_decoded = [re.sub(hack_pattern, '', response) for response in cur_responses_decoded]
+                            # see if there is any hack left
+                            if len(hacked_responses) == 0:
+                                print(f"[DEBUG] No hack left in responses.")
                         
+                        gen_batch_output.batch['responses'] = self._batch_tokenize(cur_responses_decoded)
+                        
+                        below is the code for logging the left and right sides to .log. May be abandoned soon.
+                        os.makedirs(f'.log/{self.config.trainer.experiment_name}/rollout_step_{rollout_step}', exist_ok=True)
+                        import datetime
+                        now = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                        with open(f'.log/{self.config.trainer.experiment_name}/rollout_step_{rollout_step}/left_side.txt', 'w') as f:
+                            f.write(f"{now}\n")
+                            f.write(f"[left side]: \n{rollings}\n")
+                            f.write(f"[left side shape]: \n{rollings.batch['input_ids'].shape}\n")
+                            for idx in range(self.config.logging.log_n_sample_per_batch):
+                                f.write(f"[left side decoded]: \n{self.tokenizer.decode(rollings.batch['input_ids'][idx], skip_special_tokens=False)}\n")
+                            f.write(f"\n")
+
+                        with open(f'.log/{self.config.trainer.experiment_name}/rollout_step_{rollout_step}/right_side.txt', 'w') as f:
+                            f.write(f"{now}\n")
+                            f.write(f"[right side]: \n{gen_batch_output}\n")
+                            f.write(f"[right side shape]: \n{gen_batch_output.batch['responses'].shape}\n")
+                            for idx in range(self.config.logging.log_n_sample_per_batch):
+                                f.write(f"[right side decoded]: \n{self.tokenizer.decode(gen_batch_output.batch['responses'][idx], skip_special_tokens=False)}\n")
+                            f.write(f"\n")
+
+
+
+
+                        # Update here to plot the trajectory and thought
+                        
+                        if trajectory is not None:
+                            for idx, env in enumerate(envs[:n_visualize]):
+                                trajectory[idx]['img_before_action'].append(env.render('rgb_array'))
+                        with _timer('execute_predictions', timing_raw):
+                            cur_responses_decoded = self.tokenizer.batch_decode(gen_batch_output.batch['responses'], skip_special_tokens=False)
+                            next_obs = self.env_class.execute_predictions(envs, cur_responses_decoded, self.tokenizer.pad_token)
+                        if trajectory is not None:
+                            for idx, (cur_response_decoded, env) in enumerate(zip(cur_responses_decoded[:n_visualize], envs[:n_visualize])):
+                                img_after_action = env.render('rgb_array')
+                                parsed_response = parse_llm_output(cur_response_decoded, strategy="raw")
+                                trajectory[idx]['img_after_action'].append(img_after_action)
+                                trajectory[idx]['answer'].append(cur_response_decoded)
+                                trajectory[idx]['parsed_response'].append(parsed_response)
+                        
+
+
+
+
+                        next_obs_input_ids = self.tokenizer(next_obs, padding='longest', return_tensors='pt')['input_ids']
+                        if next_obs_input_ids.shape[1] > max_obs_len:
+                            print("[WARNING] OBSERVATION TOO LONG, CONSIDER CHANGING YOUR CONFIG")
+                            print(next_obs_input_ids.shape)
+                            next_obs_input_ids = next_obs_input_ids[:, :max_obs_len]
+
+                        cur_responses = gen_batch_output.batch['responses']          # [BSZ, MAX_RESP_LEN]
+                        ## cur_log_probs = gen_batch_output.batch['old_log_probs']
+
+                        # add responses to the rollings
+                        new_input_ids = torch.cat([
+                            rollings.batch['input_ids'], 
+                            cur_responses,
+                            next_obs_input_ids
+                        ], dim=1)
+
+                        # update rollings, pad to the left
+                        new_input_ids, _ = self._convert_pad_structure(new_input_ids, pad_token_id=self.tokenizer.pad_token_id, pad_to_left=True)
+                        new_attention_mask = torch.where(new_input_ids != self.tokenizer.pad_token_id, 1, 0)
+                        new_position_ids = (torch.cumsum(new_attention_mask, dim=1) - 1) * new_attention_mask
+
+                        effective_len = new_attention_mask.sum(dim=1).max()
+                        max_len = min(max_prompt_len, effective_len)
+
+                        # cut to the min of max_prompt_len and effective_len
+                        new_input_ids = new_input_ids[:, -max_len:]
+                        new_attention_mask = new_attention_mask[:, -max_len:]
+                        new_position_ids = new_position_ids[:, -max_len:]
+
+                        rollings = DataProto.from_dict({
+                            'input_ids': new_input_ids,
+                            'position_ids': new_position_ids,
+                            'attention_mask': new_attention_mask
+                        })
+
+
+                        # update original right side, pad to the right
+                        original_right_side['responses'] = torch.cat([
+                            original_right_side['responses'],
+                            cur_responses,
+                            next_obs_input_ids
+                        ], dim=1)
+                        
+                        original_right_side['responses'], indices = self._convert_pad_structure(original_right_side['responses'], pad_token_id=self.tokenizer.pad_token_id, pad_to_left=False)
+                        ## original_right_side['old_log_probs'] = torch.gather(original_right_side['old_log_probs'], 1, indices)
+                        
+                        # also make a cut
+                        effective_len = torch.where(original_right_side['responses'] != self.tokenizer.pad_token_id, 1, 0).sum(dim=1).max()
+                        max_len = min(max_prompt_len, effective_len)
+                        original_right_side['responses'] = original_right_side['responses'][:, :max_len]
+
+                    # add reward to DataProto batch.non_tensor_batch['reward']
+                    batch.non_tensor_batch['reward'] = np.array([0 for _ in range(len(envs))], dtype=object)
+                    for idx, env in enumerate(envs):
+                        batch.non_tensor_batch['reward'][idx] = env.reward
+
+                    # save trajectory as images
+                    if trajectory is not None:
+                        save_trajectory_step_size = self.config.logging.log_image_step_size
+                        if not self.global_steps % save_trajectory_step_size:
+                            output_dir = f"{self.config.logging.log_image_dir}/{self.config.trainer.experiment_name}/step_{self.global_steps}"
+                            os.makedirs(output_dir, exist_ok=True)
+                            save_trajectory_to_output(trajectory, save_dir=output_dir)
+
+                    # compose final gen batch output
+                    with _timer('compose_final_gen_batch_output', timing_raw):
+                        final_gen_batch_output = original_right_side
+                        final_gen_batch_output['prompts'] = original_left_side['input_ids']
+                        final_gen_batch_output['input_ids'] = torch.concat([
+                            original_left_side['input_ids'],
+                            original_right_side['responses']
+                        ], dim=1)
+                        final_gen_batch_output['attention_mask'] = torch.concat([
+                            torch.where(original_left_side['input_ids'] != self.tokenizer.pad_token_id, 1, 0),
+                            torch.where(final_gen_batch_output['responses'] != self.tokenizer.pad_token_id, 1, 0),
+                        ], dim=1)
+                        final_gen_batch_output['position_ids'] = (torch.cumsum(final_gen_batch_output['attention_mask'], dim=1) - 1) * final_gen_batch_output['attention_mask']
+
+                        final_gen_batch_output = DataProto.from_dict(original_right_side)
+                        final_gen_batch_output.meta_info.update(meta_info)
+
+                    # to get the old_log_probs
+                    with _timer('ref_probs_forward', timing_raw):
+                        with torch.no_grad():
+                            output = self.actor_rollout_wg.compute_log_prob(final_gen_batch_output)  # [IMPLEMENT]
+                            final_gen_batch_output = final_gen_batch_output.union(output)
+                            # print output length
+                            print(f"everything about output like length: {output}")
+                        # response_len = original_right_side['responses'].shape[1]
+                    #     final_gen_batch_output['old_log_probs'] = output[:, -response_len:]
+
                     batch.non_tensor_batch['uid'] = np.array([str(uuid.uuid4()) for _ in range(len(batch.batch))], dtype=object)
                     batch = batch.repeat(repeat_times=self.config.actor_rollout_ref.rollout.n, interleave=True)
                     batch = batch.union(final_gen_batch_output)
