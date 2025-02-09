@@ -151,9 +151,7 @@ NOTE: All possible arguments are in config/base.yaml and other yaml files.
 ```bash
 bash train.sh sokoban \
     model.experiment_name=new_test
-    
-    
-     # more arguments in this file, change ENV_NAME to sokoban or frozenlake here
+
 
 # override config
 bash train.sh sokoban \
@@ -212,6 +210,7 @@ You may use this command to visualize the trajectory:
 ```bash
 cd log/trajectory
 python -m http.server 8000
+# check http://localhost:8000/[EXP_NAME]/step_[STEP_NUM]/trajectory_data_[ID].html
 ```
 
 2. You may also need to install fonts to make the figures displayed correctly:
