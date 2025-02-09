@@ -186,9 +186,6 @@ python sft/utils/merge_lora.py \
 
 
 
-
-
-
 ## Visualization
 1. By setting arguments in `train.sh`, you can visualize the trajectory:
 ```bash

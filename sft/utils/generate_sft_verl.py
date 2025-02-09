@@ -159,10 +159,10 @@ def create_chat_messages_for_env(args):
     instruction_message = templates[prefix]['instruction'].format(prompt=instruction)
     messages.append({'role': 'user', 'content': instruction_message})
 
-    images = []
+    # images = []
 
     env.reset(seed=seed)
-    images.append(env.render('rgb_array'))
+    # images.append(env.render('rgb_array'))
     gt_action_sequence = get_shortest_action_path(env.room_fixed, env.room_state, MAX_DEPTH=MAX_DEPTH)
     assert gt_action_sequence, f"No action sequence found for seed {seed}"
     for action in gt_action_sequence:
@@ -176,10 +176,10 @@ def create_chat_messages_for_env(args):
         obs, reward, done, _ = env.step(action)
         observation_message = templates[prefix]['observation'].format(observation=obs)
         messages.append({'role': 'user', 'content': observation_message})
-        images.append(env.render('rgb_array'))
+        # images.append(env.render('rgb_array'))
     assert done, f"Environment did not terminate for seed {seed}"
-    ani = plot_animation(images)
-    ani.save(f'sft/data/animation_{seed}.gif')
+    # ani = plot_animation(images)
+    # ani.save(f'sft/data/animation_{seed}.gif')
     return instances
 
 

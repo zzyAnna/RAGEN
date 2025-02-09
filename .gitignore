@@ -19,6 +19,7 @@ tensorflow/my_graph/*
 *.so
 data/sokoban/*
 data/spatial/*
+data/frozenlake/*
 sft/output/*
 sft/data/*
 
