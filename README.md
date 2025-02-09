@@ -129,7 +129,7 @@ export P=0.8 # percetage of frozen tiles
 
 python scripts/dataset_curation_frozenlake.py \
     --output data/frozenlake \
-    --seed 10000 \
+    --seed 100000 \
     --train_size 10000 \
     --test_size 10 \
     --prefix qwen-instruct # we find it could work for base models
@@ -171,7 +171,7 @@ export GCP=True # gradient checkpointing
 export N_GPUS=1
 export ROLLOUT_TP_SIZE=1
 
-bash ./train.sh # more arguments in this file
+bash ./train.sh # more arguments in this file, change ENV_NAME to sokoban or frozenlake here
 
 # default config file is verl/trainer/config/ppo_trainer.yaml
 
