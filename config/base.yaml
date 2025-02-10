@@ -24,12 +24,13 @@ training:
   rollout_tp_size: 1
   n_rollout: 1
   total_epochs: 5
+  use_kl_loss: False # this means actor KL Loss
 
 # Optimization parameters
 optimization:
   actor_lr: 1e-6
   critic_lr: 1e-5
-  kl_coef: 0.001
+  kl_coef: 0.04
   adv_estimator: gae
   gpu_memory_utilization: 0.4
 

@@ -474,7 +474,7 @@ class RayPPOTrainer(object):
             critic_cls = RayClassWithInitArgs(cls=self.role_worker_mapping[Role.Critic], config=self.config.critic)
             self.resource_pool_to_cls[resource_pool]['critic'] = critic_cls
             self.use_critic = True
-        elif self.config.algorithm.adv_estimator == 'grpo':
+        elif self.config.algorithm.adv_estimator in ['grpo', 'brpo', 'apo']:
             self.use_critic = False
         else:
             raise NotImplementedError

@@ -73,6 +73,7 @@ def get_train_command(config: Dict[str, Any]) -> str:
         f"actor_rollout_ref.model.path={config['model']['base_model']}",
         f"actor_rollout_ref.model.enable_gradient_checkpointing={str(config['model']['gradient_checkpointing']).lower()}",
         f"actor_rollout_ref.actor.optim.lr={config['optimization']['actor_lr']}",
+        f"actor_rollout_ref.actor.use_kl_loss={config['training']['use_kl_loss']}",
         f"actor_rollout_ref.actor.ppo_mini_batch_size={config['training']['ppo_batch_size']}",
         f"actor_rollout_ref.actor.ppo_micro_batch_size={config['training']['micro_batch_size']}",
         f"actor_rollout_ref.rollout.log_prob_micro_batch_size={config['training']['micro_batch_size']}",

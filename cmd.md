@@ -31,11 +31,17 @@ Below:GRPO
 
 ```bash
 bash train.sh sokoban \
-    model.experiment_name=test_zihan_grpo \
-    training.n_rollout=64 \
-    training.train_batch_size=16 \
-    training.ppo_batch_size=16 \
-    optimization.adv_estimator=grpo
+    model.experiment_name=test_zihan_brpo_p8r16 \
+    training.n_rollout=16 \
+    training.train_batch_size=8 \
+    training.ppo_batch_size=128 \
+    training.micro_batch_size=2 \
+    optimization.adv_estimator=brpo \
+    training.use_kl_loss=True
+    # train_batch_size: rollout prompts
+    # n_rollout: responses for each prompt
+    # ppo_batch_size: update things
+    # consider making the "epoch X step X" as "Rollout step X, update step X*X"?
     # grpo | brpo | apo
     # effective batch size: training.train_batch_size * training.n_rollout
 ```
