@@ -46,6 +46,7 @@ class SokobanEnv(gym_sokoban.envs.sokoban_env.SokobanEnv):
         """
         cur_actions, action_is_valid = cls.postprocess_predictions(predictions)
         next_obs = []
+        dones = []
         for env, action, response, av in zip(envs, cur_actions, predictions, action_is_valid):
             # 1. check whether cur_response has the end token
             obs = ""
@@ -57,13 +58,16 @@ class SokobanEnv(gym_sokoban.envs.sokoban_env.SokobanEnv):
             # 2. check whether the env is done
             if env.success():
                 obs += pad_token
+                dones.append(True)
             else:
                 observation, reward, done, extra_info = env.step(action)
                 env_feedback = cls.parse_update_info_to_obs((observation, reward, done, extra_info), av)
                 env.reward += reward if av else (reward - 0.1)
                 obs += "\n <|im_start|>user\n" + env_feedback + "<|im_end|>\n" + "<|im_start|>assistant\n<think>"
+                dones.append(done)
             next_obs.append(obs)
-        return next_obs
+            
+        return next_obs, dones
 
     @staticmethod
     def extract_action(text):

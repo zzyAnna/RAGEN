@@ -1,0 +1,157 @@
+2025-01-27 10:27:23
+[left side]: 
+DataProto(batch=TensorDict(
+    fields={
+        attention_mask: Tensor(shape=torch.Size([8, 295]), device=cpu, dtype=torch.int64, is_shared=False),
+        input_ids: Tensor(shape=torch.Size([8, 295]), device=cpu, dtype=torch.int64, is_shared=False),
+        position_ids: Tensor(shape=torch.Size([8, 295]), device=cpu, dtype=torch.int64, is_shared=False)},
+    batch_size=torch.Size([8]),
+    device=None,
+    is_shared=False), non_tensor_batch={}, meta_info={})
+[left side shape]: 
+torch.Size([8, 295])
+[left side decoded]: 
+<|im_start|>system
+You are a helpful assistant. <|im_end|>
+<|im_start|>user
+You are a Sokoban solver.
+
+Sokoban Quick Guide
+Goal: Push all boxes (X) onto targets (O).
+
+Symbols:
+# Wall | _ Floor | O Target | X Box | P You | √ = Box on Target | S = You on Target
+
+Rules:
+1. Push boxes (can't pull).
+2. Avoid walls (#).
+
+Answers:
+<answer> 1 (Up) </answer> | <answer> 2 (Down) </answer> | <answer> 3 (Left) </answer> | <answer> 4 (Right) </answer>
+
+Rewards:
+Move: -0.1
+Box on target: +1.0
+All boxes placed: +10.0
+
+
+[Cumulative Observations]:
+ # 	 # 	 # 	 # 	 # 	 # 	
+ # 	 _ 	 _ 	 _ 	 _ 	 # 	
+ # 	 O 	 _ 	 X 	 P 	 # 	
+ # 	 _ 	 _ 	 _ 	 _ 	 # 	
+ # 	 # 	 # 	 # 	 _ 	 # 	
+ # 	 # 	 # 	 # 	 # 	 # 	
+Decide the next action:
+Always output: <think> [Your thoughts] </think> <answer> [your answer] </answer> with no extra test. Strictly follow this format. <|im_end|>
+<|im_start|>assistant
+<think>
+[left side decoded]: 
+<|im_start|>system
+You are a helpful assistant. <|im_end|>
+<|im_start|>user
+You are a Sokoban solver.
+
+Sokoban Quick Guide
+Goal: Push all boxes (X) onto targets (O).
+
+Symbols:
+# Wall | _ Floor | O Target | X Box | P You | √ = Box on Target | S = You on Target
+
+Rules:
+1. Push boxes (can't pull).
+2. Avoid walls (#).
+
+Answers:
+<answer> 1 (Up) </answer> | <answer> 2 (Down) </answer> | <answer> 3 (Left) </answer> | <answer> 4 (Right) </answer>
+
+Rewards:
+Move: -0.1
+Box on target: +1.0
+All boxes placed: +10.0
+
+
+[Cumulative Observations]:
+ # 	 # 	 # 	 # 	 # 	 # 	
+ # 	 _ 	 P 	 _ 	 # 	 # 	
+ # 	 _ 	 X 	 _ 	 # 	 # 	
+ # 	 O 	 _ 	 _ 	 # 	 # 	
+ # 	 _ 	 _ 	 _ 	 _ 	 # 	
+ # 	 # 	 # 	 # 	 # 	 # 	
+Decide the next action:
+Always output: <think> [Your thoughts] </think> <answer> [your answer] </answer> with no extra test. Strictly follow this format. <|im_end|>
+<|im_start|>assistant
+<think>
+[left side decoded]: 
+<|im_start|>system
+You are a helpful assistant. <|im_end|>
+<|im_start|>user
+You are a Sokoban solver.
+
+Sokoban Quick Guide
+Goal: Push all boxes (X) onto targets (O).
+
+Symbols:
+# Wall | _ Floor | O Target | X Box | P You | √ = Box on Target | S = You on Target
+
+Rules:
+1. Push boxes (can't pull).
+2. Avoid walls (#).
+
+Answers:
+<answer> 1 (Up) </answer> | <answer> 2 (Down) </answer> | <answer> 3 (Left) </answer> | <answer> 4 (Right) </answer>
+
+Rewards:
+Move: -0.1
+Box on target: +1.0
+All boxes placed: +10.0
+
+
+[Cumulative Observations]:
+ # 	 # 	 # 	 # 	 # 	 # 	
+ # 	 _ 	 _ 	 _ 	 _ 	 # 	
+ # 	 _ 	 _ 	 _ 	 O 	 # 	
+ # 	 # 	 X 	 _ 	 # 	 # 	
+ # 	 # 	 P 	 _ 	 _ 	 # 	
+ # 	 # 	 # 	 # 	 # 	 # 	
+Decide the next action:
+Always output: <think> [Your thoughts] </think> <answer> [your answer] </answer> with no extra test. Strictly follow this format. <|im_end|>
+<|im_start|>assistant
+<think>
+[left side decoded]: 
+<|im_start|>system
+You are a helpful assistant. <|im_end|>
+<|im_start|>user
+You are a Sokoban solver.
+
+Sokoban Quick Guide
+Goal: Push all boxes (X) onto targets (O).
+
+Symbols:
+# Wall | _ Floor | O Target | X Box | P You | √ = Box on Target | S = You on Target
+
+Rules:
+1. Push boxes (can't pull).
+2. Avoid walls (#).
+
+Answers:
+<answer> 1 (Up) </answer> | <answer> 2 (Down) </answer> | <answer> 3 (Left) </answer> | <answer> 4 (Right) </answer>
+
+Rewards:
+Move: -0.1
+Box on target: +1.0
+All boxes placed: +10.0
+
+
+[Cumulative Observations]:
+ # 	 # 	 # 	 # 	 # 	 # 	
+ # 	 # 	 # 	 # 	 # 	 # 	
+ # 	 # 	 # 	 # 	 # 	 # 	
+ # 	 # 	 # 	 _ 	 # 	 # 	
+ # 	 P 	 X 	 O 	 _ 	 # 	
+ # 	 # 	 # 	 # 	 # 	 # 	
+Decide the next action:
+Always output: <think> [Your thoughts] </think> <answer> [your answer] </answer> with no extra test. Strictly follow this format. <|im_end|>
+<|im_start|>assistant
+<think>
+

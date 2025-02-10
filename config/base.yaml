@@ -46,5 +46,5 @@ trainer:
   nnodes: 1
   save_freq: 100
   test_freq: 100
-  project_name: "Agent-R1"
+  project_name: "RAGEN"
 

@@ -1,0 +1,36 @@
+2025-01-27 10:27:23
+[right side]: 
+DataProto(batch=TensorDict(
+    fields={
+        attention_mask: Tensor(shape=torch.Size([8, 395]), device=cpu, dtype=torch.int64, is_shared=False),
+        input_ids: Tensor(shape=torch.Size([8, 395]), device=cpu, dtype=torch.int64, is_shared=False),
+        old_log_probs: Tensor(shape=torch.Size([8, 100]), device=cpu, dtype=torch.float32, is_shared=False),
+        position_ids: Tensor(shape=torch.Size([8, 395]), device=cpu, dtype=torch.int64, is_shared=False),
+        prompts: Tensor(shape=torch.Size([8, 295]), device=cpu, dtype=torch.int64, is_shared=False),
+        responses: Tensor(shape=torch.Size([8, 100]), device=cpu, dtype=torch.int64, is_shared=False)},
+    batch_size=torch.Size([8]),
+    device=cpu,
+    is_shared=False), non_tensor_batch={}, meta_info={'micro_batch_size': 1, 'max_token_len': 16384, 'use_dynamic_bsz': False, 'temperature': 1.0})
+[right side shape]: 
+torch.Size([8, 100])
+[right side decoded]: 
+ Determine the goal state and possible next states based on the current configuration of the Sokoban puzzle.
+√ = Box on Target | S = You on Target | _ Floor | _ Wall | _ Wall | _ Wall | O Target | X Box |
+<answer> [your answer] </answer><|im_end|><|endoftext|><|endoftext|><|endoftext|><|endoftext|><|endoftext|><|endoftext|><|endoftext|><|endoftext|><|endoftext|><|endoftext|><|endoftext|><|endoftext|><|endoftext|><|endoftext|><|endoftext|><|endoftext|><|endoftext|><|endoftext|><|endoftext|><|endoftext|><|endoftext|><|endoftext|><|endoftext|><|endoftext|><|endoftext|><|endoftext|><|endoftext|><|endoftext|><|endoftext|><|endoftext|><|endoftext|><|endoftext|><|endoftext|><|endoftext|><|endoftext|><|endoftext|><|endoftext|><|endoftext|><|endoftext|>
+[right side decoded]: 
+ You must push all boxes (X) onto targets (O) in one move. There are two possible actions: move up or move right. Let's consider both cases.</th对我们来说，我们可以将箱子（X）放在靶子（O）上。让我们尝试提高移动速度和目标箱子的数量，以提高我们的得分。
+
+<answer> 4 (Right) </answer>
+
+thoe reasoning behind this action is that after pushing all the boxes (X) onto the targets (O
+[right side decoded]: 
+ No valid next actions after moving <answer> 4 (Right) </answer> and have <answer> 1 (Up) </answer> in goal state. </think>
+
+<think> No valid next actions after moving <answer> 3 (Left) </answer> and have <answer> 1 (Up) </answer> in goal state. </think>
+
+<think> Try moving down next </think>
+
+<think> Move after <answer> 2 (Down
+[right side decoded]: 
+ 3 (Left) </think> 3 to reduce the gap between boxes, giving you 4 boxes to push. 2 to avoid the wall, maximizing your chances of placing a box under the target. 1 to push an empty space, similar to box placement. To maximize places, focus on pushing the box in front of you. 6 places in total.<|im_end|><|endoftext|><|endoftext|><|endoftext|><|endoftext|><|endoftext|><|endoftext|><|endoftext|><|endoftext|><|endoftext|><|endoftext|><|endoftext|><|endoftext|><|endoftext|><|endoftext|><|endoftext|><|endoftext|><|endoftext|><|endoftext|><|endoftext|><|endoftext|><|endoftext|><|endoftext|>
+
