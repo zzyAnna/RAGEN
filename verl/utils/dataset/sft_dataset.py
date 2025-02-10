@@ -30,7 +30,7 @@ from verl.utils.fs import copy_local_path_from_hdfs
 from verl.utils.model import compute_position_id_with_mask
 from verl.utils import hf_tokenizer
 
-from ragen.utils.chat_template_utils import apply_chat_template
+from ragen.utils import apply_chat_template
 import numpy as np
 
 class SFTDataset(Dataset):
