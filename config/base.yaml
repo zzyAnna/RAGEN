@@ -32,7 +32,6 @@ optimization:
   kl_coef: 0.001
   adv_estimator: gae
   gpu_memory_utilization: 0.4
-  advantage_estimator: gae
 
 # Logging settings
 logging:
