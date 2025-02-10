@@ -21,7 +21,7 @@ import copy
 from multiprocessing import Pool
 from tqdm import tqdm
 
-from ragen.env.sokoban import SokobanEnv
+from ragen.env import SokobanEnv
 from ragen.policy.heuristic import FixedPolicy
 from ragen.evaluators.trajectory_evaluator import TrajectoryEvaluator
 from ragen.env.sokoban.room_utils import get_shortest_action_path, plot_animation

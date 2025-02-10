@@ -19,8 +19,7 @@ from verl import DataProto
 import torch
 import verl.utils.reward_score.countdown as countdown
 from verl.trainer.ppo.ray_trainer import RayPPOTrainer
-from ragen.env.sokoban import SokobanEnv
-from ragen.env.frozen_lake import FrozenLakeEnv
+from ragen.env import SokobanEnv, FrozenLakeEnv
 import re
 import numpy as np
 
