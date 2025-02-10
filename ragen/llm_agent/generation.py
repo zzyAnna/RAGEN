@@ -63,7 +63,7 @@ class LLMGenerationManager:
                     if '</answer>' in resp else resp 
                     for resp in responses_str]
         # Remove reward hacking patterns
-        hack_pattern = r'reward: \d+\.\d+\n|done: (True|False)\n'
+        hack_pattern = r'reward: (-?\d+\.\d+)\ndone: (True|False)'
         hacked = [resp for resp in responses_str if re.search(hack_pattern, resp)]
         if hacked:
             print(f"[WARNING] HACKED RESPONSES: {hacked}")
@@ -139,7 +139,7 @@ class LLMGenerationManager:
         original_right_side = {'responses': initial_input_ids[:, []]}
         
         active_mask = torch.ones(gen_batch.batch['input_ids'].shape[0], dtype=torch.bool)
-        active_num_list = [active_mask] 
+        active_num_list = [active_mask.sum().item()] 
         rollings = gen_batch
 
 

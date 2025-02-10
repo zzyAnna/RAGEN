@@ -137,7 +137,7 @@ def compute_advantage(data: DataProto, adv_estimator, gamma=1.0, lam=1.0, num_re
                                                                       lam=lam)
         data.batch['advantages'] = advantages
         data.batch['returns'] = returns
-    elif adv_estimator == 'grpo':
+    elif adv_estimator in ['grpo', 'brpo', 'apo']:
         token_level_rewards = data.batch['token_level_rewards']
         index = data.non_tensor_batch['uid']
         responses = data.batch['responses']
@@ -474,7 +474,7 @@ class RayPPOTrainer(object):
             critic_cls = RayClassWithInitArgs(cls=self.role_worker_mapping[Role.Critic], config=self.config.critic)
             self.resource_pool_to_cls[resource_pool]['critic'] = critic_cls
             self.use_critic = True
-        elif self.config.algorithm.adv_estimator == 'grpo':
+        elif self.config.algorithm.adv_estimator in ['grpo', 'brpo', 'apo']:
             self.use_critic = False
         else:
             raise NotImplementedError
@@ -602,7 +602,7 @@ class RayPPOTrainer(object):
             config=gen_config,
         )
 
-        envs = [self.env.copy() for _ in range(self.config.data.train_batch_size)]
+        envs = [self.env.copy() for _ in range(self.config.data.train_batch_size * self.config.actor_rollout_ref.rollout.n_agent)] 
 
 
 
@@ -614,6 +614,7 @@ class RayPPOTrainer(object):
                 timing_raw = {}
 
                 batch: DataProto = DataProto.from_single_dict(batch_dict)
+                batch = batch.repeat(repeat_times=self.config.actor_rollout_ref.rollout.n_agent, interleave=True)
 
                 env_seeds = [i['index'] for i in batch.non_tensor_batch['extra_info']]
                 print("env_seeds:", env_seeds)
@@ -670,8 +671,14 @@ class RayPPOTrainer(object):
                     with torch.no_grad():
                         output = self.actor_rollout_wg.compute_log_prob(final_gen_batch_output)
                         final_gen_batch_output = final_gen_batch_output.union(output)
-                        
-                    batch.non_tensor_batch['uid'] = np.array([str(uuid.uuid4()) for _ in range(len(batch.batch))], dtype=object)
+                    
+                    if self.config.algorithm.adv_estimator == 'grpo':
+                        batch.non_tensor_batch['uid'] = np.array([str(i) for i in env_seeds], dtype=object)
+                    elif self.config.algorithm.adv_estimator == 'brpo':
+                        batch.non_tensor_batch['uid'] = np.array(["" for _ in range(len(batch.batch))], dtype=object)
+                    elif self.config.algorithm.adv_estimator == 'apo':
+                        batch.non_tensor_batch['uid'] = np.array([str(uuid.uuid4()) for _ in range(len(batch.batch))], dtype=object) # No Relative normalization
+
                     batch = batch.repeat(repeat_times=self.config.actor_rollout_ref.rollout.n, interleave=True)
                     batch = batch.union(final_gen_batch_output)
 
