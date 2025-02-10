@@ -63,7 +63,7 @@ class LLMGenerationManager:
                     if '</answer>' in resp else resp 
                     for resp in responses_str]
         # Remove reward hacking patterns
-        hack_pattern = r'reward: \d+\.\d+\n|done: (True|False)\n'
+        hack_pattern = r'reward: (-?\d+\.\d+)\ndone: (True|False)'
         hacked = [resp for resp in responses_str if re.search(hack_pattern, resp)]
         if hacked:
             print(f"[WARNING] HACKED RESPONSES: {hacked}")
