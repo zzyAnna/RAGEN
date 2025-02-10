@@ -30,7 +30,7 @@ class SokobanEnv(BaseDiscreteActionEnv, GymSokobanEnv):
     }
 
     INVALID_ACTION = 0
-    ACTION_SPACE = gym.spaces.discrete.Discrete(4, start=1)
+    PENALTY_FOR_INVALID = -1
 
     def __init__(self, **kwargs):
         BaseDiscreteActionEnv.__init__(self)
@@ -44,13 +44,11 @@ class SokobanEnv(BaseDiscreteActionEnv, GymSokobanEnv):
             num_boxes=kwargs.pop('num_boxes', 3),
             **kwargs
         )
-
+        self.ACTION_SPACE = gym.spaces.discrete.Discrete(4, start=1)
         self.reward = 0
-        self.penalty_for_invalid = -0.1
 
 
-    @classmethod
-    def extract_action(cls, text):
+    def extract_action(self, text):
         """
         Extract action from text.
         - 0: Still (Invalid Action)
@@ -64,7 +62,7 @@ class SokobanEnv(BaseDiscreteActionEnv, GymSokobanEnv):
         match = re.fullmatch(pattern, text.strip(), flags=re.IGNORECASE | re.X)
         
         if not match:
-            return cls.INVALID_ACTION
+            return self.INVALID_ACTION
         
         if match.group(2):   
             return int(match.group(2))
@@ -73,7 +71,7 @@ class SokobanEnv(BaseDiscreteActionEnv, GymSokobanEnv):
         elif match.group(5): 
             return int(match.group(5))
         
-        return cls.INVALID_ACTION
+        return self.INVALID_ACTION
 
 
     def reset(self, mode='tiny_rgb_array', seed=None):

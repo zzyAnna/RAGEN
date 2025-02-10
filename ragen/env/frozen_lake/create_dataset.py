@@ -65,8 +65,6 @@ def main():
     for seed in seeds:
         env = FrozenLakeEnv(size=size, p=p, seed=seed)
         observation = env.reset(seed=seed, reset_map=False, mode='tiny_rgb_array')
-
-
         instruction = instruction_template.format(task_intro=intro, observation=observation)
         instructions.append(instruction)
     

@@ -78,7 +78,7 @@ class FrozenLakeEnv(BaseDiscreteActionEnv, GymFrozenLakeEnv):
     }
 
     INVALID_ACTION = 0
-    ACTION_SPACE = gym.spaces.discrete.Discrete(4, start=1)
+    PENALTY_FOR_INVALID = -1
 
 
     def __init__(self, **kwargs):
@@ -98,6 +98,7 @@ class FrozenLakeEnv(BaseDiscreteActionEnv, GymFrozenLakeEnv):
             desc=random_map,
             is_slippery=is_slippery
         )
+        self.ACTION_SPACE = gym.spaces.discrete.Discrete(4, start=1)
         
         self.map_kwargs = {
             "size": size,
@@ -116,7 +117,6 @@ class FrozenLakeEnv(BaseDiscreteActionEnv, GymFrozenLakeEnv):
         } # map from custom Env action to action defined in FrozenLakeEnv in gymnasium
 
         self.reward = 0
-        self.penalty_for_invalid = -0.1
 
     def _get_player_position(self):
         return (self.s // self.ncol, self.s % self.ncol) # (row, col)
@@ -124,8 +124,7 @@ class FrozenLakeEnv(BaseDiscreteActionEnv, GymFrozenLakeEnv):
 
 
 
-    @classmethod
-    def extract_action(cls, text):
+    def extract_action(self, text):
         """
         Extract action from text.
         NOTE: the action space is different from gymnasium.envs.toy_text.frozen_lake.FrozenLakeEnv, start from 1
@@ -140,7 +139,7 @@ class FrozenLakeEnv(BaseDiscreteActionEnv, GymFrozenLakeEnv):
         match = re.fullmatch(pattern, text.strip(), flags=re.IGNORECASE | re.X)
         
         if not match:
-            return cls.INVALID_ACTION 
+            return self.INVALID_ACTION 
         
         if match.group(2):   
             return int(match.group(2))
@@ -149,7 +148,7 @@ class FrozenLakeEnv(BaseDiscreteActionEnv, GymFrozenLakeEnv):
         elif match.group(5): 
             return int(match.group(5))
         
-        return cls.INVALID_ACTION
+        return self.INVALID_ACTION
 
 
     def reset(
@@ -275,22 +274,26 @@ if __name__ == "__main__":
         ax.imshow(np_img)
         plt.savefig(filename, dpi=500, bbox_inches='tight', pad_inches=0)
         plt.close(fig)
-    env = FrozenLakeEnv(size=3, seed=5, is_slippery=False)
-    env.reset(seed=4, reset_map=True)
-    save_render_to_png(env.render(mode='rgb_array'), 'frozen_lake_0.png')
+    env = FrozenLakeEnv(size=6, p=0.9, seed=10, is_slippery=True)
+    env.reset(seed=10, reset_map=True)
+    save_render_to_png(env.render(mode='rgb_array'), 'frozen_lake_0_0.png')
     print(env.render(mode='tiny_rgb_array'))
     env.step(3)
-    save_render_to_png(env.render(mode='rgb_array'), 'frozen_lake_1.png')
+    save_render_to_png(env.render(mode='rgb_array'), 'frozen_lake_0_1.png')
     env.step(2)
-    save_render_to_png(env.render(mode='rgb_array'), 'frozen_lake_2.png')
+    save_render_to_png(env.render(mode='rgb_array'), 'frozen_lake_0_2.png')
     env.step(3)
-    save_render_to_png(env.render(mode='rgb_array'), 'frozen_lake_3.png')
+    save_render_to_png(env.render(mode='rgb_array'), 'frozen_lake_0_3.png')
+
+    env.reset(seed=10, reset_map=True)
+    save_render_to_png(env.render(mode='rgb_array'), 'frozen_lake_1_0.png')
+    print(env.render(mode='tiny_rgb_array'))
+    env.step(3)
+    save_render_to_png(env.render(mode='rgb_array'), 'frozen_lake_1_1.png')
     env.step(2)
-    save_render_to_png(env.render(mode='rgb_array'), 'frozen_lake_4.png')
-    # env.step(3)
-    # save_render_to_png(env.render(mode='rgb_array'), 'frozen_lake_5.png')
-    # env.step(3)
-    # save_render_to_png(env.render(mode='rgb_array'), 'frozen_lake_6.png')
+    save_render_to_png(env.render(mode='rgb_array'), 'frozen_lake_1_2.png')
+    env.step(3)
+    save_render_to_png(env.render(mode='rgb_array'), 'frozen_lake_1_3.png')
 
 
     # obs = FrozenLakeEnv.execute_predictions([env], ["<answer>right</answer>"], "<PAD>")

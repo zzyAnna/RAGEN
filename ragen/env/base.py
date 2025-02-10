@@ -12,19 +12,20 @@ class BaseEnv(ABC):
 
     """
     INVALID_ACTION = 0
+    PENALTY_FOR_INVALID = -1
     def __init__(self):
-        self.rewerd = 0
-        self.penalty_for_invalid = -0.1 # penalty for invalid action
+        self.reward = 0
 
     
     
     @classmethod
     @abstractmethod
-    def postprocess_predictions(cls, predictions: List[Any]) -> Tuple[List[int], List[bool]]:
+    def postprocess_predictions(cls, envs: List['BaseEnv'], predictions: List[Any]) -> Tuple[List[int], List[bool]]:
         """
         Process (text-based) predictions from llm into actions and validity flags.
         
         Args:
+            envs: List of environment instances
             predictions: List of raw predictions
             
         Returns:
@@ -33,9 +34,8 @@ class BaseEnv(ABC):
         pass
 
 
-    @staticmethod
     @abstractmethod
-    def parse_update_info_to_obs(update_info: Tuple[Any, float, bool, Dict], action_is_valid: bool) -> str:
+    def parse_update_info_to_obs(self, update_info: Tuple[Any, float, bool, Dict], action_is_valid: bool) -> str:
         """
         Parse environment update information into observation string.
         
@@ -64,8 +64,8 @@ class BaseEnv(ABC):
         Returns:
             List of observation strings
         """
-        cur_actions, action_is_valid = cls.postprocess_predictions(predictions)
-        next_obs = []
+        cur_actions, action_is_valid = cls.postprocess_predictions(envs, predictions)
+        next_obs, dones = [], []
         
         for env, action, response, av in zip(envs, cur_actions, predictions, action_is_valid):
             obs = ""
@@ -74,17 +74,18 @@ class BaseEnv(ABC):
 
             if env.success():
                 obs += pad_token
+                done = True
             else:
                 observation, reward, done, extra_info = env.step(action)
-                env_feedback = cls.parse_update_info_to_obs(
+                env_feedback = env.parse_update_info_to_obs(
                     (observation, reward, done, extra_info), 
                     av
                 )
-                env.reward += reward if av else (reward + env.penalty_for_invalid)
+                env.reward += reward if av else (reward + env.PENALTY_FOR_INVALID)
                 obs += "\n <|im_start|>user\n" + env_feedback + "<|im_end|>\n" + "<|im_start|>assistant\n<think>"
             next_obs.append(obs)
-            
-        return next_obs
+            dones.append(done)
+        return next_obs, dones
 
 
     @abstractmethod
@@ -143,11 +144,10 @@ class BaseDiscreteActionEnv(BaseEnv, ABC):
     GRID_LOOKUP = {} # define the mapping from integer to string for rendering
     ACTION_LOOKUP = {} # define the mapping from integer to action string
     INVALID_ACTION = 0 # default invalid action
-    ACTION_SPACE = None # discrete action space
+    PENALTY_FOR_INVALID = -1 # penalty for invalid action
 
 
-    @staticmethod
-    def parse_update_info_to_obs(update_info: Tuple[Any, float, bool, Dict], action_is_valid: bool) -> str:
+    def parse_update_info_to_obs(self, update_info: Tuple[Any, float, bool, Dict], action_is_valid: bool) -> str:
         """
         Parse environment update information into observation string.
         
@@ -165,27 +165,37 @@ class BaseDiscreteActionEnv(BaseEnv, ABC):
 
 
     @classmethod
-    def postprocess_predictions(cls, predictions: List[Any]) -> Tuple[List[int], List[bool]]:
+    def postprocess_predictions(cls, envs: List['BaseDiscreteActionEnv'], predictions: List[Any]) -> Tuple[List[int], List[bool]]:
+        """
+        Process (text-based) predictions from llm into actions and validity flags.
+        
+        Args:
+            envs: List of environment instances
+            predictions: List of raw predictions
+            
+        Returns:
+            Tuple of (actions list, validity flags list)
+        """
         actions = []
         action_is_valid = []
         
-        for prediction in predictions:
+        for env, prediction in zip(envs, predictions):
             if isinstance(prediction, str): # for llm output
                 if "<answer>" in prediction:
                     action = prediction.split("<answer>")[1].split("</answer>")[0].strip()
                 else:
                     action = prediction.strip()
 
-                action = cls.extract_action(action)
-                action_is_valid.append(action != cls.INVALID_ACTION)
+                action = env.extract_action(action)
+                action_is_valid.append(action != env.INVALID_ACTION)
             elif isinstance(prediction, int):
-                action = prediction if prediction in cls.get_all_actions() else cls.INVALID_ACTION
-                action_is_valid.append(action != cls.INVALID_ACTION)
+                action = prediction if prediction in env.get_all_actions() else env.INVALID_ACTION
+                action_is_valid.append(action != env.INVALID_ACTION)
             elif isinstance(prediction, list):
                 action = prediction
                 action_is_valid.append(True)
             elif prediction is None:
-                action = cls.INVALID_ACTION
+                action = env.INVALID_ACTION
                 action_is_valid.append(False)
             else:
                 raise ValueError(f"Invalid prediction type: {type(prediction)}")
@@ -194,19 +204,17 @@ class BaseDiscreteActionEnv(BaseEnv, ABC):
             
         return actions, action_is_valid
 
-    @classmethod
-    def get_all_actions(cls) -> List[int]:
+    def get_all_actions(self) -> List[int]:
         """Get list of all valid actions."""
-        return list(range(cls.ACTION_SPACE.start, cls.ACTION_SPACE.start + cls.ACTION_SPACE.n))
+        return list(range(self.ACTION_SPACE.start, self.ACTION_SPACE.start + self.ACTION_SPACE.n))
     
 
 
 
 
 
-    @classmethod
     @abstractmethod
-    def extract_action(cls, text: str) -> int:
+    def extract_action(self, text: str) -> int:
         """
         Extract action (in action space) from text input.
         

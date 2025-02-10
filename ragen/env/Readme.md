@@ -1,5 +1,7 @@
 # Environment
 
+NOTE if you are using gymnasium, ensure that in `reset` you should call **gym.Env.reset(self, seed=seed)** and use **self.np_random** for randomness.
+
 ## BaseEnv
 Methods already implemented:
 - `execute_predictions`: For all environments, `execute_predictions` is the actual `step` function in the environment, will be called while rolling out the trajectory.
@@ -30,7 +32,7 @@ Methods already implemented:
 - `get_all_actions`
 
 Methods must be implemented:
-- `extract_action`: extract action from text, e.g., text is the content between <answer> tags
+- `extract_action`: extract action from text, e.g., text is the content between `<answer>` tags
 - `reset`: reset the environment.
 - `step`: step with the action.
 - `success`: check if the current state is successful.
