@@ -85,7 +85,7 @@ def get_train_command(config: Dict[str, Any]) -> str:
         f"algorithm.kl_ctrl.kl_coef={config['optimization']['kl_coef']}",
         f"actor_rollout_ref.rollout.n_agent={config['training']['n_rollout']}",
         f"trainer.logger={config['logging']['mode']}",
-        f"+trainer.val_before_train={str(config['trainer']['val_before_train']).lower()}",
+        f"trainer.val_before_train={str(config['trainer']['val_before_train']).lower()}",
         f"trainer.default_hdfs_dir={config['trainer']['default_hdfs_dir'] or 'null'}",
         f"trainer.n_gpus_per_node={config['system']['n_gpus']}",
         f"trainer.nnodes={config['trainer']['nnodes']}",

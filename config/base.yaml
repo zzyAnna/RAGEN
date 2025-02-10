@@ -30,6 +30,7 @@ optimization:
   actor_lr: 1e-6
   critic_lr: 1e-5
   kl_coef: 0.001
+  adv_estimator: gae
   gpu_memory_utilization: 0.4
   advantage_estimator: gae
 
