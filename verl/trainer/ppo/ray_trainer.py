@@ -40,7 +40,7 @@ from verl.utils.seqlen_balancing import get_seqlen_balanced_partitions, log_seql
 
 
 import re
-from ragen.llm.generation_utils import LLMGenerationManager, GenerationConfig
+from ragen.llm_agent.generation import LLMGenerationManager, GenerationConfig
 
 WorkerType = Type[Worker]
 
@@ -599,7 +599,7 @@ class RayPPOTrainer(object):
             tokenizer=self.tokenizer,
             actor_rollout_wg=self.actor_rollout_wg,
             env_class=self.env_class,
-            config=gen_config
+            config=gen_config,
         )
 
         envs = [self.env.copy() for _ in range(self.config.data.train_batch_size)]
@@ -657,13 +657,15 @@ class RayPPOTrainer(object):
                                  f"{self.config.trainer.experiment_name}/"
                                  f"step_{self.global_steps}")
 
-                    final_gen_batch_output = generation_manager.run_llm_loop(
-                        gen_batch=gen_batch,
-                        envs=envs,
-                        initial_input_ids=first_input_ids,
-                        output_dir=output_dir,
-                        global_steps=self.global_steps
-                    )
+                    with _timer('gen', timing_raw):
+                        generation_manager.timing_raw = timing_raw
+                        final_gen_batch_output = generation_manager.run_llm_loop(
+                            gen_batch=gen_batch,
+                            envs=envs,
+                            initial_input_ids=first_input_ids,
+                            output_dir=output_dir,
+                            global_steps=self.global_steps,
+                        )
 
                     with torch.no_grad():
                         output = self.actor_rollout_wg.compute_log_prob(final_gen_batch_output)

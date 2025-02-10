@@ -29,6 +29,7 @@ optimization:
   actor_lr: 1e-6
   critic_lr: 1e-5
   kl_coef: 0.001
+  adv_estimator: gae
   gpu_memory_utilization: 0.4
 
 # Logging settings
@@ -46,5 +47,5 @@ trainer:
   nnodes: 1
   save_freq: 100
   test_freq: 100
-  project_name: "Agent-R1"
+  project_name: "RAGEN"
 

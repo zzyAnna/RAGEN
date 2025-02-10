@@ -70,9 +70,11 @@ We prepare to release a complete wandb plot for these experiment runs, although 
 
 
 ## Environment Setup
-
+To setup environment and download data (7MB), you can run:
 ```bash
 bash scripts/setup_ragen.sh
+
+python scripts/download_data.py
 ```
 if it fails, you can try to run the lines in `scripts/setup_ragen.md` manually.
 
@@ -83,12 +85,8 @@ if it fails, you can try to run the lines in `scripts/setup_ragen.md` manually.
 
 On the [Gym-Sokoban](https://github.com/mpSchrader/gym-sokoban) and [FrozenLake](https://gymnasium.farama.org/environments/toy_text/frozen_lake/) tasks, We create 10k first-round-observation data for training, respectively.
 
-Use below script to download data.
-```bash
-python scripts/download_data.py
-```
 <details>
-<summary>Click here to see how to generate/upload data yourself.</summary>
+<summary>Click here to see how to synthesize data manually.</summary>
 
 You can choose to generate basic data or holisitic data for research purpose.
 ```bash
@@ -112,6 +110,8 @@ api.upload_folder(
 ```
 </details>
 
+<details>
+<summary>Click here to see data summarization.</summary>
 
 #### Sokoban Dataset Variants
 
@@ -141,6 +141,8 @@ FrozenLake environment maintains a single configuration:
 - Test size: 10 examples
 - Seed: 100000
 
+</details>
+
 
 
 ### Export variables and train
@@ -151,7 +153,6 @@ NOTE: All possible arguments are in config/base.yaml and other yaml files.
 ```bash
 bash train.sh sokoban \
     model.experiment_name=new_test
-
 
 # override config
 bash train.sh sokoban \
