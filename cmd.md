@@ -24,8 +24,18 @@ Below:Base experiment
 
 ```bash
 bash train.sh sokoban \
-    model.experiment_name=XXXX \
-    argument ...
+    model.experiment_name=test_base
 ```
 
+Below:GRPO
+
+```bash
+bash train.sh sokoban \
+    model.experiment_name=test_zihan_grpo \
+    training.n_rollout=64 \
+    training.train_batch_size=16 \
+    training.ppo_batch_size=16 \
+    optimization.advantage_estimator=grpo
+    # effective batch size: training.train_batch_size * training.n_rollout
+```
 

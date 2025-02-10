@@ -602,7 +602,7 @@ class RayPPOTrainer(object):
             config=gen_config,
         )
 
-        envs = [self.env.copy() for _ in range(self.config.data.train_batch_size)]
+        envs = [self.env.copy() for _ in range(self.config.data.train_batch_size * self.config.actor_rollout_ref.rollout.n_agent)] 
 
 
 
@@ -614,6 +614,7 @@ class RayPPOTrainer(object):
                 timing_raw = {}
 
                 batch: DataProto = DataProto.from_single_dict(batch_dict)
+                batch = batch.repeat(repeat_times=self.config.actor_rollout_ref.rollout.n_agent, interleave=True)
 
                 env_seeds = [i['index'] for i in batch.non_tensor_batch['extra_info']]
                 print("env_seeds:", env_seeds)

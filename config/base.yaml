@@ -22,6 +22,7 @@ training:
   max_obs_length: 200
   max_turns: 5
   rollout_tp_size: 1
+  n_rollout: 1
   total_epochs: 5
 
 # Optimization parameters
@@ -30,6 +31,7 @@ optimization:
   critic_lr: 1e-5
   kl_coef: 0.001
   gpu_memory_utilization: 0.4
+  advantage_estimator: gae
 
 # Logging settings
 logging:
