@@ -112,7 +112,7 @@ class RewardManager():
                 if 'reward' not in data_item.non_tensor_batch.keys():
                     # TODO: currently validate is not implemented
                     score = compute_score_fn(solution_str=sequences_str, ground_truth=ground_truth)
-                    print("[WARNING] reward is not in data_item.non_tensor_batch.keys(), probably because validate is not implemented")
+                    # print("[WARNING] reward is not in data_item.non_tensor_batch.keys(), probably because validate is not implemented")
                 else:
                     score = data_item.non_tensor_batch['reward']
                 score = float(score)

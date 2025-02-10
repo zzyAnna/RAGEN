@@ -139,7 +139,7 @@ class LLMGenerationManager:
         original_right_side = {'responses': initial_input_ids[:, []]}
         
         active_mask = torch.ones(gen_batch.batch['input_ids'].shape[0], dtype=torch.bool)
-        active_num_list = [active_mask] 
+        active_num_list = [active_mask.sum().item()] 
         rollings = gen_batch
 
 
