@@ -35,7 +35,8 @@ bash train.sh sokoban \
     training.n_rollout=64 \
     training.train_batch_size=16 \
     training.ppo_batch_size=16 \
-    optimization.advantage_estimator=grpo
+    optimization.adv_estimator=grpo
+    # grpo | brpo | apo
     # effective batch size: training.train_batch_size * training.n_rollout
 ```
 
