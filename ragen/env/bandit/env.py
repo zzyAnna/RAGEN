@@ -17,12 +17,12 @@ class BanditEnv(BaseDiscreteActionEnv, gym.Env):
     Wrapper for the BanditTenArmedGaussian environment to match the project structure.
     
     ## Description
-    10 armed bandit mentioned in Sutton and Barto's RL book. Each action
-    represents pulling one of 10 arms, with rewards drawn from a normal distribution.
+    N armed bandit mentioned in Sutton and Barto's RL book. Each action
+    represents pulling one of N arms, with rewards drawn from a normal distribution.
 
     ## Action Space
-    The action shape is `(1,)` in the range `{1, 10}` indicating which arm to pull.
-    - 1-10: Pull corresponding arm
+    The action shape is `(1,)` in the range `{1, N}` indicating which arm to pull.
+    - 1-N: Pull corresponding arm
 
     ## Rewards
     - Mean of each arm is pulled from N(0, 1)
@@ -34,7 +34,7 @@ class BanditEnv(BaseDiscreteActionEnv, gym.Env):
     
     def __init__(
             self,
-            n_arms: int = 10,
+            n_arms: int = 2,
             seed: Optional[int] = None,
     ):
         self.n_arms = n_arms

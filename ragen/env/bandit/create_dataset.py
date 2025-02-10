@@ -20,13 +20,13 @@ intro = (
     "Goal: Maximize your total reward by choosing which arm to pull.\n"
     "\n"
     "Game Rules:\n"
-    "1. There are 10 slot machines (arms), numbered 1-10\n"
+    "1. There are {n_arms} slot machines (arms), numbered 1-{n_arms}\n"
     "2. Each machine has its own reward distribution\n"
     "3. Rewards are drawn from a normal distribution\n"
     "4. The mean reward for each machine is fixed but unknown\n"
     "\n"
     "Actions:\n"
-    "Choose a number between 1 and 10 to pull that arm\n"
+    "Choose a number between 1 and {n_arms} to pull that arm\n"
     "Format: <answer> [number] </answer>\n"
     "\n"
     "Strategy Tips:\n"
@@ -52,6 +52,9 @@ def main():
     os.makedirs(args.output, exist_ok=True)
     data_source = args.env
 
+    n_arms = os.environ.get("N_ARMS")
+    n_arms = int(n_arms)
+
     # Generate instructions
     seeds = range(args.seed, args.seed + args.train_size + args.test_size)
     instructions = []
@@ -59,10 +62,10 @@ def main():
     
     
     for seed in seeds:
-        env = BanditEnv(n_arms=10, seed=seed)
+        env = BanditEnv(n_arms=n_arms, seed=seed)
         observation = env.reset(seed=seed)
         instruction = instruction_template.format(
-            task_intro=intro,
+            task_intro=intro.format(n_arms=n_arms),
             observation=observation
         )
         instructions.append(instruction)
