@@ -1,1 +1,1 @@
-from .frozen_lake import FrozenLakeEnv
+from .env import FrozenLakeEnv

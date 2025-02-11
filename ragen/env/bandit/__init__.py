@@ -1,1 +1,1 @@
-from .bandit import BanditEnv
+from .env import BanditEnv

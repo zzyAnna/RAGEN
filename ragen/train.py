@@ -1,6 +1,7 @@
 import yaml
 import os
 import argparse
+import json
 from typing import Dict, Any
 
 def deep_update(base_dict: Dict[str, Any], update_dict: Dict[str, Any]) -> Dict[str, Any]:
@@ -57,6 +58,10 @@ def get_train_command(config: Dict[str, Any]) -> str:
                         config['training']['max_obs_length'] * config['training']['max_turns'])
     
     # Define the command template with proper indentation
+    env_kwargs = config['env']['env_kwargs']
+    env_kwargs_str = " \\\n    ".join([
+        f"+env.{key}={value}" for key, value in env_kwargs.items()
+    ])
     cmd = [
         "python -m verl.trainer.main_ppo",
         f"multi_processing={config['system']['multi_processing']}",
@@ -96,16 +101,18 @@ def get_train_command(config: Dict[str, Any]) -> str:
         f"trainer.experiment_name={config['model']['experiment_name']}",
         f"trainer.total_epochs={config['training']['total_epochs']}",
         f"env.name={config['env']['name']}",
-        f"env.dim_x={config['env']['dim_x']}",
-        f"env.dim_y={config['env']['dim_y']}",
-        f"env.num_boxes={config['env']['num_boxes']}",
-        f"env.max_steps={config['env']['max_steps']}",
-        f"env.search_depth={config['env']['search_depth']}",
+        env_kwargs_str,
+        # f"env.dim_x={config['env']['dim_x']}",
+        # f"env.dim_y={config['env']['dim_y']}",
+        # f"env.num_boxes={config['env']['num_boxes']}",
+        # f"env.max_steps={config['env']['max_steps']}",
+        # f"env.search_depth={config['env']['search_depth']}",
         f"max_turns={config['training']['max_turns']}",
         f"logging.log_images={str(config['logging']['log_images']).lower()}",
         f"logging.log_image_dir={config['logging']['log_image_dir']}",
         f"logging.log_image_step_size={config['logging']['log_image_step_size']}",
-        f"logging.log_n_image_per_batch={config['logging']['log_n_image_per_batch']}"
+        f"logging.log_n_image_per_batch={config['logging']['log_n_image_per_batch']}",
+        "2>&1 | tee debug.log"
     ]
     
     return " \\\n    ".join(cmd)

@@ -167,13 +167,6 @@ max_turns: 10
 
 env:
   name: sokoban
-  dim_x: 6
-  dim_y: 6
-  num_boxes: 2
-  max_steps: 10
-  search_depth: 10
-  size: 6 # for frozenlake
-  p: 0.8 # for frozenlake
 
 logging:
   log_images: True
