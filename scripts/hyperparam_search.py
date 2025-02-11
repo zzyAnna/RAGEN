@@ -1,327 +1,488 @@
+from dataclasses import dataclass, field
+from typing import Dict, List, Union, Any, Optional
 import itertools
-from typing import List, Dict, Union, Tuple, Any
 import subprocess
 import os
 from datetime import datetime
 import argparse
+from enum import Enum, auto
+import re
+import json
+from pathlib import Path
 
-searching_params = []
-global_log_name = ""
 
-class HyperParamSearch:
-    def __init__(self) -> None:
-        self.param_grid = {}
-        self.log_name = ""
+# ============= Hyperparameter Configuration Part =============
+class ParamType(Enum):
+    NUMERIC = auto()
+    CATEGORICAL = auto()
+    BOOLEAN = auto()
+
+@dataclass
+class HyperParam:
+    name: str
+    param_type: ParamType
+    default_value: Any
+    search_space: Optional[List[Any]] = None
+    group: int = 0
     
-    def add_numeric_param(self, name: str, values: List[float]) -> None:
-        self.param_grid[name] = values
-    
-    def add_categorical_param(self, name: str, values: List[str]) -> None:
-        self.param_grid[name] = values
+    def get_values(self, mode: str) -> List[Any]:
+        """Get parameter values based on mode (search/fixed/default)"""
+        if mode == "search" and self.search_space:
+            return self.search_space
+        return [self.default_value]
 
-    def set_boolean_param(self, name: str, value: bool) -> None:
-        self.param_grid[name] = [value]
+@dataclass
+class HyperParamGroup:
+    group_id: int
+    params: List[HyperParam]
+    description: str = ""
 
-    def add_boolean_param(self, name: str) -> None:
-        self.param_grid[name] = [True, False]
+class HyperParamConfig:
+    def __init__(self):
+        self.groups: Dict[int, HyperParamGroup] = {}
+        self.fixed_params: Dict[str, Any] = {
+            "model.base_model": ["Qwen/Qwen2.5-0.5B-Instruct"],
+            "optimization.adv_estimator": ["grpo"],
+            "training.use_kl_loss": [True]
+        }
+        self._initialize_groups()
 
-    def generate_combinations(self) -> List[Dict[str, Union[float, str, bool]]]:
-        keys = self.param_grid.keys()
-        values = self.param_grid.values()
-        combinations = list(itertools.product(*values))
-        return [dict(zip(keys, combination)) for combination in combinations]
-
-    def param_hard_checking(self, params) -> bool:
-        '''Make sure ppo_batch_size is equal or smaller than train_batch_size * n_rollout'''
-        assert params.get("training.ppo_batch_size") is not None and params.get("training.train_batch_size") is not None and params.get("training.n_rollout") is not None
-        ppo_batch_size = params["training.ppo_batch_size"]
-        train_batch_size = params["training.train_batch_size"]
-        n_rollout = params["training.n_rollout"]
-        if ppo_batch_size > train_batch_size * n_rollout:
-            print(f"ppo_batch_size {ppo_batch_size} is larger than train_batch_size {train_batch_size} * n_rollout {n_rollout}")
-            return False
-        return True
-    
-    def generate_command(self, params: Dict[str, Union[float, str, bool]], base_name: str, env_name:str="sokoban") -> str:
-        param_name_values = []
-        my_params = {k: v for k, v in params.items() if k in searching_params}
-        for key, value in my_params.items():
-            # Extract the last part of the parameter name after the dot
-            param_name = key.split('.')[-1]
-            # Format the value based on its type
-            if isinstance(value, float):
-                # Handle scientific notation and round small numbers
-                if value < 0.0001:
-                    formatted_value = f"{value:.2e}".replace('-0', '-').replace('+0', '')
-                else:
-                    formatted_value = f"{value:.4f}".rstrip('0').rstrip('.')
-            else:
-                formatted_value = str(value)
+    def _initialize_groups(self):
+        """Initialize all hyperparameter groups"""
+        self.groups = {
+            1: HyperParamGroup(1, [
+                HyperParam("training.ppo_batch_size", ParamType.NUMERIC, 64, 
+                          search_space=[16, 32, 64, 128, 256], group=1)
+            ], "PPO Batch Size"),
             
-            # Clean up the formatted value for use in filename
-            # formatted_value = formatted_value.replace('.', 'p')  # Replace decimal points with 'p'
-            param_name_values.append(f"{param_name}_{formatted_value}")
+            2: HyperParamGroup(2, [
+                HyperParam("training.train_batch_size", ParamType.NUMERIC, 8,
+                          search_space=[8, 32, 64, 128, 256], group=2),
+                HyperParam("training.n_rollout", ParamType.NUMERIC, 16,
+                          search_space=[1, 2, 4, 8, 16], group=2)
+            ], "Training Batch Size and Rollout"),
+            
+            3: HyperParamGroup(3, [
+                HyperParam("training.kl_coef", ParamType.NUMERIC, 0.04,
+                          search_space=[0.001, 0.005, 0.01, 0.04, 0.1, 0.5], group=3)
+            ], "KL Coefficient"),
+            
+            4: HyperParamGroup(4, [
+                HyperParam("training.max_turns", ParamType.NUMERIC, 5,
+                          search_space=[2, 5, 8], group=4),
+                HyperParam("training.temperature", ParamType.NUMERIC, 1.0,
+                          search_space=[0, 0.5, 1], group=4)
+            ], "Max Turns and Temperature"),
+            
+            5: HyperParamGroup(5, [
+                HyperParam("training.actor_lr", ParamType.NUMERIC, 1e-6,
+                          search_space=[1e-6, 5e-6, 1e-5], group=5)
+            ], "Actor Learning Rate")
+        }
+
+
+# ============= Hyperparameter Search Part =============
+class HyperParamSearch:
+    def __init__(self, config: HyperParamConfig):
+        self.config = config
+        self.param_grid: Dict[str, List[Any]] = {}
+        self.searching_params: List[str] = []
+        self.log_name = ""
+
+    def setup_search_group(self, search_group: int, fixed_values: Dict[str, Any]) -> None:
+        """Set up parameter grid based on search group and fixed values"""
+        # Add fixed parameters
+        self.param_grid.update(self.config.fixed_params)
         
-        # Join all parameter names and values
-        params_str = '_'.join(param_name_values)
+        # Process each group based on its relation to the search group
+        for group_id, group in self.config.groups.items():
+            if group_id < search_group:
+                # Fixed values for previous groups
+                for param in group.params:
+                    if param.name in fixed_values:
+                        self.param_grid[param.name] = [fixed_values[param.name]]
+                    else:
+                        raise ValueError(f"Missing fixed value for {param.name} in group {group_id}")
+            
+            elif group_id == search_group:
+                # Search space for current group
+                for param in group.params:
+                    if param.search_space:
+                        self.param_grid[param.name] = param.search_space
+                        self.searching_params.append(param.name)
+            
+            else:
+                # Default values for future groups
+                for param in group.params:
+                    self.param_grid[param.name] = [param.default_value]
+
+    def validate_params(self, params: Dict[str, Any]) -> bool:
+        """Validate parameter combinations"""
+        if all(key in params for key in ["training.ppo_batch_size", "training.train_batch_size", "training.n_rollout"]):
+            if params["training.ppo_batch_size"] > params["training.train_batch_size"] * params["training.n_rollout"]:
+                print(f"Invalid combination: ppo_batch_size ({params['training.ppo_batch_size']}) > "
+                      f"train_batch_size ({params['training.train_batch_size']}) * "
+                      f"n_rollout ({params['training.n_rollout']})")
+                return False
+        return True
+
+    def generate_command(self, params: Dict[str, Any], base_name: str, env_name: str = "sokoban") -> str:
+        """Generate command string for running experiment"""
+        param_parts = []
+        for param_name in self.searching_params:
+            if param_name in params:
+                value = params[param_name]
+                param_name_short = param_name.split('.')[-1]
+                formatted_value = self._format_value(value)
+                param_parts.append(f"{param_name_short}_{formatted_value}")
+
         timestamp = datetime.now().strftime("%Hh%Mm%Ssec")
-        # Construct the full experiment name
-        self.log_name = f"[hs]_{params_str}"
-        experiment_name = f"{base_name}_{params_str}_{timestamp}"
+        self.log_name = f"[hs]_{'_'.join(param_parts)}"
+        experiment_name = f"{base_name}_{'_'.join(param_parts)}_{timestamp}"
+
         cmd_parts = [
             f"bash train.sh {env_name}",
             f"model.experiment_name={experiment_name}"
         ]
+        
         for key, value in params.items():
-            if isinstance(value, bool):
-                cmd_parts.append(f"{key}={str(value)}")
-            else:
-                cmd_parts.append(f"{key}={value}")
-                
+            cmd_parts.append(f"{key}={value}")
+
         return " \\\n".join(cmd_parts)
-    
-    def run_grid_search(self, base_experiment_name: str, dry_run: bool=True, env_name: str="sokoban") -> None:
-        combinations = self.generate_combinations()
-        print(f"Total combinations: {len(combinations)}")
 
-        # Check if we're in the RAGEN directory
-        current_dir = os.getcwd()
-        if not current_dir.endswith('RAGEN'):
-            # Try to change to RAGEN directory
-            try:
-                if os.path.exists('RAGEN'):
-                    log_dir = "./RAGEN/hyper_param_search_logs"
-                elif os.path.exists('../RAGEN'):
-                    log_dir = "../hyper_param_search_logs"
-                else:
-                    raise AssertionError("Must run from RAGEN directory or its parent directory")
-            except Exception as e:
-                raise AssertionError(f"Failed to find RAGEN directory: {e}")
-        else:
-            log_dir = "./hyper_param_search_logs"
-        os.makedirs(log_dir, exist_ok=True)
+    @staticmethod
+    def _format_value(value: Any) -> str:
+        """Format parameter value for command string"""
+        if isinstance(value, float):
+            if value < 0.0001:
+                return f"{value:.2e}".replace('-0', '-').replace('+0', '')
+            return f"{value:.4f}".rstrip('0').rstrip('.')
+        return str(value)
 
-        for i, params in enumerate(combinations, 1):
-            command = self.generate_command(params, base_experiment_name, env_name)
-            print(f"Running combination {i}/{len(combinations)}: {command}")
-            # print(command)
-            if not self.param_hard_checking(params):
-                print("Skipping this combination due to hard checking failure.")
-                print('-' * 80)
-                continue
-            print('-' * 80)
-            if not dry_run:
-                try:
-                    log_file = os.path.join(log_dir, f"{self.log_name}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.log")
-                    with open(log_file, 'w') as f:
-                        subprocess.run(command, shell=True, check=True, stdout=f, stderr=subprocess.STDOUT)
-                except subprocess.CalledProcessError as e:
-                    print(f"Error occurred: {e}, return code was {e.returncode}")
-                    print(e.output)
-                    continue
+    def run_grid_search(self, base_experiment_name: str, dry_run: bool = True, env_name: str = "sokoban") -> None:
+        """Run grid search with all parameter combinations"""
+        combinations = [dict(zip(self.param_grid.keys(), vals)) 
+                       for vals in itertools.product(*self.param_grid.values())]
         
         print(f"Total combinations: {len(combinations)}")
+        
+        log_dir = self._setup_log_directory()
+        
+        for i, params in enumerate(combinations, 1):
+            if not self.validate_params(params):
+                print(f"Skipping invalid combination: {params}")
+                print('-' * 80)
+                continue
+                
+            command = self.generate_command(params, base_experiment_name, env_name)
+            print(f"Running combination {i}/{len(combinations)}:")
+            print(command)
+            print('-' * 80)
+            
+            if not dry_run:
+                self._run_experiment(command, log_dir)
 
-def assert_other_group_value_set(search: HyperParamSearch, search_group_id: int):
-    all_values_dict = {
-        1: ["training.ppo_batch_size"],
-        2: ["training.train_batch_size", "training.n_rollout"],
-        3: ["training.kl_coef"],
-        4: ["training.max_turns", "training.temperature"],
-        5: ["training.actor_lr"]
-    }
+    def _setup_log_directory(self) -> str:
+        """Set up logging directory"""
+        log_dir = "./log/terminal/hyper_param_search_logs/"
+        
+        os.makedirs(log_dir, exist_ok=True)
+        return log_dir
 
-    remaining_groups = [i for i in range(1, 6) if i != search_group_id]
-    remaining_values = []
-    for i in remaining_groups:
-        remaining_values.extend(all_values_dict[i])
-    assert all([search.param_grid.get(i) is not None for i in remaining_values]), f"Please set the values for {remaining_values} first"
-
-# below we search different batch size
-def search_group_1(search: HyperParamSearch, set_values: list=None) -> None: # type: ignore
-    assert set_values is None or len(set_values) == 1
-    if set_values is None:
-        assert_other_group_value_set(search, 1)
-        search.add_numeric_param("training.ppo_batch_size", [16, 32, 64, 128, 256])
-        searching_params.append("training.ppo_batch_size")
-        print("We are searching different ppo batch size...")
-        print("...")
-    else:
-        search.add_numeric_param("training.ppo_batch_size", [set_values[0]])
-
-# below we search different batch size. We all know that n_rollout*training_batch_size means the data sampled from the rollout
-## train batch size means the prompt trajectory
-def search_group_2(search: HyperParamSearch, set_values: list=None) -> None: # type: ignore
-    assert set_values is None or len(set_values) == 2
-    if set_values is None:
-        assert_other_group_value_set(search, 2)
-        search.add_numeric_param("training.train_batch_size", [8, 32, 64, 128, 256])
-        search.add_numeric_param("training.n_rollout", [1, 2, 4, 8, 16])
-        searching_params.append("training.train_batch_size")
-        searching_params.append("training.n_rollout")
-        print("We are searching different train batch size and n_rollout ...")
-        print("...")
-    else:
-        search.add_numeric_param("training.train_batch_size", [set_values[0]])
-        search.add_numeric_param("training.n_rollout", [set_values[1]])
+    def _run_experiment(self, command: str, log_dir: str) -> None:
+        """Run single experiment with logging"""
+        try:
+            log_file = os.path.join(log_dir, 
+                                  f"{self.log_name}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.log")
+            with open(log_file, 'w') as f:
+                subprocess.run(command, shell=True, check=True, stdout=f, stderr=subprocess.STDOUT)
+        except subprocess.CalledProcessError as e:
+            print(f"Error occurred: {e}, return code was {e.returncode}")
+            if hasattr(e, 'output'):
+                print(e.output)
 
 
-# below we search different kl coef
-def search_group_3(search: HyperParamSearch, set_values: list=None) -> None: # type: ignore
-    assert set_values is None or len(set_values) == 1
-    if set_values is None:
-        assert_other_group_value_set(search, 3)
-        search.add_numeric_param("training.kl_coef", [0.001, 0.005, 0.01, 0.04, 0.1, 0.5])
-        searching_params.append("training.kl_coef")
-        print("We are searching different kl coef...")
-        print("...")
-    else:
-        search.add_numeric_param("training.kl_coef", [set_values[0]])
 
+# ========== Hyperparameter Results Tracking Part =============
 
-# below we search different max turns and temperature
-def search_group_4(search: HyperParamSearch, set_values: list=None) -> None: # type: ignore
-    assert set_values is None or len(set_values) == 2
-    if set_values is None:
-        assert_other_group_value_set(search, 4)
-        search.add_numeric_param("training.max_turns", [2, 5, 8])
-        search.add_numeric_param("training.temperature", [0, 0.5, 1])
-        searching_params.append("training.max_turns")
-        searching_params.append("training.temperature")
-        print("We are searching different max turns and temperature ...")
-        print("...")
-    else:
-        search.add_numeric_param("training.max_turns", [set_values[0]])
-        search.add_numeric_param("training.temperature", [set_values[1]])
-
-# below we search different actor learning rate
-def search_group_5(search: HyperParamSearch, set_values: list=None) -> None: # type: ignore
-    assert set_values is None or len(set_values) == 1
-    if set_values is None:
-        assert_other_group_value_set(search, 5)
-        search.add_numeric_param("training.actor_lr", [1e-6, 5e-6, 1e-5])
-        searching_params.append("training.actor_lr")
-        print("We are searching different actor learning rate...")
-        print("...")
-    else:
-        search.add_numeric_param("training.actor_lr", [set_values[0]])
-
-def set_default_value_by_groups(search: HyperParamSearch, wanted_groups: list[int]):
-    '''This function will set the default value for wanted groups'''
-    assert all([i in range(1, 6) for i in wanted_groups])
-    default_dict = {
-        1: [("training.ppo_batch_size", 64)],
-        2: [("training.train_batch_size", 8), ("training.n_rollout", 16)],
-        3: [("training.kl_coef", 0.04)],
-        4: [("training.max_turns", 5), ("training.temperature", 1.0)],
-        5: [("training.actor_lr", 1e-6)]
-    }
-
-    # Process each wanted group
-    for group_num in wanted_groups:
-        group_defaults = default_dict[group_num]
-        for param_name, value in group_defaults:
-            search.add_numeric_param(param_name, [value])
-
-def parse_args():
-    parser = argparse.ArgumentParser(description='Hyperparameter search script with group-specific controls')
+@dataclass
+class ExperimentResult:
+    params: Dict[str, Any]
+    metrics: Dict[str, float]
+    timestamp: str
+    experiment_name: str
     
-    # Basic arguments
-    parser.add_argument('--base_experiment_name', type=str, default='hyper_param_search', required=True,
-                        help='Base name for the experiment')
-    parser.add_argument('--env_name', type=str, default='sokoban', required=True,
-                        help='Environment name (default: sokoban)')
+    @property
+    def success_rate(self) -> float:
+        """Get the primary metric (success rate) for this experiment"""
+        return self.metrics.get('success_rate', 0.0)
+
+class ResultsTracker:
+    def __init__(self, base_dir: str = "./log/terminal/hyper_param_search_logs"):
+        self.base_dir = Path(base_dir)
+        self.base_dir.mkdir(parents=True, exist_ok=True)
+        self.results_file = self.base_dir / "search_results.json"
+        self.best_params_file = self.base_dir / "best_params.json"
+        self._initialize_files()
+
+    def _initialize_files(self):
+        """Initialize results and best params files if they don't exist"""
+        if not self.results_file.exists():
+            self._save_json(self.results_file, {"experiments": []})
+        if not self.best_params_file.exists():
+            self._save_json(self.best_params_file, {"best_params": {}})
+
+    @staticmethod
+    def _save_json(file_path: Path, data: Dict):
+        """Save data to JSON file"""
+        with open(file_path, 'w') as f:
+            json.dump(data, f, indent=2)
+
+    @staticmethod
+    def _load_json(file_path: Path) -> Dict:
+        """Load data from JSON file"""
+        with open(file_path, 'r') as f:
+            return json.load(f)
+
+    def parse_log_file(self, log_file: Path) -> Optional[ExperimentResult]:
+        """Parse a log file to extract experiment results and metrics"""
+        try:
+            with open(log_file, 'r') as f:
+                content = f.read()
+
+            # Extract experiment name
+            exp_name_match = re.search(r'model\.experiment_name=([^\s]+)', content)
+            if not exp_name_match:
+                return None
+            experiment_name = exp_name_match.group(1)
+
+            # Extract parameters
+            params = {}
+            param_pattern = r'training\.([^\s=]+)=([^\s]+)'
+            for match in re.finditer(param_pattern, content):
+                param_name, value = match.groups()
+                try:
+                    # Convert string values to appropriate types
+                    value = eval(value)  # safely convert numbers and booleans
+                except:
+                    pass  # keep as string if conversion fails
+                params[f"training.{param_name}"] = value
+
+            # Extract metrics (example: success rate)
+            metrics = {}
+            success_rate_match = re.search(r'Final Success Rate: (\d+\.?\d*)', content)
+            if success_rate_match:
+                metrics['success_rate'] = float(success_rate_match.group(1))
+            else:
+                return None  # Skip if no success rate found
+
+            return ExperimentResult(
+                params=params,
+                metrics=metrics,
+                timestamp=datetime.now().isoformat(),
+                experiment_name=experiment_name
+            )
+        except Exception as e:
+            print(f"Error parsing log file {log_file}: {e}")
+            return None
+
+    def process_new_logs(self, logs_dir: Path) -> List[ExperimentResult]:
+        """Process all new log files in the specified directory"""
+        results = []
+        processed_logs = set(self._load_json(self.results_file).get("processed_logs", []))
+        
+        for log_file in logs_dir.glob("*.log"):
+            if str(log_file) in processed_logs:
+                continue
+                
+            result = self.parse_log_file(log_file)
+            if result:
+                results.append(result)
+                processed_logs.add(str(log_file))
+        
+        # Update results file with new experiments
+        current_data = self._load_json(self.results_file)
+        current_data["experiments"].extend([
+            {
+                "params": r.params,
+                "metrics": r.metrics,
+                "timestamp": r.timestamp,
+                "experiment_name": r.experiment_name
+            }
+            for r in results
+        ])
+        current_data["processed_logs"] = list(processed_logs)
+        self._save_json(self.results_file, current_data)
+        
+        return results
+
+    def update_best_parameters(self, group_id: int, results: List[ExperimentResult]):
+        """Update best parameters for a specific group based on new results"""
+        best_params = self._load_json(self.best_params_file)
+        
+        # Filter results for current group parameters
+        group_params = self.get_group_parameters(group_id)
+        group_results = [
+            r for r in results
+            if all(param in r.params for param in group_params)
+        ]
+        
+        if not group_results:
+            return
+        
+        # Find best result based on success rate
+        best_result = max(group_results, key=lambda x: x.success_rate)
+        
+        # Update best parameters for this group
+        best_params["best_params"][str(group_id)] = {
+            param: best_result.params[param]
+            for param in group_params
+        }
+        best_params["best_params"][str(group_id)]["success_rate"] = best_result.success_rate
+        
+        self._save_json(self.best_params_file, best_params)
+
+    @staticmethod
+    def get_group_parameters(group_id: int) -> List[str]:
+        """Get parameter names for a specific group"""
+        group_params = {
+            1: ["training.ppo_batch_size"],
+            2: ["training.train_batch_size", "training.n_rollout"],
+            3: ["training.kl_coef"],
+            4: ["training.max_turns", "training.temperature"],
+            5: ["training.actor_lr"]
+        }
+        return group_params.get(group_id, [])
+
+    def get_best_params_for_groups(self, groups: List[int]) -> Dict[str, Any]:
+        """Get best parameters for specified groups"""
+        best_params = self._load_json(self.best_params_file)
+        result = {}
+        
+        for group in groups:
+            group_best = best_params["best_params"].get(str(group))
+            if group_best:
+                # Exclude success_rate from parameters
+                params = {k: v for k, v in group_best.items() if k != "success_rate"}
+                result.update(params)
+            else:
+                raise ValueError(f"No best parameters found for group {group}")
+                
+        return result
+
+class SearchOrchestrator:
+    def __init__(self, results_tracker: ResultsTracker):
+        self.tracker = results_tracker
+
+    def run_search_round(self, search_group: int, env_name: str, exp_base_name: str, dry_run: bool = True):
+        """Run a complete search round for a group"""
+        # Get best parameters from previous groups
+        previous_groups = list(range(1, search_group))
+        try:
+            fixed_params = self.tracker.get_best_params_for_groups(previous_groups)
+        except ValueError as e:
+            print(f"Error: {e}")
+            print("Please complete previous group searches first.")
+            return
+
+        # Create and run search
+        config = HyperParamConfig()  # From previous implementation
+        search = HyperParamSearch(config)
+        search.setup_search_group(search_group, fixed_params)
+        
+        # Run grid search
+        search.run_grid_search(
+            base_experiment_name=exp_base_name,
+            dry_run=dry_run,
+            env_name=env_name
+        )
+        
+        if not dry_run:
+            # Process results after experiments complete
+            logs_dir = Path("./log/terminal/hyper_param_search_logs/")
+            new_results = self.tracker.process_new_logs(logs_dir)
+            if new_results:
+                self.tracker.update_best_parameters(search_group, new_results)
+            else:
+                print("No new results found to process.")
+
+
+# ============= Main Functionality Part =============
+def create_argument_parser() -> argparse.ArgumentParser:
+    """Create command line argument parser"""
+    parser = argparse.ArgumentParser(description='Hyperparameter search with group-based control')
+    
+    # Required arguments
+    parser.add_argument('--env_name', type=str, required=True,
+                      help='Environment name (e.g., sokoban)')
+    parser.add_argument('--base_experiment_name', type=str, required=True,
+                      help='Base name for the experiment')
+    parser.add_argument('--search_group', type=int, required=True, choices=range(1, 6),
+                      help='Group number to search (1-5)')
+    
+    # Optional arguments
     parser.add_argument('--dry_run', action='store_true',
-                        help='Only print commands without executing them')
+                      help='Print commands without executing')
     
-    # Search group selection
-    parser.add_argument('--search_group', type=int, choices=[1, 2, 3, 4, 5], default=1, required=True,
-                        help='The group of hyperparameters to search:\n'
-                             '1: ppo_batch_size\n'
-                             '2: train_batch_size, n_rollout\n'
-                             '3: kl_coef\n'
-                             '4: max_turns, temperature\n'
-                             '5: actor_lr')
-    
-    # Group 1 settings
+    # Group-specific parameters
     parser.add_argument('--ppo_batch_size', type=int,
-                        help='Set fixed value for ppo_batch_size (Group 1)')
-    
-    # Group 2 settings
+                      help='Fixed value for PPO batch size (required for groups 2-5)')
     parser.add_argument('--train_batch_size', type=int,
-                        help='Set fixed value for train_batch_size (Group 2)')
+                      help='Fixed value for training batch size (required for groups 3-5)')
     parser.add_argument('--n_rollout', type=int,
-                        help='Set fixed value for n_rollout (Group 2)')
-    
-    # Group 3 settings
+                      help='Fixed value for number of rollouts (required for groups 3-5)')
     parser.add_argument('--kl_coef', type=float,
-                        help='Set fixed value for kl_coef (Group 3)')
-    
-    # Group 4 settings
+                      help='Fixed value for KL coefficient (required for groups 4-5)')
     parser.add_argument('--max_turns', type=int,
-                        help='Set fixed value for max_turns (Group 4)')
+                      help='Fixed value for max turns (required for group 5)')
     parser.add_argument('--temperature', type=float,
-                        help='Set fixed value for temperature (Group 4)')
+                      help='Fixed value for temperature (required for group 5)')
     
-    # Group 5 settings
-    parser.add_argument('--actor_lr', type=float,
-                        help='Set fixed value for actor_lr (Group 5)')
-    
-    args = parser.parse_args()
-    
-    # Validate arguments based on search group
+    return parser
+
+def validate_args(args: argparse.Namespace) -> None:
+    """Validate command line arguments"""
     if args.search_group > 1:
-        # Check if all parameters from previous groups are set
-        if args.search_group > 1 and args.ppo_batch_size is None:
-            parser.error("When searching group > 1, --ppo_batch_size must be set")
-        if args.search_group > 2 and (args.train_batch_size is None or args.n_rollout is None):
-            parser.error("When searching group > 2, --train_batch_size and --n_rollout must be set")
-        if args.search_group > 3 and args.kl_coef is None:
-            parser.error("When searching group > 3, --kl_coef must be set")
-        if args.search_group > 4 and (args.max_turns is None or args.temperature is None):
-            parser.error("When searching group > 4, --max_turns and --temperature must be set")
-    
-    return args
+        if args.ppo_batch_size is None:
+            raise ValueError("--ppo_batch_size required for groups 2-5")
+    if args.search_group > 2:
+        if args.train_batch_size is None or args.n_rollout is None:
+            raise ValueError("--train_batch_size and --n_rollout required for groups 3-5")
+    if args.search_group > 3:
+        if args.kl_coef is None:
+            raise ValueError("--kl_coef required for groups 4-5")
+    if args.search_group > 4:
+        if args.max_turns is None or args.temperature is None:
+            raise ValueError("--max_turns and --temperature required for group 5")
 
 def main():
-    args = parse_args()
-    search = HyperParamSearch()
+    parser = create_argument_parser()
+    args = parser.parse_args()
+    validate_args(args)
     
-    # Add fixed parameters
-    search.add_categorical_param("model.base_model", ["Qwen/Qwen2.5-0.5B-Instruct"])
-    search.add_categorical_param("optimization.adv_estimator", ["grpo"])
-    search.set_boolean_param("training.use_kl_loss", True)
+    # Create config and search objects
+    config = HyperParamConfig()
+    search = HyperParamSearch(config)
     
-    # Set parameters based on search group
-    search_funcs = {
-        1: lambda: search_group_1(search),
-        2: lambda: search_group_2(search),
-        3: lambda: search_group_3(search),
-        4: lambda: search_group_4(search),
-        5: lambda: search_group_5(search)
-    }
+    # Collect fixed values from arguments
+    fixed_values = {}
+    if args.ppo_batch_size is not None:
+        fixed_values["training.ppo_batch_size"] = args.ppo_batch_size
+    if args.train_batch_size is not None:
+        fixed_values["training.train_batch_size"] = args.train_batch_size
+    if args.n_rollout is not None:
+        fixed_values["training.n_rollout"] = args.n_rollout
+    if args.kl_coef is not None:
+        fixed_values["training.kl_coef"] = args.kl_coef
+    if args.max_turns is not None:
+        fixed_values["training.max_turns"] = args.max_turns
+    if args.temperature is not None:
+        fixed_values["training.temperature"] = args.temperature
     
-    # Set values for groups before search group
-    if args.search_group > 1:
-        search_group_1(search, [args.ppo_batch_size])
-    if args.search_group > 2:
-        search_group_2(search, [args.train_batch_size, args.n_rollout])
-    if args.search_group > 3:
-        search_group_3(search, [args.kl_coef])
-    if args.search_group > 4:
-        search_group_4(search, [args.max_turns, args.temperature])
+    # Set up search configuration
+    search.setup_search_group(args.search_group, fixed_values)
     
-    # Set default values for groups after search group
-    default_groups = list(range(args.search_group + 1, 6))
-    if default_groups:
-        set_default_value_by_groups(search, default_groups)
-
-    # Run search for current group
-    search_funcs[args.search_group]()
-    
-    
-    
-    # Run the grid search
+    # Run the search
     search.run_grid_search(
         base_experiment_name=args.base_experiment_name,
         dry_run=args.dry_run,
