@@ -129,7 +129,12 @@ class LLMGenerationManager:
 
 
     def _generate_with_gpu_padding(self, active_batch: DataProto) -> DataProto:
-        """Wrapper for generation that handles multi-GPU padding requirements."""
+        """
+            Wrapper for generation that handles multi-GPU padding requirements.
+            if num_gpus <= 1, return self.actor_rollout_wg.generate_sequences(active_batch)
+            if active_batch size is not divisible by num_gpus, pad with first sequence
+            then remove padding from output
+        """
         num_gpus = self.config.num_gpus
         if num_gpus <= 1:
             return self.actor_rollout_wg.generate_sequences(active_batch)

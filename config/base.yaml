@@ -2,36 +2,36 @@
 system:
   cuda_visible_devices: 0
   python_hash_seed: 10000
-  n_gpus: 2
+  n_gpus: 1
   multi_processing: "ray"
   vllm_attention_backend: "XFORMERS"
 
 # Model settings
 model:
-  base_model: "Qwen/Qwen2.5-3B-Instruct"
-  experiment_name: "ragen-main-exp-3b-multigpu-kangrui"
+  base_model: "Qwen/Qwen2.5-0.5B-Instruct"
+  experiment_name: "ragen-main-exp"
   gradient_checkpointing: true
 
 # Training parameters
 training:
-  micro_batch_size: 4
-  train_batch_size: 16
+  micro_batch_size: 1
+  train_batch_size: 128
   ppo_batch_size: 64
   max_start_length: 400
   max_response_length: 200
   max_obs_length: 200
   max_turns: 5
   rollout_tp_size: 1
-  n_rollout: 8
+  n_rollout: 1
   total_epochs: 5
-  use_kl_loss: True # this means actor KL Loss
+  use_kl_loss: False # this means actor KL Loss
 
 # Optimization parameters
 optimization:
   actor_lr: 1e-6
   critic_lr: 1e-5
   kl_coef: 0.04
-  adv_estimator: grpo
+  adv_estimator: gae
   gpu_memory_utilization: 0.4
 
 # Logging settings
@@ -50,4 +50,3 @@ trainer:
   save_freq: 100
   test_freq: 100
   project_name: "RAGEN"
-
