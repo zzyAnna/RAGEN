@@ -50,4 +50,3 @@ trainer:
   save_freq: 100
   test_freq: 100
   project_name: "RAGEN"
-
