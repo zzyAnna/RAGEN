@@ -21,6 +21,7 @@ class GenerationConfig:
     max_response_length: int
     max_obs_length: int
     logging: dict
+    num_gpus: int
 
 class LLMGenerationManager:
     def __init__(
@@ -127,6 +128,48 @@ class LLMGenerationManager:
         return {'responses': responses[:, :max_len]}
 
 
+    def _generate_with_gpu_padding(self, active_batch: DataProto) -> DataProto:
+        """Wrapper for generation that handles multi-GPU padding requirements."""
+        num_gpus = self.config.num_gpus
+        if num_gpus <= 1:
+            return self.actor_rollout_wg.generate_sequences(active_batch)
+            
+        batch_size = active_batch.batch['input_ids'].shape[0]
+        remainder = batch_size % num_gpus
+        
+        if remainder == 0:
+            return self.actor_rollout_wg.generate_sequences(active_batch)
+            
+        # Add padding sequences
+        padding_size = num_gpus - remainder
+        padded_batch = {}
+        
+        for k, v in active_batch.batch.items():
+            # Use first sequence as padding template
+            pad_sequence = v[0:1].repeat(padding_size, *[1] * (len(v.shape) - 1))
+            padded_batch[k] = torch.cat([v, pad_sequence], dim=0)
+            
+        padded_active_batch = DataProto.from_dict(padded_batch)
+        
+        # Generate with padded batch
+        padded_output = self.actor_rollout_wg.generate_sequences(padded_active_batch)
+        
+        # Remove padding from output
+        trimmed_batch = {k: v[:-padding_size] for k, v in padded_output.batch.items()}
+        
+        # Handle meta_info if present
+        if hasattr(padded_output, 'meta_info') and padded_output.meta_info:
+            trimmed_meta = {}
+            for k, v in padded_output.meta_info.items():
+                if isinstance(v, torch.Tensor):
+                    trimmed_meta[k] = v[:-padding_size]
+                else:
+                    trimmed_meta[k] = v
+            padded_output.meta_info = trimmed_meta
+            
+        padded_output.batch = trimmed_batch
+        return padded_output
+    
     def run_llm_loop(self, gen_batch, envs: List[Any],
                     initial_input_ids: torch.Tensor,
                     output_dir: str,
@@ -156,7 +199,7 @@ class LLMGenerationManager:
             rollings_active = DataProto.from_dict({
                 k: v[active_mask] for k, v in rollings.batch.items()
             })
-            gen_output = self.actor_rollout_wg.generate_sequences(rollings_active)
+            gen_output = self._generate_with_gpu_padding(rollings_active)
 
             meta_info = gen_output.meta_info            
             responses_ids, responses_str = self._postprocess_responses(gen_output.batch['responses'])
