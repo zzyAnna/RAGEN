@@ -31,10 +31,10 @@ Below:GRPO
 
 ```bash
 bash train.sh sokoban \
-    model.experiment_name=test_zihan_brpo_p8r16 \
+    model.experiment_name=test_zihan_brpo_p8r16m32 \
     training.n_rollout=16 \
     training.train_batch_size=8 \
-    training.ppo_batch_size=128 \
+    training.ppo_batch_size=32 \
     training.micro_batch_size=2 \
     optimization.adv_estimator=brpo \
     training.use_kl_loss=True
