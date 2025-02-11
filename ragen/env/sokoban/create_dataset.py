@@ -20,7 +20,7 @@ from ragen.evaluators.trajectory_evaluator import TrajectoryEvaluator
 # from ragen.utils.dataset import Dataset
 
 templates = {
-    'qwen-instruct': '<|im_start|>system\nYou are a helpful assistant. <|im_end|>\n<|im_start|>user\n{prompt}\nAlways output: <think> [Your thoughts] </think> <answer> [your answer] </answer> with no extra test. Strictly follow this format. <|im_end|>\n<|im_start|>assistant\n<think>',
+    'qwen-instruct': '<|im_start|>system\nYou are a helpful assistant. <|im_end|>\n<|im_start|>user\n{prompt}\nAlways output: <think> [Your thoughts] </think> <answer> [your answer] </answer> with no extra text. Strictly follow this format. <|im_end|>\n<|im_start|>assistant\n<think>',
     'base': 'A conversation between User and Assistant. The user asks a question, and the Assistant solves it. The assistant first thinks briefly about the reasoning process in the mind and then provides the user with the answer.\nUser: {prompt}\nShow your work in <think> </think> tags. And return the final answer in <answer> </answer> tags, for example <think> [Thoughts] </think> <answer> 1 </answer>\nAssistant: \n<think>'
 }
 
