@@ -679,6 +679,10 @@ class RayPPOTrainer(object):
                     elif self.config.algorithm.adv_estimator == 'apo':
                         batch.non_tensor_batch['uid'] = np.array([str(uuid.uuid4()) for _ in range(len(batch.batch))], dtype=object) # No Relative normalization
 
+                    batch.non_tensor_batch['reward'] = np.array([0 for _ in range(len(envs))], dtype=object)
+                    for idx, env in enumerate(envs):
+                        batch.non_tensor_batch['reward'][idx] = env.reward
+
                     batch = batch.repeat(repeat_times=self.config.actor_rollout_ref.rollout.n, interleave=True)
                     batch = batch.union(final_gen_batch_output)
 
