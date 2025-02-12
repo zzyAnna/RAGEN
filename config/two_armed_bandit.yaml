@@ -2,4 +2,4 @@ env:
   name: "two_armed_bandit"
   data_dir: "data/two_armed_bandit"
   env_kwargs:
-    first_gold_arm: true
+    first_phoenix_arm: true

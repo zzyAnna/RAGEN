@@ -9,34 +9,20 @@ import argparse
 from ragen.env import TwoArmedBanditEnv
 
 templates = {
-    'qwen-instruct': '<|im_start|>system\nYou are a helpful assistant. <|im_end|>\n<|im_start|>user\n{prompt}\nAlways output: <think> [Your thoughts] </think> <answer> [your answer] </answer> with no extra test. Strictly follow this format. <|im_end|>\n<|im_start|>assistant\n<think>',
+    'qwen-instruct': '<|im_start|>user\n{prompt}\nAlways output: <think> [Your thoughts] </think> <answer> [your answer] </answer> with no extra text. Strictly follow this format. <|im_end|>\n<|im_start|>assistant\n<think>',
     'base': 'A conversation between User and Assistant. The user asks a question, and the Assistant solves it. The assistant first thinks briefly about the reasoning process in the mind and then provides the user with the answer.\nUser: {prompt}\nShow your work in <think> </think> tags. And return the final answer in <answer> </answer> tags, for example <think> [Thoughts] </think> <answer> 1 </answer>\nAssistant: \n<think>'
 }
 
-intro = (
-    "You are playing a two-armed bandit game.\n"
-    "\n"
-    "Two-Armed Bandit Quick Guide\n"
-    "Goal: Maximize your total reward by choosing which arm to pull.\n"
-    "\n"
-    "Game Rules:\n"
-    "1. There are 2 slot machines (arms), numbered 1 and 2 where one of them is a gold arm and the other is a silver arm\n"
-    "2. The gold arm is the first arm and the silver arm is the second arm\n"
-    "3. Each machine has its own reward distribution\n"
-    "4. The mean reward for two arms are fixed but unknown\n"
-    "5. Please use your imagination to make your choice\n"
-    "\n"
-    "Actions:\n"
-    "Choose a number between 1 and 2 to pull that arm\n"
-    "Format: <answer> [number] </answer>\n"
-    "\n"
-    "Strategy Tips:\n"
-    "- Balance exploration (trying different arms) and exploitation (using arms known to be good)\n"
-    "- Keep track of the rewards you receive from each arm\n"
-    "\n"
-)
+intro = """You are playing a two-armed bandit game. Goal: Maximize your total reward by choosing which arm to pull.
+x
+Game Rules:
+1. There are 2 arms, named Phoenix and Dragon
+2. Each arm has its own reward distribution, related to their names. 
+3. Please analyze each arm based on their names, guess how their reward distribution would be like, in order to choose from them.
+4. You must choose between Phoenix and Dragon, and output like <answer> [Phoenix or Dragon] </answer>.
+"""
 
-instruction_template = "{task_intro}\n[Current State]:\n{observation}\nChoose which arm to pull:"
+instruction_template = "{task_intro}\n[Current State]:\n{observation}\nThink and choose which arm to pull:"
 
 def main():
     parser = argparse.ArgumentParser(description="Generate trajectories for two-armed bandit environment.")
@@ -60,7 +46,7 @@ def main():
     
     
     for seed in seeds:
-        env = TwoArmedBanditEnv(first_gold_arm=True, seed=seed)
+        env = TwoArmedBanditEnv(first_phoenix_arm=True, seed=seed)
         observation = env.reset(seed=seed)
         instruction = instruction_template.format(
             task_intro=intro,
