@@ -239,7 +239,7 @@ def main_task(config):
     elif config.env.name == 'bandit':
         env = env_class(n_arms=config.env.n_arms)
     elif config.env.name == 'two_armed_bandit':
-        env = env_class(first_phoenix_arm=config.env.first_phoenix_arm)
+        env = env_class(low_risk_name=config.env.low_risk_name, high_risk_name=config.env.high_risk_name)
     elif config.env.name == 'sokoban':
         env = env_class(dim_room=(config.env.dim_x, config.env.dim_y), num_boxes=config.env.num_boxes, max_steps=config.env.max_steps, search_depth=config.env.search_depth)
     trainer = RayPPOTrainer(config=config,

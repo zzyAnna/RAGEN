@@ -261,6 +261,17 @@ def compute_data_metrics(batch, use_critic=True):
         'prompt_length/clip_ratio':
             torch.mean(torch.eq(prompt_length, max_prompt_length).float()).detach().item(),
     }
+
+    # metric for two-armed bandit
+    if batch.non_tensor_batch['data_source'][0] == 'two_armed_bandit':
+        batch_action = torch.from_numpy(np.array(batch.non_tensor_batch['bandit_metrics'], dtype=np.int16))
+        n_low_arm = torch.sum(batch_action == 1).detach().item()
+        n_high_arm = torch.sum(batch_action == 2).detach().item()
+        n_invalid = torch.sum(batch_action == 0).detach().item()
+        metrics['metric/n_low_arm'] = n_low_arm
+        metrics['metric/n_high_arm'] = n_high_arm
+        metrics['metric/n_invalid'] = n_invalid
+
     return metrics
 
 
@@ -681,9 +692,17 @@ class RayPPOTrainer(object):
                     elif self.config.algorithm.adv_estimator == 'apo':
                         batch.non_tensor_batch['uid'] = np.array([str(uuid.uuid4()) for _ in range(len(batch.batch))], dtype=object) # No Relative normalization
 
+                    # reward
                     batch.non_tensor_batch['reward'] = np.array([0 for _ in range(len(envs))], dtype=object)
                     for idx, env in enumerate(envs):
                         batch.non_tensor_batch['reward'][idx] = env.reward
+
+                    # metric for two-armed bandit
+                    # NOTE here we assume invalid action is 0, low arm is 1, high arm is 2
+                    if batch.non_tensor_batch['data_source'][0] == 'two_armed_bandit':
+                        batch.non_tensor_batch['bandit_metrics'] = np.array([0 for _ in range(len(envs))], dtype=object)
+                        for idx, env in enumerate(envs):
+                            batch.non_tensor_batch['bandit_metrics'][idx] = env.get_last_action()
 
                     batch = batch.repeat(repeat_times=self.config.actor_rollout_ref.rollout.n, interleave=True)
                     batch = batch.union(final_gen_batch_output)
