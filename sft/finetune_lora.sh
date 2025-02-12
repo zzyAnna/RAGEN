@@ -2,8 +2,14 @@
 
 set -x
 
+# Set default environment type
+env_type=${1:-sokoban}
+
+shift 1
+
 if [ "$#" -lt 2 ]; then
-    echo "Usage: finetune_lora.sh <nproc_per_node> <save_path> [other_configs...]"
+    echo "Usage: finetune_lora.sh [env_type] <nproc_per_node> <save_path> [other_configs...]"
+    echo "env_type defaults to 'sokoban' if not specified"
     exit 1
 fi
 
@@ -19,8 +25,8 @@ shift 2
 
 torchrun --standalone --nnodes=1 --nproc_per_node=$nproc_per_node \
      -m verl.trainer.fsdp_sft_trainer \
-    data.train_files=sft/data/frozenlake/train.parquet \
-    data.val_files=sft/data/frozenlake/test.parquet \
+    data.train_files=sft/data/${env_type}/train.parquet \
+    data.val_files=sft/data/${env_type}/test.parquet \
     data.prompt_key=prompt \
     data.response_key=response \
     data.max_length=2048 \
@@ -29,7 +35,7 @@ torchrun --standalone --nnodes=1 --nproc_per_node=$nproc_per_node \
     data.micro_batch_size=4 \
     model.partial_pretrain=Qwen/Qwen2.5-0.5B \
     trainer.default_local_dir=$save_path \
-    trainer.experiment_name=test_zpy_frozenlake-sft-lora-qwen-2.5-0.5b-base \
+    trainer.experiment_name=test_zpy_${env_type}-sft-lora-qwen-2.5-0.5b-base \
     trainer.logger=['console','wandb'] \
     trainer.total_epochs=5 \
     trainer.default_hdfs_dir=null $@ \
