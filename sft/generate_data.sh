@@ -29,7 +29,7 @@ if [ "$ENV_TYPE" = "sokoban" ]; then
         --algo bfs \
         --seed 100000 \
         --output sft/data/sokoban \
-        --train_size 10000 \
+        --train_size 1000 \
         --test_size 100 \
         --bfs_max_depths 100 \
         --prefix message \
@@ -40,7 +40,7 @@ elif [ "$ENV_TYPE" = "frozenlake" ]; then
         --algo bfs \
         --seed 100000 \
         --output sft/data/frozenlake \
-        --train_size 10000 \
+        --train_size 1000 \
         --test_size 100 \
         --bfs_max_depths 100 \
         --prefix message \

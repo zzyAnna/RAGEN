@@ -166,18 +166,19 @@ bash train.sh sokoban \
 
 ## Supervised Finetuning (Optional)
 NOTE: Only tested with 1 GPU
-1. Create supervised finetuning data, and parquet files will be saved in `sft/data/`
+1. Create supervised finetuning data, and parquet files will be saved in `sft/data/<env_type>/`
   - BFS is used to generate shortest action path for a given sokoban environment
   - The data then fomulated as chat dataset.
 ```bash
-bash sft/generate_data.sh
+bash sft/generate_data.sh <env_type>
 ```
 
 2. Finetune the model (with LoRA)
+  - setting arguments in `sft/finetune_lora.sh`
   - By setting `model.lora_rank=0`, we can turn off lora finetuning
 
 ```bash
-bash sft/finetune_lora.sh <num_gpus> <save_path>
+bash sft/finetune_lora.sh <env_type> <num_gpus> <save_path>
 ```
 
 3. Merge the LoRA weights with the base model

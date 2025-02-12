@@ -310,16 +310,201 @@ class TwoArmedBanditEnv(BaseDiscreteActionEnv, gym.Env):
         return self._success
 
 
+class TwoArmedBanditEnv(BaseDiscreteActionEnv, gym.Env):
+    """
+    Two-armed bandit environment with low-risk and high-risk arms.
+    Default names are "phoenix" (low-risk) and "dragon" (high-risk).
+    
+    ## Action Space
+    The action shape is `(1,)` in the range `{1, 2}` indicating which arm to pull.
+    - 1: Pull low-risk arm (default: phoenix)
+    - 2: Pull high-risk arm (default: dragon)
+
+    ## Rewards
+    - For low-risk arm (L ~ f_l), the reward is drawn from one gaussian distribution
+        - f_l ~ N(0.05, 0.01)
+        - mean ~ 0.05, std ~ 0.1
+    - For high-risk arm (H ~ f_h), the reward is drawn from a mixture of two gaussian distributions
+        - f_h ~ 9/10 * N(0.01, 0.01) + 1/10 * N(1, 0.01)
+        - mean ~ 0.11, std ~ 0.314
+    - P(L - H > 0) ~ 0.55 > 0.5
+
+    NOTE only one step
+    """
+
+    INVALID_ACTION = 0
+    PENALTY_FOR_INVALID = -0.1
+    
+    def __init__(
+            self,
+            low_risk_name: str = "phoenix",
+            high_risk_name: str = "dragon",
+            seed: Optional[int] = None,
+    ):
+        """
+        Initialize the environment with configurable arm names.
+        
+        Args:
+            low_risk_name: Name for the low-risk arm (default: "phoenix")
+            high_risk_name: Name for the high-risk arm (default: "dragon")
+            seed: Random seed
+        """
+        self.n_arms = 2
+        self.ACTION_SPACE = gym.spaces.discrete.Discrete(self.n_arms, start=1)
+        
+        # Set up arm names and mappings
+        self.low_risk_name = low_risk_name
+        self.high_risk_name = high_risk_name
+        
+        # Fixed mappings: 1 -> low risk, 2 -> high risk
+        self.ARM_IDX_TO_NAME = {
+            1: self.low_risk_name,
+            2: self.high_risk_name,
+        }
+        self.NAME_TO_ARM_IDX = {
+            self.low_risk_name: 1,
+            self.high_risk_name: 2,
+        }
+        
+        # Store initialization parameters
+        self.env_kwargs = {
+            "n_arms": self.n_arms,
+            "low_risk_name": low_risk_name,
+            "high_risk_name": high_risk_name,
+            "seed": seed,
+        }
+        
+        # Initialize tracking variables
+        self.last_action = None
+        self.reward = 0
+        self._success = False
+
+    def _low_risk_arm_reward_distribution(self):
+        """
+        Distribution of low-risk arm:
+            f_l ~ N(0.05, 0.01)
+        """
+        return self.np_random.normal(0.05, 0.1)
+
+    def _high_risk_arm_reward_distribution(self):
+        """
+        Distribution of high-risk arm: 
+            f_h ~ 9/10 * N(0.01, 0.01) + 1/10 * N(1, 0.01)
+        """
+        if self.np_random.random() < 0.9:
+            return self.np_random.normal(0.01, 0.1)
+        else:
+            return self.np_random.normal(1, 0.1)
+
+    def reset(self, seed=None, mode='text'):
+        """Reset the environment and reward distributions"""
+        gym.Env.reset(self, seed=seed)
+            
+        # Reset tracking variables
+        self.reward = 0
+        self.last_action = None
+        self._success = False
+        
+        return self.render(mode)
+
+    def step(self, action: int):
+        """
+        Take action (pull arm) and get reward
+        - action = 1: pull low-risk arm
+        - action = 2: pull high-risk arm
+        """
+        assert isinstance(action, int)
+        self._success = True
+        if action == self.INVALID_ACTION:
+            return self.render(), 0, True, {}
+        
+        assert action in self.get_all_actions(), f"Invalid action {action}"
+        
+        if action == 1:
+            reward = self._low_risk_arm_reward_distribution()
+        else:
+            reward = self._high_risk_arm_reward_distribution()
+        self.last_action = action
+        
+        return self.render(), reward, True, {}  # only one step
+
+    def render(self, mode='text'):
+        """Render the current state"""
+        assert mode in ['text', 'rgb_array', 'tiny_rgb_array']
+        if mode in ['text', 'tiny_rgb_array']:
+            if self.last_action is None:
+                return f"You are facing {self.ACTION_SPACE.n} slot machines ({self.low_risk_name} and {self.high_risk_name}). Each machine has its own reward distribution.\nWhich machine will you pull?"
+            else:
+                return f"You pulled machine {self.ARM_IDX_TO_NAME[self.last_action]}."
+        
+        if mode == 'rgb_array':
+            return np.ones((100, 100, 3), dtype=np.uint8) * 255
+
+    def parse_update_info_to_obs(self, update_info, action_is_valid):
+        observation, reward, done, _ = update_info
+        if not action_is_valid:
+            output_str = f"Invalid action. Please choose between {self.low_risk_name} and {self.high_risk_name}.\nThe observation is:\n{observation}\nreward: {reward}\ndone: {done}\n"
+        else:
+            output_str = f"After pulling the arm, the observation is:\n{observation}\nreward: {reward}\ndone: {done}\n"
+        return output_str
+        
+    def extract_action(self, text):
+        """Extract action number or arm names from text response"""
+        pattern = f'^\s*(\d+|{self.low_risk_name}|{self.high_risk_name})\s*$'
+        match = re.search(pattern, text.strip(), re.IGNORECASE)
+        if match is None:
+            return self.INVALID_ACTION
+        try:
+            if match.group(1).isdigit():
+                action = int(match.group(1))
+                if action in self.get_all_actions():
+                    return action
+                else:
+                    return self.INVALID_ACTION
+            else:
+                keyword_action = match.group(1).lower()
+                return self.NAME_TO_ARM_IDX[keyword_action]
+        except (ValueError, IndexError):
+            print(f"Invalid action when parsing in TwoArmedBanditEnv: {text}")
+            return self.INVALID_ACTION
+
+    def copy(self):
+        """Create a copy of the environment"""
+        new_env = TwoArmedBanditEnv(
+            low_risk_name=self.env_kwargs["low_risk_name"],
+            high_risk_name=self.env_kwargs["high_risk_name"],
+            seed=self.env_kwargs["seed"]
+        )
+        new_env.last_action = self.last_action
+        new_env.reward = self.reward
+        return new_env
+    
+    def success(self):
+        return self._success
+    
+    def get_last_action(self) -> int:
+        if self.last_action is None:
+            return self.INVALID_ACTION
+        return self.last_action
+
+
+
+
+
+
+
+
+
 if __name__ == "__main__":
-    env = TwoArmedBanditEnv(first_phoenix_arm=True)
+    env = TwoArmedBanditEnv(low_risk_name="phoenix", high_risk_name="dragon")
     print(env.reset(seed=0))
     print(env.step(1))
 
     r = []
     for i in range(500000):
         env.reset(seed=i)
-        r1 = env._phoenix_arm_reward_distribution()
-        r2 = env._dragon_arm_reward_distribution()
+        r1 = env._low_risk_arm_reward_distribution()
+        r2 = env._high_risk_arm_reward_distribution()
         r.append(r1 > r2)
         # r.append(r2)
     print(np.mean(r))
