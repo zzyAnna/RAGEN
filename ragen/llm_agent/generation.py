@@ -258,16 +258,14 @@ class LLMGenerationManager:
         n_visualize = self.config.logging.log_n_image_per_batch
         for idx, (env, active) in enumerate(zip(envs[:n_visualize], active_mask[:n_visualize])):
             if active:
-                trajectory[idx]['img_before_action'].append(env.render('rgb_array'))
+                trajectory[idx]['state'].append(env.render('rgb_array'))
             
         for idx, (response, env, active) in enumerate(zip(responses[:n_visualize], 
                                                 envs[:n_visualize],
                                                 active_mask[:n_visualize])):
             if active:
-                img_after = env.render('rgb_array')
                 parsed = parse_llm_output(response, strategy="raw")
                 
-                trajectory[idx]['img_after_action'].append(img_after)
                 trajectory[idx]['answer'].append(response)
                 trajectory[idx]['parsed_response'].append(parsed)
 

@@ -75,12 +75,11 @@ def save_trajectory_to_output(trajectory, save_dir):
     
     for data_idx, data in enumerate(trajectory):
         steps_html = []
-        n_steps = len(data['img_before_action'])
+        n_steps = len(data['state'])
         
         for step in range(n_steps):
             # Convert images to base64
-            img_before = image_to_base64(data['img_before_action'][step])
-            img_after = image_to_base64(data['img_after_action'][step])
+            image_state = image_to_base64(data['state'][step])
             
             # Process response text
             parsed_response = data['parsed_response'][step]['raw']
@@ -95,12 +94,8 @@ def save_trajectory_to_output(trajectory, save_dir):
                 <div class="step-number">Step {step + 1}</div>
                 <div class="image-container">
                     <div class="image-box">
-                        <div class="image-title">Before Action</div>
-                        <img src="data:image/png;base64,{img_before}" alt="Before Action">
-                    </div>
-                    <div class="image-box">
-                        <div class="image-title">After Action</div>
-                        <img src="data:image/png;base64,{img_after}" alt="After Action">
+                        <div class="image-title">State</div>
+                        <img src="data:image/png;base64,{image_state}" alt="State">
                     </div>
                 </div>
                 <div class="response-box">
