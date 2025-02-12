@@ -1,60 +1,6 @@
-# System settings
-system:
-  cuda_visible_devices: 0
-  python_hash_seed: 10000
-  n_gpus: 1
-  multi_processing: "ray"
-  vllm_attention_backend: "XFORMERS"
-  rl_or_sft: "rl" # "rl" or "sft"
 
-# Model settings
-model:
-  base_model: "Qwen/Qwen2.5-0.5B-Instruct"
-  experiment_name: "ragen-main-exp"
-  gradient_checkpointing: true
-
-# Training parameters
-training:
-  micro_batch_size: 1
-  train_batch_size: 128
-  ppo_batch_size: 64
-  max_start_length: 400
-  max_response_length: 200
-  max_obs_length: 200
-  max_turns: 5
-  rollout_tp_size: 1
-  n_rollout: 1
-  total_epochs: 5
-  use_kl_loss: False # this means actor KL Loss
-  no_think_rl: False
-  temperature: 0.7
-
-# Optimization parameters
-optimization:
-  actor_lr: 1e-6
-  critic_lr: 1e-5
-  kl_coef: 0.04
-  adv_estimator: gae
-  gpu_memory_utilization: 0.4
-
-# Logging settings
-logging:
-  mode: "['wandb']"
-  log_images: true
-  log_image_dir: "log/trajectory"
-  log_image_step_size: 1
-  log_n_image_per_batch: 8
-
-# Trainer settings
-trainer:
-  val_before_train: false
-  default_hdfs_dir: null
-  nnodes: 1
-  save_freq: 100
-  test_freq: 100
-  project_name: "RAGEN"
-
-
+# Trainig paradigm
+rl_or_sft: "sft"
 # System settings
 system:
   cuda_visible_devices: 0
@@ -81,8 +27,9 @@ training:
   rollout_tp_size: 1
   n_rollout: 1
   total_epochs: 5
-  use_kl_loss: false
+  use_kl_loss: false  # this means actor KL Loss
   no_think_rl: false
+  temperature: 0.7
 
 # Optimization parameters
 optimization:
@@ -111,52 +58,46 @@ trainer:
 
 # SFT settings
 sft:
-  # Environment settings
-  env:
-    type: "sokoban"
+  env_type: "sokoban"  # or "frozenlake"
+  output_dir: "models/sft"
+
+  # Data generation parameters
+  data_generation:
+    algo: "bfs"
+    seed: 100000
+    train_size: 1000
+    test_size: 100
+    bfs_max_depths: 100
+    prefix: "message"
+    num_processes: 16
+
+  # Training parameters
+  training:
+    num_gpus: 1
+    max_length: 2048
+    learning_rate: 1e-4
+    train_batch_size: 128
+    micro_batch_size: 4
+    experiment_name: "test_sft_lora"
+    logger: "['console','wandb']"
+    epochs: 5
+    hdfs_dir: null
+    validate_before_training: true
+    lora_rank: 64
+    lora_alpha: 32
+    target_modules: "all-linear"
+    enable_gradient_checkpointing: false
+  
+  # Sokoban-specific settings
+  sokoban:
     dim_x: 6
     dim_y: 6
     num_boxes: 1
     max_steps: 5
     search_depth: 30
   
-  # Data generation settings
-  data_generation:
-    algorithm: "bfs"
-    seed: 100000
-    output_dir: "sft/data"
-    train_size: 10000
-    test_size: 100
-    bfs_max_depths: 100
-    prefix: "message"
-    num_processes: 16
-  
-  # Training settings
-  training:
-    env: "sokoban"
-    data:
-      train_files: "sft/data/train.parquet"
-      val_files: "sft/data/test.parquet"
-      prompt_key: "prompt"
-      response_key: "response"
-      max_length: 2048
-      train_batch_size: 128
-      micro_batch_size: 4
-    
-    model:
-      partial_pretrain: "Qwen/Qwen2.5-0.5B"
-      lora_rank: 64
-      lora_alpha: 32
-      target_modules: "all-linear"
-      enable_gradient_checkpointing: false
-    
-    optimization:
-      learning_rate: 1e-4
-      total_epochs: 5
-    
-    trainer:
-      project_name: "sokoban-sft"
-      experiment_name: "sokoban-sft-lora-qwen-2.5-0.5b-base"
-      logger: ["console", "wandb"]
-      validate_before_training: true
-      default_hdfs_dir: null
+  # FrozenLake-specific settings
+  frozenlake:
+    size: 6
+    p: 0.8
+    is_slippery: true
