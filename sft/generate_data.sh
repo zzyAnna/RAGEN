@@ -24,7 +24,7 @@ set_env_vars $ENV_TYPE
 
 # Run the appropriate script based on environment
 if [ "$ENV_TYPE" = "sokoban" ]; then
-    python sft/utils/generate_sft_verl.py \
+    python sft/utils/generate_sft_verl_sokoban.py \
         --env sokoban \
         --algo bfs \
         --seed 100000 \

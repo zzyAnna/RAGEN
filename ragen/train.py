@@ -18,7 +18,7 @@ def load_config(env_name: str) -> Dict[str, Any]:
     # Load base config
     with open("config/base.yaml", 'r') as f:
         config = yaml.safe_load(f)
-    
+    #print("config1",config)
     # Load environment config
     env_config_path = f"config/{env_name}.yaml"
     if os.path.exists(env_config_path):
@@ -52,16 +52,26 @@ def load_config(env_name: str) -> Dict[str, Any]:
 
 def get_train_command(config: Dict[str, Any]) -> str:
     """Generate the training command with all arguments."""
+    # Check if we're doing RL or SFT training
+    assert config['rl_or_sft'] in ["rl", "sft"]
+    if config['rl_or_sft'] == "rl":
+        return get_rl_train_command(config)
+    else:
+        return get_sft_train_command(config)
+
+def get_rl_train_command(config: Dict[str, Any]) -> str:
+    """Generate the RL training command with all arguments."""
     # Calculate MAX_PROMPT_LENGTH
-    max_prompt_length = (config['training']['max_start_length'] + 
-                        config['training']['max_response_length'] * (config['training']['max_turns'] - 1) + 
+    max_prompt_length = (config['training']['max_start_length'] +
+                        config['training']['max_response_length'] * (config['training']['max_turns'] - 1) +
                         config['training']['max_obs_length'] * config['training']['max_turns'])
-    
+   
     # Define the command template with proper indentation
     env_kwargs = config['env']['env_kwargs']
     env_kwargs_str = " \\\n    ".join([
         f"+env.{key}={value}" for key, value in env_kwargs.items()
     ])
+   
     cmd = [
         "python -m verl.trainer.main_ppo",
         f"multi_processing={config['system']['multi_processing']}",
@@ -84,12 +94,6 @@ def get_train_command(config: Dict[str, Any]) -> str:
         f"actor_rollout_ref.rollout.log_prob_micro_batch_size={config['training']['micro_batch_size']}",
         f"actor_rollout_ref.rollout.tensor_model_parallel_size={config['training']['rollout_tp_size']}",
         f"actor_rollout_ref.rollout.gpu_memory_utilization={config['optimization']['gpu_memory_utilization']}",
-        f"actor_rollout_ref.ref.log_prob_micro_batch_size={config['training']['micro_batch_size']}",
-        f"critic.optim.lr={config['optimization']['critic_lr']}",
-        f"critic.model.path={config['model']['base_model']}",
-        f"critic.ppo_micro_batch_size={config['training']['micro_batch_size']}",
-        f"algorithm.kl_ctrl.kl_coef={config['optimization']['kl_coef']}",
-        f"algorithm.no_think_rl={config['training']['no_think_rl']}",
         f"actor_rollout_ref.rollout.n_agent={config['training']['n_rollout']}",
         f"actor_rollout_ref.rollout.temperature={config['training']['temperature']}",
         f"trainer.logger={config['logging']['mode']}",
@@ -104,17 +108,24 @@ def get_train_command(config: Dict[str, Any]) -> str:
         f"trainer.total_epochs={config['training']['total_epochs']}",
         f"env.name={config['env']['name']}",
         env_kwargs_str,
-        # f"env.dim_x={config['env']['dim_x']}",
-        # f"env.dim_y={config['env']['dim_y']}",
-        # f"env.num_boxes={config['env']['num_boxes']}",
-        # f"env.max_steps={config['env']['max_steps']}",
-        # f"env.search_depth={config['env']['search_depth']}",
         f"max_turns={config['training']['max_turns']}",
         f"logging.log_images={str(config['logging']['log_images']).lower()}",
         f"logging.log_image_dir={config['logging']['log_image_dir']}",
         f"logging.log_image_step_size={config['logging']['log_image_step_size']}",
         f"logging.log_n_image_per_batch={config['logging']['log_n_image_per_batch']}",
         "2>&1 | tee debug.log"
+    ]
+   
+    return " \\\n    ".join(cmd)
+
+def get_sft_train_command(config: Dict[str, Any]) -> str:
+    """Generate the SFT training command by calling the SFT pipeline."""
+    
+    # Call the SFT pipeline with the appropriate config
+    cmd = [
+        "python -m sft.sft_pipeline",
+        f"--config config/base.yaml",
+        f"--env_type {config['env']['name']}"
     ]
     
     return " \\\n    ".join(cmd)

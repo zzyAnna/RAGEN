@@ -22,10 +22,39 @@ from multiprocessing import Pool
 from tqdm import tqdm
 
 from ragen.env import SokobanEnv
-from ragen.policy.heuristic import FixedPolicy
-from ragen.evaluators.trajectory_evaluator import TrajectoryEvaluator
 from ragen.env.sokoban.room_utils import get_shortest_action_path, plot_animation
 
+
+INSTRUCTION_TEMPLATE = """You are a Sokoban solver.
+
+Sokoban Quick Guide
+Goal: Push all boxes (X) onto targets (O).
+
+Symbols:
+# Wall | _ Floor | O Target | X Box | P You | √ = Box on Target | S = You on Target
+
+Rules:
+1. Push boxes (can't pull).
+2. Avoid walls (#).
+
+Answers:
+<answer> 1 (Up) </answer> | <answer> 2 (Down) </answer> | <answer> 3 (Left) </answer> | <answer> 4 (Right) </answer>
+
+Rewards:
+Move: -0.1
+Box on target: +1.0
+All boxes placed: +10.0
+
+
+[Cumulative Observations]:
+{observation}
+Decide the next action:\
+"""
+
+
+
+
+######################################## different language model input templates ########################################
 
 qwen_instruction_template = """\
 <|im_start|>system
@@ -36,7 +65,6 @@ Always output: <think> [Your thoughts] </think> <answer> [your answer] </answer>
 <|im_start|>assistant
 <think>\
 """
-
 qwen_observation_template = """\
 <|im_start|>user
 After you take this action, the observation is: 
@@ -45,18 +73,13 @@ After you take this action, the observation is:
 <|im_start|>assistant
 <think>\
 """
-
 qwen_response_template = """\
 </think> <answer> {action} </answer> <|im_end|>
 """
 
-
 system_message = "You are a helpful assistant."
-
 instruction_message = "{prompt}\nAlways output: <think> [Your thoughts] </think> <answer> [your answer] </answer> with no extra test. Strictly follow this format."
-
 observation_message = "After you take this action, the observation is: \n{observation}\n"
-
 response_message = "<answer> {action} </answer>"
 
 # NOTE in message format, <think> token is not included here
@@ -68,17 +91,14 @@ Show your work in <think> </think> tags. And return the final answer in <answer>
 Assistant: 
 <think>\
 """
-
 base_observation_template = """\
 User: After you take this action, the observation is: {observation}
 Assistant: 
 <think>\
 """
-
 base_response_template = """\
 </think> <answer> {action} </answer>
 """
-
 
 templates = {
     'qwen-instruct': {
@@ -100,11 +120,20 @@ templates = {
 }
 
 
+
+
+
+
+
+
+
+
+
 def create_chat_str_for_env(args):
     """
     Chat is formated as pure string like <|im_start|>user...<|im_end|>, <|im_start|>assistant...<|im_end|>, ...
     """
-    seed, traj, prefix, data_source, templates, env, MAX_DEPTH = args
+    seed, prefix, data_source, MAX_DEPTH, dim_x, dim_y, num_boxes, max_steps, search_depth = args
     instance_template = {
         "data_source": data_source,
         "prompt": None,
@@ -114,8 +143,10 @@ def create_chat_str_for_env(args):
         "extra_info": {"split": "train", "index": seed}
     }
     instances = []
-    init_prompt = traj[0]['policy_input']
-    init_prompt_formatted = templates[prefix]['instruction'].format(prompt=init_prompt)
+    
+    env = SokobanEnv(dim_room=(dim_x, dim_y), num_boxes=num_boxes, max_steps=max_steps, search_depth=search_depth)
+    obs = env.reset(seed=seed, mode='tiny_rgb_array')
+    init_prompt_formatted = templates[prefix]['instruction'].format(prompt= INSTRUCTION_TEMPLATE.format(observation=obs))
 
     # images = []
 
@@ -144,7 +175,7 @@ def create_chat_messages_for_env(args):
     """
     Chat is formated as list of messages like [{'role': 'system', 'content': 'xxx'}, {'role': 'user', 'content': 'xxx'}, {'role': 'assistant', 'content': 'xxx'}]
     """
-    seed, traj, prefix, data_source, templates, env, MAX_DEPTH = args
+    seed, prefix, data_source, MAX_DEPTH, dim_x, dim_y, num_boxes, max_steps, search_depth = args
     instance_template = {
         "data_source": data_source,
         "prompt": None,
@@ -155,8 +186,10 @@ def create_chat_messages_for_env(args):
     }
     instances = []
     messages = [{'role': 'system', 'content': templates[prefix]['system']}]
-    instruction = traj[0]['policy_input']
-    instruction_message = templates[prefix]['instruction'].format(prompt=instruction)
+
+    env = SokobanEnv(dim_room=(dim_x, dim_y), num_boxes=num_boxes, max_steps=max_steps, search_depth=search_depth)
+    obs = env.reset(seed=seed, mode='tiny_rgb_array')
+    instruction_message = templates[prefix]['instruction'].format(prompt= INSTRUCTION_TEMPLATE.format(observation=obs))
     messages.append({'role': 'user', 'content': instruction_message})
 
     # images = []
@@ -196,7 +229,6 @@ def main():
     parser.add_argument("--test_size", type=int, default=100, help="Number of test trajectories to generate (default: 100).")
     parser.add_argument("--bfs_max_depths", type=int, default=100, help="Maximum number of depths for BFS (default: 100).")
     parser.add_argument("--prefix", type=str, default='qwen-instruct', choices=['qwen-instruct', 'base', 'message'])
-    # parser.add_argument("--without_thinking", action='store_true', help="Whether to exclude <think> </think> tags in the response.")
     parser.add_argument("--num_processes", type=int, default=4, help="Number of processes to use for parallel processing (default: 4).")
     args = parser.parse_args()
 
@@ -207,36 +239,31 @@ def main():
     
     dim_x, dim_y, num_boxes, max_steps, search_depth = os.environ.get("DIM_X"), os.environ.get("DIM_Y"), os.environ.get("NUM_BOXES"), os.environ.get("MAX_STEPS"), os.environ.get("SEARCH_DEPTH")
     dim_x, dim_y, num_boxes, max_steps, search_depth = int(dim_x), int(dim_y), int(num_boxes), int(max_steps), int(search_depth)
-
-    env = SokobanEnv(dim_room=(dim_x, dim_y), num_boxes=num_boxes, max_steps=max_steps, search_depth=search_depth)
-    policy = FixedPolicy()
-    evaluator = TrajectoryEvaluator(env, policy, max_steps=1)
-
-    # Generate trajectories
-    seeds = range(args.seed, args.seed + args.train_size + args.test_size)
-    trajectories = evaluator.batch_evaluate(seeds, mp=True) # mp=False is not working
+    print(f"dim_x: {dim_x}, dim_y: {dim_y}, num_boxes: {num_boxes}, max_steps: {max_steps}, search_depth: {search_depth}")
 
     fn = create_chat_messages_for_env if args.prefix == 'message' else create_chat_str_for_env
 
     
 
     # Create process pool
-    pbar = tqdm(total=args.train_size + args.test_size, desc="Generating trajectories")
+    pbar = tqdm(total=args.train_size + args.test_size, desc="Generating trajectories", position=0, leave=True)
     with Pool(processes=args.num_processes) as pool:
         # Process training data
-        train_args = [(args.seed + i, trajectories[i], args.prefix, data_source, templates, env, args.bfs_max_depths) for i in range(args.train_size)]
+        train_args = [(args.seed + i, args.prefix, data_source, args.bfs_max_depths, dim_x, dim_y, num_boxes, max_steps, search_depth) for i in range(args.train_size)]
         train_instances = []
-        for instances in pool.map(fn, train_args):
+        for instances in pool.imap(fn, train_args):
             train_instances.extend(instances)
             pbar.update(1)
+            pbar.refresh()
         train_dataset = Dataset.from_list(train_instances)
 
         # Process test data 
-        test_args = [(args.seed + i, trajectories[i], args.prefix, data_source, templates, env, args.bfs_max_depths) for i in range(args.train_size, args.train_size + args.test_size)]
+        test_args = [(args.seed + i, args.prefix, data_source, args.bfs_max_depths, dim_x, dim_y, num_boxes, max_steps, search_depth) for i in range(args.train_size, args.train_size + args.test_size)]
         test_instances = []
-        for instances in pool.map(fn, test_args):
+        for instances in pool.imap(fn, test_args):
             test_instances.extend(instances)
             pbar.update(1)
+            pbar.refresh()
         test_dataset = Dataset.from_list(test_instances)
 
     pbar.close()

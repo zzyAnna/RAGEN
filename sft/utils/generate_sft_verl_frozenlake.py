@@ -41,6 +41,7 @@ Rewards:
 Fall into hole: 0
 Reach goal: +1.0
 
+
 [Cumulative Observations]:
 {observation}
 Decide the next action:\
@@ -249,22 +250,24 @@ def main():
     
 
     # Create process pool
-    pbar = tqdm(total=args.train_size + args.test_size, desc="Generating trajectories")
+    pbar = tqdm(total=args.train_size + args.test_size, desc="Generating trajectories", position=0, leave=True)
     with Pool(processes=args.num_processes) as pool:
         # Process training data
         train_args = [(args.seed + i, args.prefix, data_source, args.bfs_max_depths, size, p, IS_SLIPPERY) for i in range(args.train_size)]
         train_instances = []
-        for instances in pool.map(fn, train_args):
+        for instances in pool.imap(fn, train_args):
             train_instances.extend(instances)
             pbar.update(1)
+            pbar.refresh()
         train_dataset = Dataset.from_list(train_instances)
 
         # Process test data 
         test_args = [(args.seed + i, args.prefix, data_source, args.bfs_max_depths, size, p, IS_SLIPPERY) for i in range(args.train_size, args.train_size + args.test_size)]
         test_instances = []
-        for instances in pool.map(fn, test_args):
+        for instances in pool.imap(fn, test_args):
             test_instances.extend(instances)
             pbar.update(1)
+            pbar.refresh()
         test_dataset = Dataset.from_list(test_instances)
 
     pbar.close()
