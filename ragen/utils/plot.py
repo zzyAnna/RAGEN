@@ -1,5 +1,6 @@
 import base64
 from io import BytesIO
+from typing import List
 from PIL import Image
 import os
 import re
@@ -12,13 +13,16 @@ def image_to_base64(img_array):
     img.save(buffered, format="PNG")
     return base64.b64encode(buffered.getvalue()).decode()
 
-def save_trajectory_to_output(trajectory, save_dir):
+def save_trajectory_to_output(trajectory, save_dir) -> List[str]:
     """
     Save the trajectory to HTML files with better multi-language support
     
     Arguments:
         - trajectory (list): The trajectory to save
         - save_dir (str): Directory to save the HTML files
+    
+    Returns:
+        - filenames (list): List of saved HTML file paths
     """
     os.makedirs(save_dir, exist_ok=True)
     
@@ -73,6 +77,7 @@ def save_trajectory_to_output(trajectory, save_dir):
         }
     '''
     
+    filenames = []
     for data_idx, data in enumerate(trajectory):
         steps_html = []
         n_steps = len(data['state'])
@@ -124,8 +129,12 @@ def save_trajectory_to_output(trajectory, save_dir):
         
         # Save to file
         filename = os.path.join(save_dir, f"trajectory_data_{data_idx}.html")
+        filenames.append(filename)
         with open(filename, 'w', encoding='utf-8') as f:
             f.write(final_html)
+    return filenames
+        
+        
 
 def parse_llm_output(llm_output: str, strategy: str):
     """

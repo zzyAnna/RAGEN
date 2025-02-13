@@ -29,6 +29,8 @@ while [ $# -gt 0 ]; do
   shift
 done
 
+mkdir -p ./log/terminal
+
 # Print the parameters being used
 echo "Using parameters:"
 echo "Environment: $ENV_NAME"

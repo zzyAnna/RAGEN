@@ -25,6 +25,7 @@ from pprint import pprint
 from typing import Type, Dict
 
 import re
+import json
 from collections import defaultdict
 
 import numpy as np
@@ -345,6 +346,8 @@ class RayPPOTrainer(object):
         self.use_rm = Role.RewardModel in role_worker_mapping
         self.ray_worker_group_cls = ray_worker_group_cls
 
+        self.val_num = 0
+
         # define KL control
         if self.use_reference_policy:
             if config.algorithm.kl_ctrl.type == 'fixed':
@@ -360,6 +363,14 @@ class RayPPOTrainer(object):
             self.kl_ctrl = core_algos.FixedKLController(kl_coef=0.)
 
         self._create_dataloader()
+        self._init_logger()
+    
+    def _init_logger(self):
+        from verl.utils.tracking import Tracking
+        self.logger = Tracking(project_name=self.config.trainer.project_name,
+                          experiment_name=self.config.trainer.experiment_name,
+                          default_backend=self.config.trainer.logger,
+                          config=OmegaConf.to_container(self.config, resolve=True))
 
     def _create_dataloader(self):
         from torch.utils.data import DataLoader
@@ -386,16 +397,16 @@ class RayPPOTrainer(object):
                                        return_raw_chat=self.config.data.get('return_raw_chat', False),
                                        truncation='error')
         self.val_dataloader = DataLoader(dataset=self.val_dataset,
-                                         batch_size=len(self.val_dataset),
+                                         batch_size=self.config.data.val_batch_size,
                                          shuffle=True,
                                          drop_last=True,
                                          collate_fn=collate_fn)
 
-        assert len(self.train_dataloader) >= 1
-        assert len(self.val_dataloader) >= 1
-
         print(f'Size of train dataloader: {len(self.train_dataloader)}')
         print(f'Size of val dataloader: {len(self.val_dataloader)}')
+        
+        assert len(self.train_dataloader) >= 1
+        assert len(self.val_dataloader) >= 1
 
         # inject total_training_steps to actor/critic optim_config. This is hacky.
         total_training_steps = len(self.train_dataloader) * self.config.trainer.total_epochs
@@ -410,58 +421,6 @@ class RayPPOTrainer(object):
         with open_dict(self.config):
             self.config.actor_rollout_ref.actor.optim.total_training_steps = total_training_steps
             self.config.critic.optim.total_training_steps = total_training_steps
-
-    def _validate(self):
-        reward_tensor_lst = []
-        data_source_lst = []
-        for test_data in self.val_dataloader:
-            test_batch = DataProto.from_single_dict(test_data)
-            # test_batch = test_batch.to('cuda')
-
-            # we only do validation on rule-based rm
-            if self.config.reward_model.enable and test_batch[0].non_tensor_batch['reward_model']['style'] == 'model':
-                return {}
-
-            test_gen_batch = test_batch.pop(['input_ids', 'attention_mask', 'position_ids'])
-            test_gen_batch.meta_info = {
-                'eos_token_id': self.tokenizer.eos_token_id,
-                'pad_token_id': self.tokenizer.pad_token_id,
-                'recompute_log_prob': False,
-                'do_sample': False,
-                'validate': True,
-            }
-
-            # pad to be divisible by dp_size
-            test_gen_batch_padded, pad_size = pad_dataproto_to_divisor(test_gen_batch, self.actor_rollout_wg.world_size)
-            test_output_gen_batch_padded = self.actor_rollout_wg.generate_sequences(test_gen_batch_padded)
-            # unpad
-            test_output_gen_batch = unpad_dataproto(test_output_gen_batch_padded, pad_size=pad_size)
-            print('validation generation end')
-
-            test_batch = test_batch.union(test_output_gen_batch)
-
-            # evaluate using reward_function
-            # for certain reward function (e.g. sandbox), the generation can overlap with reward
-            reward_tensor = self.val_reward_fn(test_batch)
-
-            reward_tensor_lst.append(reward_tensor)
-            data_source_lst.append(test_batch.non_tensor_batch.get('data_source', ['unknown'] * reward_tensor.shape[0]))
-
-        reward_tensor = torch.cat(reward_tensor_lst, dim=0).sum(-1).cpu()  # (batch_size,)
-        data_sources = np.concatenate(data_source_lst, axis=0)
-        # evaluate test_score based on data source
-        data_source_reward = {}
-        for i in range(reward_tensor.shape[0]):
-            data_source = data_sources[i]
-            if data_source not in data_source_reward:
-                data_source_reward[data_source] = []
-            data_source_reward[data_source].append(reward_tensor[i].item())
-
-        metric_dict = {}
-        for data_source, rewards in data_source_reward.items():
-            metric_dict[f'val/test_score/{data_source}'] = np.mean(rewards)
-
-        return metric_dict
 
     def init_workers(self):
         """Init resource pool and worker group"""
@@ -572,16 +531,10 @@ class RayPPOTrainer(object):
         The driver process only need to call the compute functions of the worker group through RPC to construct the PPO dataflow.
         The light-weight advantage computation is done on the driver process.
         """
-        from verl.utils.tracking import Tracking
-        from omegaconf import OmegaConf
 
-        logger = Tracking(project_name=self.config.trainer.project_name,
-                          experiment_name=self.config.trainer.experiment_name,
-                          default_backend=self.config.trainer.logger,
-                          config=OmegaConf.to_container(self.config, resolve=True))
-
+        
+        logger = self.logger
         self.global_steps = 0
-
         # perform validation before training
         # currently, we only support validation using the reward_function.
         if self.val_reward_fn is not None and self.config.trainer.get('val_before_train', True):
@@ -613,6 +566,7 @@ class RayPPOTrainer(object):
             actor_rollout_wg=self.actor_rollout_wg,
             env_class=self.env_class,
             config=gen_config,
+            logger = logger,
         )
 
         envs = [self.env.copy() for _ in range(self.config.data.train_batch_size * self.config.actor_rollout_ref.rollout.n_agent)] 
@@ -669,6 +623,7 @@ class RayPPOTrainer(object):
                     first_input_ids = gen_batch.batch['input_ids'][:, -gen_config.max_start_length:].clone()
                     output_dir = (f"{self.config.logging.log_image_dir}/"
                                  f"{self.config.trainer.experiment_name}/"
+                                 f"train/"
                                  f"step_{self.global_steps}")
 
                     with _timer('gen', timing_raw):
@@ -804,3 +759,103 @@ class RayPPOTrainer(object):
                         pprint(f'Final validation metrics: {val_metrics}')
                         logger.log(data=val_metrics, step=self.global_steps)
                     return
+
+    def _validate(self):
+        """
+        The training loop of PPO with global metric computation.
+        Accumulates metrics across all batches before computing final statistics.
+        """
+        import torch
+        # Initialize global metric storage
+        global_token_scores = []
+
+        self.val_num += 1
+
+        gen_config = GenerationConfig(
+            max_turns=self.config.max_turns,
+            max_start_length=self.config.data.max_start_length,
+            max_prompt_length=self.config.data.max_prompt_length,
+            max_response_length=self.config.data.max_response_length,
+            max_obs_length=self.config.data.max_obs_length,
+            logging=self.config.logging,
+            num_gpus=self.config.trainer.n_gpus_per_node,
+            no_think_rl=self.config.algorithm.no_think_rl,
+        )
+
+        # Agent config preparation
+        generation_manager = LLMGenerationManager(
+            tokenizer=self.tokenizer,
+            actor_rollout_wg=self.actor_rollout_wg,
+            env_class=self.env_class,
+            config=gen_config,
+            logger = self.logger,
+        )
+
+        envs = [self.env.copy() for _ in range(self.config.data.val_batch_size * self.config.actor_rollout_ref.rollout.n_agent)]
+        val_global_steps = 1
+
+        for batch_dict in self.val_dataloader:
+            timing_raw = {}
+            test_batch: DataProto = DataProto.from_single_dict(batch_dict)
+            test_batch = test_batch.repeat(repeat_times=self.config.actor_rollout_ref.rollout.n_agent, interleave=True)
+
+            env_seeds = [i['index'] for i in test_batch.non_tensor_batch['extra_info']]
+            print("env_seeds:", env_seeds)
+            for env, seed in zip(envs, env_seeds):
+                env.reset(seed=seed)
+            
+            test_gen_batch = test_batch.pop(batch_keys=['input_ids', 'attention_mask', 'position_ids'])
+            test_gen_batch.meta_info = {
+                'eos_token_id': self.tokenizer.eos_token_id,
+                'pad_token_id': self.tokenizer.pad_token_id,
+                'recompute_log_prob': False,
+                'do_sample': False,
+                'validate': True,
+            }
+            with _timer('step', timing_raw):
+                first_input_ids = test_gen_batch.batch['input_ids'][:, -gen_config.max_start_length:].clone()
+                output_dir = (f"{self.config.logging.log_image_dir}/"
+                                f"{self.config.trainer.experiment_name}/"
+                                f"validation_{self.val_num}/"
+                                f"step_{val_global_steps}")
+                with _timer('gen', timing_raw):
+                    generation_manager.timing_raw = timing_raw
+                    final_gen_batch_output = generation_manager.run_llm_loop(
+                        gen_batch=test_gen_batch,
+                        envs=envs,
+                        initial_input_ids=first_input_ids,
+                        output_dir=output_dir,
+                        global_steps=val_global_steps,
+                    )
+                with torch.no_grad():
+                    output = self.actor_rollout_wg.compute_log_prob(final_gen_batch_output)
+                    final_gen_batch_output = final_gen_batch_output.union(output)
+
+                test_batch.non_tensor_batch['reward'] = np.array([0 for _ in range(len(envs))], dtype=object)
+                for idx, env in enumerate(envs):
+                    test_batch.non_tensor_batch['reward'][idx] = env.reward
+
+                # Accumulate batch metrics into global storage
+                global_token_scores.append(test_batch.non_tensor_batch['reward'])
+
+
+
+
+            ...
+
+        global_scores = np.concatenate(global_token_scores, axis=0)
+        global_metrics = {
+            'global_score/mean': float(global_scores.mean()),
+            'global_score/max': float(global_scores.max()),
+            'global_score/min': float(global_scores.min()),
+            'global_score/std': float(global_scores.std()),
+        }
+        print("global_metrics", global_metrics)
+        return global_metrics
+    
+    def final_validate(self):
+        '''
+        Perform final validation after training.
+        '''
+        return self._validate()
+    

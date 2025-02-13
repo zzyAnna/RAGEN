@@ -42,7 +42,7 @@ create_sokoban_dataset() {
         --output data/sokoban \
         --seed 10000 \
         --train_size 10000 \
-        --test_size 10 \
+        --test_size 500 \
         --prefix qwen-instruct
         
     echo -e "${GREEN}Sokoban dataset created successfully!${NC}"
@@ -62,7 +62,7 @@ create_frozen_lake_dataset() {
         --output data/frozenlake \
         --seed 100000 \
         --train_size 10000 \
-        --test_size 10 \
+        --test_size 500 \
         --prefix qwen-instruct
         
     echo -e "${GREEN}FrozenLake dataset created successfully!${NC}"

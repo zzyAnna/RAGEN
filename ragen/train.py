@@ -78,7 +78,7 @@ def get_rl_train_command(config: Dict[str, Any]) -> str:
         f"data.train_files={config['env']['data_dir']}/train.parquet",
         f"data.val_files={config['env']['data_dir']}/test.parquet",
         f"data.train_batch_size={config['training']['train_batch_size']}",
-        "data.val_batch_size=1312",
+        f"data.val_batch_size={config['training']['val_batch_size']}",
         f"data.max_prompt_length={max_prompt_length}",
         f"data.max_response_length={config['training']['max_response_length']}",
         f"data.max_start_length={config['training']['max_start_length']}",

@@ -253,6 +253,7 @@ def main_task(config):
                             env_class=env_class)
     trainer.init_workers()
     trainer.fit()
+    trainer.final_validate()
 
 
 if __name__ == '__main__':
