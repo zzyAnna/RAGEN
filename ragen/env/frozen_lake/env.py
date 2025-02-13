@@ -23,7 +23,6 @@ def is_valid(board: List[List[str]], max_size: int) -> bool:
     frontier, discovered = [], set()
     # find the start point
     start_r, start_c = np.where(np.array(board) == "S")
-    print(start_r, start_c)
     frontier.append((start_r[0], start_c[0]))
     # dfs to check if there is a path from start to goal
     while frontier:
