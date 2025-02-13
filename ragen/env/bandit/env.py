@@ -140,18 +140,18 @@ class TwoArmedBanditEnv(BaseDiscreteActionEnv, gym.Env):
 
     ## Rewards
     - For low-risk arm (L ~ f_l), the reward is drawn from one gaussian distribution
-        - f_l ~ N(0.05, 0.01)
-        - mean ~ 0.05, std ~ 0.1
+        - f_l ~ N(0.02, 0.01)
+        - mean ~ 0.2, std ~ 0.1
     - For high-risk arm (H ~ f_h), the reward is drawn from a mixture of two gaussian distributions
-        - f_h ~ 9/10 * N(0.01, 0.01) + 1/10 * N(1, 0.01)
-        - mean ~ 0.11, std ~ 0.314
-    - P(L - H > 0) ~ 0.55 > 0.5
+        - f_h ~ 3/4 * N(0.01, 0.01) + 1/4 * N(1, 0.01)
+        - mean ~ 0.325, std ~ 0.4
+    - P(L - H > 0) ~ 0.57 > 0.5
 
     NOTE only one step
     """
 
     INVALID_ACTION = 0
-    PENALTY_FOR_INVALID = -0.1
+    PENALTY_FOR_INVALID = 0 # -0.1
     
     def __init__(
             self,
@@ -200,17 +200,24 @@ class TwoArmedBanditEnv(BaseDiscreteActionEnv, gym.Env):
     def _low_risk_arm_reward_distribution(self):
         """
         Distribution of low-risk arm:
-            f_l ~ N(0.05, 0.01)
+            f_l ~ N(0.2, 0.01)
         """
-        return self.np_random.normal(0.05, 0.1)
+        # return self.np_random.normal(0.05, 0.1)
+        return self.np_random.normal(0.2, 0.1)
 
     def _high_risk_arm_reward_distribution(self):
         """
         Distribution of high-risk arm: 
-            f_h ~ 9/10 * N(0.01, 0.01) + 1/10 * N(1, 0.01)
+            f_h ~ 3/4 * N(0.1, 0.01) + 1/4 * N(1, 0.01)
         """
-        if self.np_random.random() < 0.9:
-            return self.np_random.normal(0.01, 0.1)
+
+        # if self.np_random.random() < 0.9:
+        #     return self.np_random.normal(0.1, 0.1)
+        # else:
+        #     return self.np_random.normal(4, 0.1)
+
+        if self.np_random.random() < 0.75:
+            return self.np_random.normal(0.1, 0.1)
         else:
             return self.np_random.normal(1, 0.1)
 
@@ -323,8 +330,8 @@ if __name__ == "__main__":
         env.reset(seed=i)
         r1 = env._low_risk_arm_reward_distribution()
         r2 = env._high_risk_arm_reward_distribution()
-        r.append(r1 > r2)
-        # r.append(r2)
-    print(np.mean(r))
+        # r.append(r1 > r2)
+        r.append(r2)
+    print(np.std(r))
 
     # print(BanditEnv.execute_predictions([env], ["<answer>9</answer>"], "<PAD>"))
