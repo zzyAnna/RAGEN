@@ -21,22 +21,30 @@ templates = {
     'base': 'A conversation between User and Assistant. The user asks a question, and the Assistant solves it. The assistant first thinks briefly about the reasoning process in the mind and then provides the user with the answer.\nUser: {prompt}\nShow your work in <think> </think> tags. And return the final answer in <answer> </answer> tags, for example <think> [Thoughts] </think> <answer> 1 </answer>\nAssistant: \n<think>'
 }
 
-intro = (
-    "You are walking on a frozen lake.\n"
-    "\n"
-    "FrozenLake Quick Guide\n" + "Goal: Reach the goal (G).\n"
-    "\n"
-    "Symbols:\n" + "_ Frozen | O Hole | G Goal | P Player\n"
-    "\n"
-    "Rules:\n" + "1. Avoid falling into holes (O).\n" + "2. Frozen tiles are slippery, you may move perpendicular to your intended direction.\n"
-    "\n"
-    "Answers:\n" + "<answer> 1 (Left) </answer> | <answer> 2 (Down) </answer> | <answer> 3 (Right) </answer> | <answer> 4 (Up) </answer>\n"
-    "\n"
-    "Rewards:\n" + "Fall into hole: 0\n" + "Reach goal: +1.0\n"
-    "\n"
-)
+intro = """You are walking on a frozen lake.
 
-instruction_template = "{task_intro}\n[Cumulative Observations]:\n{observation}\nDecide the next action:"
+FrozenLake Quick Guide
+Goal: Reach the goal (G).
+
+Symbols:
+_ Frozen | O Hole | G Goal | P Player
+
+Rules:
+1. Avoid falling into holes (O).
+2. Frozen tiles are slippery, you may move perpendicular to your intended direction.
+
+Answers:
+<answer> 1 (Left) </answer> | <answer> 2 (Down) </answer> | <answer> 3 (Right) </answer> | <answer> 4 (Up) </answer>
+
+Rewards:
+Fall into hole: 0
+Reach goal: +1.0
+
+
+[Cumulative Observations]:
+{observation}
+Decide the next action:\
+"""
 
 def main():
     # Parse command-line arguments
@@ -65,7 +73,7 @@ def main():
     for seed in seeds:
         env = FrozenLakeEnv(size=size, p=p, seed=seed)
         observation = env.reset(seed=seed, reset_map=False, mode='tiny_rgb_array')
-        instruction = instruction_template.format(task_intro=intro, observation=observation)
+        instruction = intro.format(observation=observation)
         instructions.append(instruction)
     
 

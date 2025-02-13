@@ -72,13 +72,34 @@ create_frozen_lake_dataset() {
     echo -e "${GREEN}FrozenLake dataset created successfully!${NC}"
 }
 
+# Create Two-Armed Bandit dataset
+create_two_armed_bandit_dataset() {
+    print_step "Configuring Two-Armed Bandit environment settings..."
+    
+    # Two-Armed Bandit environment settings
+    export LOW_RISK_NAME=phoenix
+    export HIGH_RISK_NAME=dragon
+    
+    print_step "Creating Two-Armed Bandit dataset..."
+    
+    python ragen/env/bandit/create_dataset_two_armed.py \
+        --output data/two_armed_bandit \
+        --seed 100000 \
+        --train_size 10000 \
+        --test_size 10 \
+        --prefix qwen-instruct
+        
+    echo -e "${GREEN}Two-Armed Bandit dataset created successfully!${NC}"
+}
+
 # Main function
 main() {
     # Create all data directories
     mkdir -p data/sokoban data/sokoban_hard data/sokoban_xhard \
             data/sokoban_large data/sokoban_xlarge \
             data/sokoban_multi data/sokoban_xmulti \
-            data/frozenlake
+            data/frozenlake \
+            data/two_armed_bandit
     
     # Create normal Sokoban dataset (baseline)
     create_sokoban_dataset "sokoban" 6 6 1 30
@@ -96,6 +117,9 @@ main() {
     
     # Create FrozenLake dataset
     create_frozen_lake_dataset
+    
+    # Create Two-Armed Bandit dataset
+    create_two_armed_bandit_dataset
     
     echo -e "${GREEN}All datasets created successfully!${NC}"
 }
