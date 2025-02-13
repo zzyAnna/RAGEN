@@ -20,9 +20,12 @@ Game Rules:
 2. Each arm has its own reward distribution, related to their names. 
 3. Please analyze each arm based on their names, guess how their reward distribution would be like, in order to choose from them.
 4. You must choose between Phoenix and Dragon, and output like <answer> [Phoenix or Dragon] </answer>.
-"""
 
-instruction_template = "{task_intro}\n[Current State]:\n{observation}\nThink and choose which arm to pull:"
+
+Current State:
+{observation}
+Think and choose which arm to pull:\
+"""
 
 def main():
     parser = argparse.ArgumentParser(description="Generate trajectories for two-armed bandit environment.")
@@ -39,6 +42,9 @@ def main():
     os.makedirs(args.output, exist_ok=True)
     data_source = args.env
 
+    low_risk_name = os.environ.get("LOW_RISK_NAME")
+    high_risk_name = os.environ.get("HIGH_RISK_NAME")
+
     # Generate instructions
     seeds = range(args.seed, args.seed + args.train_size + args.test_size)
     instructions = []
@@ -46,12 +52,9 @@ def main():
     
     
     for seed in seeds:
-        env = TwoArmedBanditEnv(first_phoenix_arm=True, seed=seed)
+        env = TwoArmedBanditEnv(low_risk_name=low_risk_name, high_risk_name=high_risk_name, seed=seed)
         observation = env.reset(seed=seed)
-        instruction = instruction_template.format(
-            task_intro=intro,
-            observation=observation
-        )
+        instruction = intro.format(observation=observation)
         instructions.append(instruction)
 
     def _create_instance(idx, instruction):

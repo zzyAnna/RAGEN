@@ -73,6 +73,7 @@ def get_rl_train_command(config: Dict[str, Any]) -> str:
     ])
    
     cmd = [
+        f"PYTHONHASHSEED=10000", # to ensure hash() is deterministic
         "python -m verl.trainer.main_ppo",
         f"multi_processing={config['system']['multi_processing']}",
         f"data.train_files={config['env']['data_dir']}/train.parquet",
@@ -94,6 +95,12 @@ def get_rl_train_command(config: Dict[str, Any]) -> str:
         f"actor_rollout_ref.rollout.log_prob_micro_batch_size={config['training']['micro_batch_size']}",
         f"actor_rollout_ref.rollout.tensor_model_parallel_size={config['training']['rollout_tp_size']}",
         f"actor_rollout_ref.rollout.gpu_memory_utilization={config['optimization']['gpu_memory_utilization']}",
+        f"actor_rollout_ref.ref.log_prob_micro_batch_size={config['training']['micro_batch_size']}",
+        f"critic.optim.lr={config['optimization']['critic_lr']}",
+        f"critic.model.path={config['model']['base_model']}",
+        f"critic.ppo_micro_batch_size={config['training']['micro_batch_size']}",
+        f"algorithm.kl_ctrl.kl_coef={config['optimization']['kl_coef']}",
+        f"algorithm.no_think_rl={config['training']['no_think_rl']}",
         f"actor_rollout_ref.rollout.n_agent={config['training']['n_rollout']}",
         f"actor_rollout_ref.rollout.temperature={config['training']['temperature']}",
         f"trainer.logger={config['logging']['mode']}",
