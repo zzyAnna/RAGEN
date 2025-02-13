@@ -6,10 +6,13 @@ from typing import Dict, Any
 
 def deep_update(base_dict: Dict[str, Any], update_dict: Dict[str, Any]) -> Dict[str, Any]:
     """Recursively update a dictionary."""
+    assert isinstance(base_dict, dict) and isinstance(update_dict, dict)
+    # base dict is the base yaml, update dict is the training args. make sure no training args is beyond what's in the base yaml
     for key, value in update_dict.items():
         if isinstance(value, dict) and key in base_dict and isinstance(base_dict[key], dict):
             base_dict[key] = deep_update(base_dict[key], value)
         else:
+            assert key in base_dict
             base_dict[key] = value
     return base_dict
 
