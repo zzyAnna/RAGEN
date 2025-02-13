@@ -2,7 +2,9 @@
 run `pip install "gymnasium[toy-text]"` to install gymnasium
 """
 import gymnasium as gym
-from gymnasium.envs.toy_text.frozen_lake import FrozenLakeEnv as GymFrozenLakeEnv, generate_random_map
+from gymnasium.envs.toy_text.frozen_lake import FrozenLakeEnv as GymFrozenLakeEnv
+from gymnasium.utils import seeding
+from typing import List, Optional
 import numpy as np
 import re
 import copy
@@ -10,13 +12,91 @@ import copy
 from ragen.utils import NoLoggerWarnings
 from ragen.env.base import BaseDiscreteActionEnv
 
+
+"""
+Adapted from nice codes from gymnasium.envs.toy_text.frozen_lake.generate_random_map
+Modify it so that the start and end points are random
+"""
+
+# DFS to check that it's a valid path.
+def is_valid(board: List[List[str]], max_size: int) -> bool:
+    frontier, discovered = [], set()
+    # find the start point
+    start_r, start_c = np.where(np.array(board) == "S")
+    frontier.append((start_r[0], start_c[0]))
+    # dfs to check if there is a path from start to goal
+    while frontier:
+        r, c = frontier.pop()
+        if not (r, c) in discovered:
+            discovered.add((r, c))
+            directions = [(1, 0), (0, 1), (-1, 0), (0, -1)]
+            for x, y in directions:
+                r_new = r + x
+                c_new = c + y
+                if r_new < 0 or r_new >= max_size or c_new < 0 or c_new >= max_size:
+                    continue
+                if board[r_new][c_new] == "G":
+                    return True
+                if board[r_new][c_new] != "H":
+                    frontier.append((r_new, c_new))
+    return False
+
+
+def generate_random_map(
+    size: int = 8, p: float = 0.8, seed: Optional[int] = None
+) -> List[str]:
+    """Generates a random valid map (one that has a path from start to goal)
+
+    Args:
+        size: size of each side of the grid
+        p: probability that a tile is frozen
+        seed: optional seed to ensure the generation of reproducible maps
+
+    Returns:
+        A random valid map
+    """
+    valid = False
+    board = []  # initialize to make pyright happy
+
+    np_random, _ = seeding.np_random(seed)
+
+    # generate random start and end points
+
+    while not valid:
+        p = min(1, p)
+        board = np_random.choice(["F", "H"], (size, size), p=[p, 1 - p])
+
+        while True:
+            start_r = np_random.integers(0, size)
+            start_c = np_random.integers(0, size)
+            goal_r = np_random.integers(0, size)
+            goal_c = np_random.integers(0, size)
+            
+            # Ensure start and goal are different positions
+            if (start_r, start_c) != (goal_r, goal_c):
+                break
+            
+        board[start_r][start_c] = "S"
+        board[goal_r][goal_c] = "G"
+        
+        valid = is_valid(board, size)
+    return ["".join(x) for x in board]
+
+
+
+
+
+
+
+
+
 class FrozenLakeEnv(BaseDiscreteActionEnv, GymFrozenLakeEnv):
     """
     Inherits from gymnasium.envs.toy_text.frozen_lake.FrozenLakeEnv
 
     ## Description
-    The game starts with the player at location [0,0] of the frozen lake grid world with the
-    goal located at far extent of the world e.g. [3,3] for the 4x4 environment.
+    The game starts with the player at random location of the frozen lake grid world with the
+    goal located at another random location for the 4x4 environment.
 
     ## Action Space
     The action shape is `(1,)` in the range `{0, 3}` indicating
@@ -29,7 +109,7 @@ class FrozenLakeEnv(BaseDiscreteActionEnv, GymFrozenLakeEnv):
     - 4: Up
 
     ## Starting State
-    The episode starts with the player in state `[0]` (location [0, 0]).
+    The episode starts with the player at random location
 
     ## Rewards
     NOTE added -0.1 as penalty for invalid action
@@ -274,26 +354,29 @@ if __name__ == "__main__":
         ax.imshow(np_img)
         plt.savefig(filename, dpi=500, bbox_inches='tight', pad_inches=0)
         plt.close(fig)
-    env = FrozenLakeEnv(size=6, p=0.9, seed=10, is_slippery=True)
+
+    env = FrozenLakeEnv(size=4, p=0.9, seed=10, is_slippery=True)
     env.reset(seed=10, reset_map=True)
     save_render_to_png(env.render(mode='rgb_array'), 'frozen_lake_0_0.png')
     print(env.render(mode='tiny_rgb_array'))
-    env.step(3)
-    save_render_to_png(env.render(mode='rgb_array'), 'frozen_lake_0_1.png')
-    env.step(2)
-    save_render_to_png(env.render(mode='rgb_array'), 'frozen_lake_0_2.png')
-    env.step(3)
-    save_render_to_png(env.render(mode='rgb_array'), 'frozen_lake_0_3.png')
 
-    env.reset(seed=10, reset_map=True)
-    save_render_to_png(env.render(mode='rgb_array'), 'frozen_lake_1_0.png')
-    print(env.render(mode='tiny_rgb_array'))
-    env.step(3)
-    save_render_to_png(env.render(mode='rgb_array'), 'frozen_lake_1_1.png')
-    env.step(2)
-    save_render_to_png(env.render(mode='rgb_array'), 'frozen_lake_1_2.png')
-    env.step(3)
-    save_render_to_png(env.render(mode='rgb_array'), 'frozen_lake_1_3.png')
+
+    # env.step(4)
+    # save_render_to_png(env.render(mode='rgb_array'), 'frozen_lake_0_1.png')
+    # env.step(4)
+    # save_render_to_png(env.render(mode='rgb_array'), 'frozen_lake_0_2.png')
+    # env.step(4)
+    # save_render_to_png(env.render(mode='rgb_array'), 'frozen_lake_0_3.png')
+
+    # env.reset(seed=10, reset_map=True)
+    # save_render_to_png(env.render(mode='rgb_array'), 'frozen_lake_1_0.png')
+    # print(env.render(mode='tiny_rgb_array'))
+    # env.step(3)
+    # save_render_to_png(env.render(mode='rgb_array'), 'frozen_lake_1_1.png')
+    # env.step(3)
+    # save_render_to_png(env.render(mode='rgb_array'), 'frozen_lake_1_2.png')
+    # env.step(3)
+    # save_render_to_png(env.render(mode='rgb_array'), 'frozen_lake_1_3.png')
 
 
     # obs = FrozenLakeEnv.execute_predictions([env], ["<answer>right</answer>"], "<PAD>")
