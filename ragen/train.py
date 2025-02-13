@@ -6,10 +6,13 @@ from typing import Dict, Any
 
 def deep_update(base_dict: Dict[str, Any], update_dict: Dict[str, Any]) -> Dict[str, Any]:
     """Recursively update a dictionary."""
+    assert isinstance(base_dict, dict) and isinstance(update_dict, dict)
+    # base dict is the base yaml, update dict is the training args. make sure no training args is beyond what's in the base yaml
     for key, value in update_dict.items():
         if isinstance(value, dict) and key in base_dict and isinstance(base_dict[key], dict):
             base_dict[key] = deep_update(base_dict[key], value)
         else:
+            assert key in base_dict
             base_dict[key] = value
     return base_dict
 
@@ -94,6 +97,12 @@ def get_rl_train_command(config: Dict[str, Any]) -> str:
         f"actor_rollout_ref.rollout.log_prob_micro_batch_size={config['training']['micro_batch_size']}",
         f"actor_rollout_ref.rollout.tensor_model_parallel_size={config['training']['rollout_tp_size']}",
         f"actor_rollout_ref.rollout.gpu_memory_utilization={config['optimization']['gpu_memory_utilization']}",
+        f"actor_rollout_ref.ref.log_prob_micro_batch_size={config['training']['micro_batch_size']}",
+        f"critic.optim.lr={config['optimization']['critic_lr']}",
+        f"critic.model.path={config['model']['base_model']}",
+        f"critic.ppo_micro_batch_size={config['training']['micro_batch_size']}",
+        f"algorithm.kl_ctrl.kl_coef={config['optimization']['kl_coef']}",
+        f"algorithm.no_think_rl={config['training']['no_think_rl']}",
         f"actor_rollout_ref.rollout.n_agent={config['training']['n_rollout']}",
         f"actor_rollout_ref.rollout.temperature={config['training']['temperature']}",
         f"trainer.logger={config['logging']['mode']}",
