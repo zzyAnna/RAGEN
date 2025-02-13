@@ -4,7 +4,7 @@ import argparse
 import json
 from typing import Dict, Any
 
-def deep_update(base_dict: Dict[str, Any], update_dict: Dict[str, Any]) -> Dict[str, Any]:
+def deep_update(base_dict: Dict[str, Any], update_dict: Dict[str, Any], noassert_keys=["env", ""]) -> Dict[str, Any]:
     """Recursively update a dictionary."""
     assert isinstance(base_dict, dict) and isinstance(update_dict, dict)
     # base dict is the base yaml, update dict is the training args. make sure no training args is beyond what's in the base yaml
@@ -12,7 +12,7 @@ def deep_update(base_dict: Dict[str, Any], update_dict: Dict[str, Any]) -> Dict[
         if isinstance(value, dict) and key in base_dict and isinstance(base_dict[key], dict):
             base_dict[key] = deep_update(base_dict[key], value)
         else:
-            assert key in base_dict
+            assert key in base_dict or key in noassert_keys, f"Key {key} not found in base config"
             base_dict[key] = value
     return base_dict
 
@@ -116,6 +116,7 @@ def get_rl_train_command(config: Dict[str, Any]) -> str:
         f"trainer.project_name={config['trainer']['project_name']}",
         f"trainer.experiment_name={config['model']['experiment_name']}",
         f"trainer.total_epochs={config['training']['total_epochs']}",
+        f"trainer.total_training_steps={config['training']['total_training_steps'] or 'null'}",
         f"env.name={config['env']['name']}",
         env_kwargs_str,
         f"max_turns={config['training']['max_turns']}",

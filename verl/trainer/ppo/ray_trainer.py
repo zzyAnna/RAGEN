@@ -640,7 +640,7 @@ class RayPPOTrainer(object):
                         output = self.actor_rollout_wg.compute_log_prob(final_gen_batch_output)
                         final_gen_batch_output = final_gen_batch_output.union(output)
                     
-                    if self.config.algorithm.adv_estimator == 'grpo':
+                    if self.config.algorithm.adv_estimator == 'grpo': # NOTE we currently use seed to group, better use prompt (hash) to group
                         batch.non_tensor_batch['uid'] = np.array([str(i) for i in env_seeds], dtype=object)
                     elif self.config.algorithm.adv_estimator == 'brpo':
                         batch.non_tensor_batch['uid'] = np.array(["" for _ in range(len(batch.batch))], dtype=object)
@@ -768,6 +768,7 @@ class RayPPOTrainer(object):
         import torch
         # Initialize global metric storage
         global_token_scores = []
+        global_metrics = defaultdict(list) # NOTE only implemented for two-armed bandit
 
         self.val_num += 1
 
@@ -835,27 +836,35 @@ class RayPPOTrainer(object):
                 for idx, env in enumerate(envs):
                     test_batch.non_tensor_batch['reward'][idx] = env.reward
 
+                # metric for two-armed bandit
+                # NOTE here we assume invalid action is 0, low arm is 1, high arm is 2
+                if test_batch.non_tensor_batch['data_source'][0] == 'two_armed_bandit':
+                    test_batch.non_tensor_batch['bandit_metrics'] = np.array([0 for _ in range(len(envs))], dtype=object)
+                    for idx, env in enumerate(envs):
+                        test_batch.non_tensor_batch['bandit_metrics'][idx] = env.get_last_action()
+                    global_metrics['actions'].extend(test_batch.non_tensor_batch['bandit_metrics'])
+
                 # Accumulate batch metrics into global storage
                 global_token_scores.append(test_batch.non_tensor_batch['reward'])
 
 
-
-
-            ...
-
         global_scores = np.concatenate(global_token_scores, axis=0)
-        global_metrics = {
+        global_metrics.update({
             'global_score/mean': float(global_scores.mean()),
             'global_score/max': float(global_scores.max()),
             'global_score/min': float(global_scores.min()),
             'global_score/std': float(global_scores.std()),
-        }
+        })
+        if 'actions' in global_metrics: # NOTE hard code for two-armed bandit
+            batch_action = torch.from_numpy(np.array(global_metrics['actions'], dtype=np.int16))
+            n_low_arm = torch.sum(batch_action == 1).detach().item()
+            n_high_arm = torch.sum(batch_action == 2).detach().item()
+            n_invalid = torch.sum(batch_action == 0).detach().item()
+            global_metrics['validate_metric/n_low_arm'] = n_low_arm
+            global_metrics['validate_metric/n_high_arm'] = n_high_arm
+            global_metrics['validate_metric/n_invalid'] = n_invalid
+            global_metrics.pop('actions')
         print("global_metrics", global_metrics)
         return global_metrics
     
-    def final_validate(self):
-        '''
-        Perform final validation after training.
-        '''
-        return self._validate()
     
