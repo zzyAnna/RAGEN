@@ -125,6 +125,7 @@ def get_sft_train_command(config: Dict[str, Any]) -> str:
     cmd = [
         "python -m sft.sft_pipeline",
         f"--config config/base.yaml",
+        f"--env_type {config['env']['name']}"
     ]
     
     return " \\\n    ".join(cmd)

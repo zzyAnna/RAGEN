@@ -10,6 +10,12 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 class SFTPipeline:
+    """
+    The pipeline for SFT:
+        1. Generate SFT data
+        2. Finetune the model using LoRA
+        3. Merge the base model with LoRA weights
+    """
     def __init__(self, config: Dict[str, Any]):
         self.config = config
         self.env_type = config['sft']['env_type']
@@ -50,7 +56,7 @@ class SFTPipeline:
 
         cmd = [
             "python -m",
-            f"sft.utils.generate_sft_verl_{self.env_type}.py",
+            f"sft.utils.generate_sft_verl_{self.env_type}",
             f"--env {self.env_type}",
             f"--algo {data_gen_config['algo']}",
             f"--seed {data_gen_config['seed']}",
@@ -92,7 +98,7 @@ class SFTPipeline:
             f"trainer.experiment_name={training_config['experiment_name']}",
             f"trainer.logger={training_config['logger']}",
             f"trainer.total_epochs={training_config['epochs']}",
-            f"trainer.default_hdfs_dir={training_config.get('hdfs_dir', 'null')}",
+            f"trainer.default_hdfs_dir=null", # NOTE hard code here
             f"trainer.validate_before_training={str(training_config.get('validate_before_training', True)).lower()}",
             f"model.lora_rank={training_config['lora_rank']}",
             f"model.lora_alpha={training_config['lora_alpha']}",
@@ -112,11 +118,30 @@ class SFTPipeline:
         logger.info("Merging base model with LoRA weights")
         
         merged_model_path = os.path.join(self.output_dir, "merged_model")
+
+        # read information from log file to find checkpoint with lowest validation loss
+        log_file = os.path.join(lora_path, "train.log")
+        min_val_loss = float('inf')
+        best_step = 0
+        with open(log_file, 'r') as f:
+            lines = f.readlines()
+            for line in lines:
+                if "val/loss:" in line:
+                    step = int(line.split("step:")[1].split(" -")[0])
+                    val_loss = float(line.split("val/loss:")[1].strip())
+                    if val_loss < min_val_loss:
+                        min_val_loss = val_loss
+                        best_step = step
+        
+        if best_step == 0:
+            raise ValueError("No validation loss found in log file, finetuning failed")
+        checkpoint_path = os.path.join(lora_path, f"global_step_{best_step}")
+        print(f"Merging model from {checkpoint_path}")
         
         cmd = [
             "python -m sft.utils.merge_lora",
             f"--base_model_name={self.base_model}",
-            f"--lora_model_path={lora_path}",
+            f"--lora_model_path={checkpoint_path}",
             f"--output_path={merged_model_path}"
         ]
         subprocess.run(" ".join(cmd), shell=True, check=True)
@@ -144,11 +169,14 @@ class SFTPipeline:
 def main():
     parser = argparse.ArgumentParser(description='Run SFT Pipeline')
     parser.add_argument('--config', type=str, required=True, help='Path to config file')
+    parser.add_argument('--env_type', type=str, required=None, default=None, help='Environment type')
     args = parser.parse_args()
     
     # Load configuration
     with open(args.config, 'r') as f:
         config = yaml.safe_load(f)
+    if args.env_type is not None:
+        config['sft']['env_type'] = args.env_type
     
     # Run pipeline
     pipeline = SFTPipeline(config)
