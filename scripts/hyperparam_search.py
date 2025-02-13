@@ -53,30 +53,30 @@ class HyperParamConfig:
             1: HyperParamGroup(1, [
                 HyperParam("training.ppo_batch_size", ParamType.NUMERIC, 64, 
                           search_space=[16, 32, 64, 128, 256], group=1)
-            ], "PPO Batch Size"),
+            ], "PPO Batch Size"), # 128
             
             2: HyperParamGroup(2, [
                 HyperParam("training.train_batch_size", ParamType.NUMERIC, 8,
-                          search_space=[8, 32, 64, 128, 256], group=2),
+                          search_space=[8, 32, 64, 128, 256], group=2), # if bandits 128, if sokoban/fr 8
                 HyperParam("training.n_rollout", ParamType.NUMERIC, 16,
-                          search_space=[1, 2, 4, 8, 16], group=2)
+                          search_space=[1, 2, 4, 8, 16], group=2) # if bandits 1, if sokoban/fr 16
             ], "Training Batch Size and Rollout"),
             
             3: HyperParamGroup(3, [
                 HyperParam("training.kl_coef", ParamType.NUMERIC, 0.04,
-                          search_space=[0.001, 0.005, 0.01, 0.04, 0.1, 0.5], group=3)
+                          search_space=[0.001, 0.005, 0.01, 0.04, 0.1, 0.5], group=3) # 0.04
             ], "KL Coefficient"),
             
             4: HyperParamGroup(4, [
                 HyperParam("training.max_turns", ParamType.NUMERIC, 5,
-                          search_space=[2, 5, 8], group=4),
+                          search_space=[2, 5, 8], group=4), # if fr/sokoban 5, if bandits 1; fr/sokobaninference 10, 
                 HyperParam("training.temperature", ParamType.NUMERIC, 1.0,
-                          search_space=[0, 0.5, 1], group=4)
+                          search_space=[0.1, 0.5, 1], group=4) # eval 0.7
             ], "Max Turns and Temperature"),
             
             5: HyperParamGroup(5, [
                 HyperParam("training.actor_lr", ParamType.NUMERIC, 1e-6,
-                          search_space=[1e-6, 5e-6, 1e-5], group=5)
+                          search_space=[1e-6, 5e-6, 1e-5, 5e-5], group=5) # 1e-6
             ], "Actor Learning Rate")
         }
 
@@ -88,12 +88,19 @@ class HyperParamSearch:
         self.param_grid: Dict[str, List[Any]] = {}
         self.searching_params: List[str] = []
         self.log_name = ""
+        self.search_group_id = -1
+        self.searched_param_log_path = './log/searched_hyper_params'
 
     def setup_search_group(self, search_group: int, fixed_values: Dict[str, Any]) -> None:
         """Set up parameter grid based on search group and fixed values"""
         # Add fixed parameters
         self.param_grid.update(self.config.fixed_params)
+        self.search_group_id = search_group
         
+        if 'system.n_gpus' in fixed_values:
+            self.param_grid['system.n_gpus'] = [fixed_values['system.n_gpus']]
+        if 'training.micro_batch_size' in fixed_values:
+            self.param_grid['training.micro_batch_size'] = [fixed_values['training.micro_batch_size']]
         # Process each group based on its relation to the search group
         for group_id, group in self.config.groups.items():
             if group_id < search_group:
@@ -167,6 +174,9 @@ class HyperParamSearch:
         print(f"Total combinations: {len(combinations)}")
         
         log_dir = self._setup_log_directory()
+
+        best_param_combination = None
+        best_score_so_far = float('-inf')
         
         for i, params in enumerate(combinations, 1):
             if not self.validate_params(params):
@@ -180,7 +190,20 @@ class HyperParamSearch:
             print('-' * 80)
             
             if not dry_run:
-                self._run_experiment(command, log_dir)
+                my_dict = self._run_experiment(command, log_dir)
+                if my_dict is not None and my_dict['global_score/mean'] > best_score_so_far:
+                    best_param_combination = params
+                    best_score_so_far = my_dict['global_score/mean']
+                    print(f"New best combination: {params} with score {best_score_so_far}")
+        if not dry_run:
+            if best_param_combination:
+                print(f"Best combination found: {best_param_combination} with score {best_score_so_far}")
+                assert self.search_group_id != -1, "search_group_id should not be -1"
+                file_name = os.path.join(self.searched_param_log_path, f"searched_params_group_{self.search_group_id}.json")
+                os.makedirs(self.searched_param_log_path, exist_ok=True)
+                with open(file_name, 'w') as f:
+                    json.dump(best_param_combination, f, indent=2)
+
 
     def _setup_log_directory(self) -> str:
         """Set up logging directory"""
@@ -189,7 +212,7 @@ class HyperParamSearch:
         os.makedirs(log_dir, exist_ok=True)
         return log_dir
 
-    def _run_experiment(self, command: str, log_dir: str) -> None:
+    def _run_experiment(self, command: str, log_dir: str) -> Union[Dict, None]:
         """Run single experiment with logging"""
         try:
             log_file = os.path.join(log_dir, 
@@ -200,211 +223,18 @@ class HyperParamSearch:
             print(f"Error occurred: {e}, return code was {e.returncode}")
             if hasattr(e, 'output'):
                 print(e.output)
-
-
-
-# ========== Hyperparameter Results Tracking Part =============
-
-@dataclass
-class ExperimentResult:
-    params: Dict[str, Any]
-    metrics: Dict[str, float]
-    timestamp: str
-    experiment_name: str
-    
-    @property
-    def success_rate(self) -> float:
-        """Get the primary metric (success rate) for this experiment"""
-        return self.metrics.get('success_rate', 0.0)
-
-class ResultsTracker:
-    def __init__(self, base_dir: str = "./log/terminal/hyper_param_search_logs"):
-        self.base_dir = Path(base_dir)
-        self.base_dir.mkdir(parents=True, exist_ok=True)
-        self.results_file = self.base_dir / "search_results.json"
-        self.best_params_file = self.base_dir / "best_params.json"
-        self._initialize_files()
-
-    def _initialize_files(self):
-        """Initialize results and best params files if they don't exist"""
-        if not self.results_file.exists():
-            self._save_json(self.results_file, {"experiments": []})
-        if not self.best_params_file.exists():
-            self._save_json(self.best_params_file, {"best_params": {}})
-
-    @staticmethod
-    def _save_json(file_path: Path, data: Dict):
-        """Save data to JSON file"""
-        with open(file_path, 'w') as f:
-            json.dump(data, f, indent=2)
-
-    @staticmethod
-    def _load_json(file_path: Path) -> Dict:
-        """Load data from JSON file"""
-        with open(file_path, 'r') as f:
-            return json.load(f)
-
-    def parse_log_file(self, log_file: Path) -> Optional[ExperimentResult]:
-        """Parse a log file to extract experiment results and metrics"""
-        try:
-            with open(log_file, 'r') as f:
-                content = f.read()
-
-            # Extract experiment name
-            exp_name_match = re.search(r'model\.experiment_name=([^\s]+)', content)
-            if not exp_name_match:
-                return None
-            experiment_name = exp_name_match.group(1)
-
-            # Extract parameters
-            params = {}
-            param_pattern = r'training\.([^\s=]+)=([^\s]+)'
-            for match in re.finditer(param_pattern, content):
-                param_name, value = match.groups()
-                try:
-                    # Convert string values to appropriate types
-                    value = eval(value)  # safely convert numbers and booleans
-                except:
-                    pass  # keep as string if conversion fails
-                params[f"training.{param_name}"] = value
-
-            # Extract metrics (example: success rate)
-            metrics = {}
-            success_rate_match = re.search(r'Final Success Rate: (\d+\.?\d*)', content)
-            if success_rate_match:
-                metrics['success_rate'] = float(success_rate_match.group(1))
-            else:
-                return None  # Skip if no success rate found
-
-            return ExperimentResult(
-                params=params,
-                metrics=metrics,
-                timestamp=datetime.now().isoformat(),
-                experiment_name=experiment_name
-            )
-        except Exception as e:
-            print(f"Error parsing log file {log_file}: {e}")
             return None
 
-    def process_new_logs(self, logs_dir: Path) -> List[ExperimentResult]:
-        """Process all new log files in the specified directory"""
-        results = []
-        processed_logs = set(self._load_json(self.results_file).get("processed_logs", []))
-        
-        for log_file in logs_dir.glob("*.log"):
-            if str(log_file) in processed_logs:
-                continue
-                
-            result = self.parse_log_file(log_file)
-            if result:
-                results.append(result)
-                processed_logs.add(str(log_file))
-        
-        # Update results file with new experiments
-        current_data = self._load_json(self.results_file)
-        current_data["experiments"].extend([
-            {
-                "params": r.params,
-                "metrics": r.metrics,
-                "timestamp": r.timestamp,
-                "experiment_name": r.experiment_name
-            }
-            for r in results
-        ])
-        current_data["processed_logs"] = list(processed_logs)
-        self._save_json(self.results_file, current_data)
-        
-        return results
-
-    def update_best_parameters(self, group_id: int, results: List[ExperimentResult]):
-        """Update best parameters for a specific group based on new results"""
-        best_params = self._load_json(self.best_params_file)
-        
-        # Filter results for current group parameters
-        group_params = self.get_group_parameters(group_id)
-        group_results = [
-            r for r in results
-            if all(param in r.params for param in group_params)
-        ]
-        
-        if not group_results:
-            return
-        
-        # Find best result based on success rate
-        best_result = max(group_results, key=lambda x: x.success_rate)
-        
-        # Update best parameters for this group
-        best_params["best_params"][str(group_id)] = {
-            param: best_result.params[param]
-            for param in group_params
-        }
-        best_params["best_params"][str(group_id)]["success_rate"] = best_result.success_rate
-        
-        self._save_json(self.best_params_file, best_params)
-
-    @staticmethod
-    def get_group_parameters(group_id: int) -> List[str]:
-        """Get parameter names for a specific group"""
-        group_params = {
-            1: ["training.ppo_batch_size"],
-            2: ["training.train_batch_size", "training.n_rollout"],
-            3: ["training.kl_coef"],
-            4: ["training.max_turns", "training.temperature"],
-            5: ["training.actor_lr"]
-        }
-        return group_params.get(group_id, [])
-
-    def get_best_params_for_groups(self, groups: List[int]) -> Dict[str, Any]:
-        """Get best parameters for specified groups"""
-        best_params = self._load_json(self.best_params_file)
-        result = {}
-        
-        for group in groups:
-            group_best = best_params["best_params"].get(str(group))
-            if group_best:
-                # Exclude success_rate from parameters
-                params = {k: v for k, v in group_best.items() if k != "success_rate"}
-                result.update(params)
-            else:
-                raise ValueError(f"No best parameters found for group {group}")
-                
-        return result
-
-class SearchOrchestrator:
-    def __init__(self, results_tracker: ResultsTracker):
-        self.tracker = results_tracker
-
-    def run_search_round(self, search_group: int, env_name: str, exp_base_name: str, dry_run: bool = True):
-        """Run a complete search round for a group"""
-        # Get best parameters from previous groups
-        previous_groups = list(range(1, search_group))
-        try:
-            fixed_params = self.tracker.get_best_params_for_groups(previous_groups)
-        except ValueError as e:
-            print(f"Error: {e}")
-            print("Please complete previous group searches first.")
-            return
-
-        # Create and run search
-        config = HyperParamConfig()  # From previous implementation
-        search = HyperParamSearch(config)
-        search.setup_search_group(search_group, fixed_params)
-        
-        # Run grid search
-        search.run_grid_search(
-            base_experiment_name=exp_base_name,
-            dry_run=dry_run,
-            env_name=env_name
-        )
-        
-        if not dry_run:
-            # Process results after experiments complete
-            logs_dir = Path("./log/terminal/hyper_param_search_logs/")
-            new_results = self.tracker.process_new_logs(logs_dir)
-            if new_results:
-                self.tracker.update_best_parameters(search_group, new_results)
-            else:
-                print("No new results found to process.")
+        ## read the log file and return the result based on certain pattern
+        ### an example is like "global_metrics {'global_score/mean': -3.55859375, 'global_score/max': 10.9, 'global_score/min': -5.5, 'global_score/std': 3.8139244745355065}"
+        with open(log_file, 'r') as f:
+            log_content = f.read()
+        groups = re.findall(r"global_metrics\s+({[^}]+})", log_content)
+        if groups:
+            metric_values_dict = eval(groups[-1])
+            print(metric_values_dict)
+            return metric_values_dict
+        return None
 
 
 # ============= Main Functionality Part =============
@@ -437,21 +267,79 @@ def create_argument_parser() -> argparse.ArgumentParser:
                       help='Fixed value for max turns (required for group 5)')
     parser.add_argument('--temperature', type=float,
                       help='Fixed value for temperature (required for group 5)')
+    parser.add_argument('--n_gpus', type=int, default=1,
+                        help='Number of GPUs to use for training')
+    parser.add_argument('--micro_batch_size', type=int, default=1,
+                        help='Micro batch size for RAGEN training, must be greater than n_gpus')
     
     return parser
 
+def read_searched_params(group_id: int, params: List[str]) -> Union[Dict[str, Any], None]:
+    """Read searched parameters from JSON file"""
+    file_name = os.path.join('./log/searched_hyper_params', f"searched_params_group_{group_id}.json")
+    if not os.path.exists(file_name):
+        assert False, f"searched params for group {group_id} not found, please run the search first"
+    with open(file_name, 'r') as f:
+        searched_params = json.load(f)
+    return {param: searched_params[param] for param in params}
+
 def validate_args(args: argparse.Namespace) -> None:
-    """Validate command line arguments"""
+    """
+    Validate command line arguments based on search group requirements.
+    Reads parameters from previous search groups if available.
+    
+    Args:
+        args: Command line arguments namespace
+    Raises:
+        ValueError: If required arguments for the specified search group are missing
+    """
+    # Group 2 requirements
     if args.search_group > 1:
+        params = read_searched_params(1, ["training.ppo_batch_size"])
+        if params and args.ppo_batch_size is None:
+            args.ppo_batch_size = params.get('training.ppo_batch_size')
+            print("Read ppo_batch_size from searched params:", args.ppo_batch_size)
         if args.ppo_batch_size is None:
             raise ValueError("--ppo_batch_size required for groups 2-5")
+
+    # Group 3 requirements
     if args.search_group > 2:
+        params = read_searched_params(2, [
+            "training.train_batch_size",
+            "training.n_rollout"
+        ])
+        if params:
+            if args.train_batch_size is None:
+                args.train_batch_size = params.get('training.train_batch_size')
+                print("Read train_batch_size from searched params:", args.train_batch_size)
+            if args.n_rollout is None:
+                args.n_rollout = params.get('training.n_rollout')
+                print("Read n_rollout from searched params:", args.n_rollout)
         if args.train_batch_size is None or args.n_rollout is None:
             raise ValueError("--train_batch_size and --n_rollout required for groups 3-5")
+
+    # Group 4 requirements
     if args.search_group > 3:
+        params = read_searched_params(3, ["training.kl_coef"])
+        if params and args.kl_coef is None:
+            args.kl_coef = params.get('training.kl_coef')
+            print("Read kl_coef from searched params:", args.kl_coef)
         if args.kl_coef is None:
             raise ValueError("--kl_coef required for groups 4-5")
+
+    # Group 5 requirements
     if args.search_group > 4:
+        params = read_searched_params(4, [
+            "training.max_turns",
+            "training.temperature"
+        ])
+        if params:
+            if args.max_turns is None:
+                args.max_turns = params.get('training.max_turns')
+                print("Read max_turns from searched params:", args.max_turns)
+            if args.temperature is None:
+                args.temperature = params.get('training.temperature')
+                print("Read temperature from searched params:", args.temperature)
         if args.max_turns is None or args.temperature is None:
             raise ValueError("--max_turns and --temperature required for group 5")
 
@@ -459,6 +347,7 @@ def main():
     parser = create_argument_parser()
     args = parser.parse_args()
     validate_args(args)
+    print("=" * 80)
     
     # Create config and search objects
     config = HyperParamConfig()
@@ -478,7 +367,13 @@ def main():
         fixed_values["training.max_turns"] = args.max_turns
     if args.temperature is not None:
         fixed_values["training.temperature"] = args.temperature
-    
+    if args.n_gpus is not None:
+        fixed_values["system.n_gpus"] = args.n_gpus
+    if args.micro_batch_size is not None:
+        fixed_values["training.micro_batch_size"] = args.micro_batch_size
+        assert args.micro_batch_size >= args.n_gpus, "micro_batch_size must be greater than n_gpus"
+    elif args.micro_batch_size is None and args.n_gpus is not None:
+        assert 1 >= args.n_gpus, "micro_batch_size must be greater than n_gpus"    
     # Set up search configuration
     search.setup_search_group(args.search_group, fixed_values)
     

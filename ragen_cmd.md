@@ -2,596 +2,395 @@
 ***NOTE! Before you run, please make sure you are under `/RAGEN` dir***
 ### *EXP SET 1*: Hyperparameter search.
 We first do hyperparameter search, hoping to find a good combination to guide later experiment settings.
-#### [BUDGET]:
-- search 
+
+**[Note]** Current multi-GPUs strategy is **FSDP**. We are running with **3B** models.
+
+#### [BUDGET]: In total: 49 runs, Qwen2.5-3B-Instruct, Sokoban
+- Search group 1: 5 runs
+    - ppo_batch_size: [16, 32, 64, 128, 256]
+- Search group 2: 25 runs
+    - train_batch_size: [8, 32, 64, 128, 256]
+    - n_rollout: [1, 2, 4, 8, 16]
+- Search group 3: 5 runs
+    - kl_coef: [0.001, 0.005, 0.01, 0.04, 0.1, 0.5]
+- Search group 4: 9 runs
+    - max_turns: [2, 5, 8]
+    - temperature: [0.1, 0.5, 1]
+- Search group 5: 5 runs
+    - actor_lr: [1e-6, 5e-6, 1e-5, 5e-5, 1e-4]
 #### [EXP 1]: Search group 1 [ppo_batch_size] (Tested)
 ```bash
-bash hyperparam_search.sh \
+bash scripts/hyperparam_search.sh \
     --env_name=sokoban \
     --exp_base_name="hyperparam_searching" \
-    --search_group 1
+    --search_group 1 \
+    --n_gpus 1 \
+    --micro_batch_size 1
 ```
 #### [EXP 2]: Search group 2 [train_batch_size, n_rollout] (Tested)
 ```bash
-bash hyperparam_search.sh \
+bash scripts/hyperparam_search.sh \
     --env_name=sokoban \
     --exp_base_name="hyperparam_searching" \
     --search_group 2 \
-    --ppo_batch_size <best searched ppo_batch_size>
+    --n_gpus 1 \
+    --micro_batch_size 1
 ```
 #### [EXP 3]: Search group 3 [kl_coef]  (Tested)
 ```bash
-bash hyperparam_search.sh \
+bash scripts/hyperparam_search.sh \
     --env_name=sokoban \
     --exp_base_name="hyperparam_searching" \
     --search_group 3 \
-    --ppo_batch_size <best searched ppo_batch_size> \
-    --train_batch_size <best searched train_batch_size> \
-    --n_rollout <best searched n_rollout>
+    --n_gpus 1 \
+    --micro_batch_size 1
 ```
 #### [EXP 4]: Search group 4 [max_turns, temperature] (Tested)
 ```bash
-bash hyperparam_search.sh \
+bash scripts/hyperparam_search.sh \
     --env_name=sokoban \
     --exp_base_name="hyperparam_searching" \
     --search_group 4 \
-    --ppo_batch_size <best searched ppo_batch_size> \
-    --train_batch_size <best searched train_batch_size> \
-    --n_rollout <best searched n_rollout> \
-    --kl_coef <best searched kl_coef>
+    --n_gpus 1 \
+    --micro_batch_size 1
 ```
 #### [EXP 5]: Search group 5 [actor_lr] (Tested)
 ```bash
-bash hyperparam_search.sh \
+bash scripts/hyperparam_search.sh \
     --env_name=sokoban \
     --exp_base_name="hyperparam_searching" \
     --search_group 5 \
-    --ppo_batch_size <best searched ppo_batch_size> \
-    --train_batch_size <best searched train_batch_size> \
-    --n_rollout <best searched n_rollout> \
-    --kl_coef <best searched kl_coef> \
-    --max_turns <best searched max_turns> \
-    --temperature <best searched temperature>
+    --n_gpus 1 \
+    --micro_batch_size 1
 ```
 
-### *EXP SET 2*: Main table bandits, refer to paper Table 2
+***Searched results will be saved to `./log/searched_hyper_params/searched_params_group_5.json`***
+
+> **NOTE**: Normally, we need to get all the best searched params for the following exps. As we need to test current exp settings, we will use default value for now. But below is the template to insert. *micro_batch_size can be as large as possible*
+```bash
+    ...
+    training.ppo_batch_size=<best searched ppo_batch_size> \
+    training.train_batch_size=<best searched train_batch_size> \
+    training.n_rollout=<best searched n_rollout> \
+    optimization.kl_coef=<best searched kl_coef> \
+    training.max_turns=<best searched max_turns> \
+    training.temperature=<best searched temperature> \
+    optimization.actor_lr=<best searched actor_lr>
+    ...
+```
+
+> **NOTE**: Normally, we need to get all the best searched params for the following exps. As we need to test current exp settings, we will use default value for now. But below is the template to insert. *micro_batch_size can be as large as possible*
+```bash
+    ...
+    training.ppo_batch_size=<best searched ppo_batch_size> \
+    training.train_batch_size=<best searched train_batch_size> \
+    training.n_rollout=<best searched n_rollout> \
+    optimization.kl_coef=<best searched kl_coef> \
+    training.max_turns=<best searched max_turns> \
+    training.temperature=<best searched temperature> \
+    optimization.actor_lr=<best searched actor_lr>
+    ...
+```
+
+### *EXP SET 2*: Main results for task Bandits.
+The first main results we want to show is on task Bandits. This task aims to show that RAGEN can understand what 'golden bandit' and 'silver bandit' mean, even through one-turn interaction.
+**Waiting for data generation**
 #### [EXP 6]: RAGEN for bandits
-```bash
-
-```
-#### [EXP 7]: RAGEN w/o thinking for bandits
-```bash
-
-```
-
-#### [EXP 8]: All golden
-```bash
-
-```
-
----
-## Below are Deprecated cmd lines.
-
-
-
-[EXP 2] Below: Main table experiment(1/12), refer to paper Table 2
-- env_name: sokoban
-- method: ragen
-- rl_method: [blank]
-- model_name: Qwen/Qwen2.5-7B-Instruct
-```bash
-bash train.sh sokoban \
-    model.base_model=Qwen/Qwen2.5-7B-Instruct \
-    model.experiment_name=main_result_ragen_sokoban_qwen_2.5_7b_instruct \
-    training.train_batch_size=[] \
-    training.ppo_batch_size=[] \
-    training.micro_batch_size=[] \
-    optimization.adv_estimator=[] \
-    training.use_kl_loss=True
-```
-
-[EXP 3] Below: Main table experiment(2/12), refer to paper Table 2
-- env_name: frozen lake
-- method: ragen
-- rl_method: [blank]
-- model_name: Qwen/Qwen2.5-7B-Instruct
 ```bash
 bash train.sh frozenlake \
     model.base_model=Qwen/Qwen2.5-7B-Instruct \
-    model.experiment_name=main_result_ragen_frozenlake_qwen_2.5_7b_instruct \
-    training.train_batch_size=[] \
-    training.ppo_batch_size=[] \
-    training.micro_batch_size=[] \
-    optimization.adv_estimator=[] \
-    training.use_kl_loss=True
+    model.experiment_name=two_armed_bandit_qwen_2.5_7b_instruct_ragen \
+    training.micro_batch_size=2 \
+    training.use_kl_loss=True \
+    training.max_turns=1 \
+    optimization.adv_estimator=grpo \
+    training.n_rollout=16 \
+    training.train_batch_size=8 \
+    training.ppo_batch_size=128
 ```
-
-[EXP 4] Below: Main table experiment(3/12), refer to paper Table 2
-- env_name: bandit
-- method: ragen
-- rl_method: [blank]
-- model_name: Qwen/Qwen2.5-7B-Instruct
+#### [EXP 7]: RAGEN w/o thinking for bandits
 ```bash
-bash train.sh bandit \
+bash train.sh frozenlake \
     model.base_model=Qwen/Qwen2.5-7B-Instruct \
-    model.experiment_name=main_result_ragen_bandit_qwen_2.5_7b_instruct \
-    training.train_batch_size=[] \
-    training.ppo_batch_size=[] \
-    training.micro_batch_size=[] \
-    optimization.adv_estimator=[] \
-    training.use_kl_loss=True
+    model.experiment_name=two_armed_bandit_qwen_2.5_7b_instruct_ragen_no_think \
+    training.micro_batch_size=2 \
+    training.use_kl_loss=True \
+    training.max_turns=1 \
+    optimization.adv_estimator=grpo \
+    training.no_think_rl=True \
+    training.n_rollout=16 \
+    training.train_batch_size=8 \
+    training.ppo_batch_size=128
 ```
 
-[EXP 5] Below: Main table experiment(4/12), refer to paper Table 2
-- env_name: sokoban
-- method: ragen w/o thinking
-- rl_method: [blank]
-- model_name: Qwen/Qwen2.5-7B-Instruct
-```bash
-waiting to be done
-```
+#### Both golden and silver cases can be calculated by math expectation values.
 
-[EXP 6] Below: Main table experiment(5/12), refer to paper Table 2
-- env_name: frozen lake
-- method: ragen w/o thinking
-- rl_method: [blank]
-- model_name: Qwen/Qwen2.5-7B-Instruct
-```bash
-waiting to be done
-```
-
-[EXP 7] Below: Main table experiment(6/12), refer to paper Table 2
-- env_name: bandit
-- method: ragen w/o thinking
-- rl_method: [blank]
-- model_name: Qwen/Qwen2.5-7B-Instruct
-```bash
-waiting to be done
-```
-
-[EXP 8] Below: Main table experiment(7/12), refer to paper Table 2
-- env_name: sokoban
-- method: sft
-- rl_method: [blank]
-- model_name: Qwen/Qwen2.5-7B-Instruct
-```bash
-waiting to be done
-```
-
-[EXP 9] Below: Main table experiment(8/12), refer to paper Table 2
-- env_name: frozen lake
-- method: sft
-- rl_method: [blank]
-- model_name: Qwen/Qwen2.5-7B-Instruct
-```bash
-waiting to be done
-```
-
-[EXP 10] Below: Main table experiment(9/12), refer to paper Table 2
-- env_name: bandit
-- method: sft
-- rl_method: [blank]
-- model_name: Qwen/Qwen2.5-7B-Instruct
-```bash
-waiting to be done
-```
-[EXP 11] Below: Main table experiment(10/12), refer to paper Table 2
-- env_name: sokoban
-- method: prompt
-- rl_method: [blank]
-- model_name: Qwen/Qwen2.5-7B-Instruct
-
-```bash
-waiting to be done
-```
-
-[EXP 12] Below: Main table experiment(11/12), refer to paper Table 2
-- env_name: frozen lake
-- method: prompt
-- rl_method: [blank]
-- model_name: Qwen/Qwen2.5-7B-Instruct
-```bash
-waiting to be done
-```
-
-[EXP 13] Below: Main table experiment(12/12), refer to paper Table 2
-- env_name: bandit
-- method: prompt
-- rl_method: [blank]
-- model_name: Qwen/Qwen2.5-7B-Instruct
-```bash
-waiting to be done
-```
-
-[EXP 14] Below: Main table generalization experiment(1/3), refer to paper Figure 5
-- method_name: ragen_trained_on_sokoban
-- env_name: sokoban, frozen lake, bandit
-- rl_method: [blank]
-- model_name: Qwen/Qwen2.5-7B-Instruct
-- mode: inference mode
-```bash
-waiting to be done
-```
-
-[EXP 15] Below: Main table generalization experiment(2/3), refer to paper Figure 5
-- method_name: ragen_trained_on_frozenlake
-- env_name: sokoban, frozen lake, bandit
-- rl_method: [blank]
-- model_name: Qwen/Qwen2.5-7B-Instruct
-- mode: inference mode
-
-```bash
-waiting to be done
-```
-
-[EXP 16] Below: Main table generalization experiment(3/3), refer to paper Figure 5
-- method_name: ragen_trained_on_bandit
-- env_name: sokoban, frozen lake, bandit
-- rl_method: [blank]
-- model_name: Qwen/Qwen2.5-7B-Instruct
-- mode: inference mode
-
-```bash
-waiting to be done
-```
-
-[EXP 17] Below: ICL experiment(1/4), refer to paper Figure 6
-- method_name: ragen
-- env_name: sokoban
-- rl_method: [blank]
-- model_name: Qwen/Qwen2.5-7B-Instruct
-- mode: train mode
-- icl: 0
-
-***Same as [EXP 2]***
-
-
-[EXP 18] Below: ICL experiment(2/4), refer to paper Figure 6
-- method_name: ragen
-- env_name: sokoban
-- rl_method: [blank]
-- model_name: Qwen/Qwen2.5-7B-Instruct
-- mode: train mode
-- icl: 1
+### *EXP SET 3*: Main results for task Sokoban.
+We test Sokoban with RAGEN, RAGEN w/o thinking, SFT, and prompt. This task aims to show that RAGEN can interact with the environment and learn from it, without any human supervision.
+#### [EXP 8]: RAGEN for sokoban
 ```bash
 bash train.sh sokoban \
     model.base_model=Qwen/Qwen2.5-7B-Instruct \
-    model.experiment_name=icl_sokoban_qwen_2.5_7b_instruct \
-    training.train_batch_size=[] \
-    training.ppo_batch_size=[] \
-    training.micro_batch_size=[] \
-    optimization.adv_estimator=[] \
+    model.experiment_name=sokoban_qwen_2.5_7b_instruct_ragen \
+    training.micro_batch_size=2 \
     training.use_kl_loss=True \
-    training.prompt=[]
+    optimization.adv_estimator=grpo \
+    training.max_turns=5 \
+    training.n_rollout=16 \
+    training.train_batch_size=8 \
+    training.ppo_batch_size=128
 ```
-
-[EXP 19] Below: ICL experiment(3/4), refer to paper Figure 6
-- method_name: ragen
-- env_name: sokoban
-- rl_method: [blank]
-- model_name: Qwen/Qwen2.5-7B-Instruct
-- mode: train mode
-- icl: 2
+#### [EXP 9]: RAGEN w/o thinking for sokoban
 ```bash
 bash train.sh sokoban \
     model.base_model=Qwen/Qwen2.5-7B-Instruct \
-    model.experiment_name=icl_sokoban_qwen_2.5_7b_instruct \
-    training.train_batch_size=[] \
-    training.ppo_batch_size=[] \
-    training.micro_batch_size=[] \
-    optimization.adv_estimator=[] \
+    model.experiment_name=sokoban_qwen_2.5_7b_instruct_ragen_no_think \
+    training.micro_batch_size=2 \
     training.use_kl_loss=True \
-    training.prompt=[]
+    optimization.adv_estimator=grpo \
+    training.no_think_rl=True \
+    training.max_turns=5 \
+    training.n_rollout=16 \
+    training.train_batch_size=8 \
+    training.ppo_batch_size=128
 ```
-
-[EXP 20] Below: ICL experiment(4/4), refer to paper Figure 6
-- method_name: ragen
-- env_name: sokoban
-- rl_method: [blank]
-- model_name: Qwen/Qwen2.5-7B-Instruct
-- mode: train mode
-- icl: 4
+#### [EXP 10]: SFT for sokoban
 ```bash
 bash train.sh sokoban \
     model.base_model=Qwen/Qwen2.5-7B-Instruct \
-    model.experiment_name=icl_sokoban_qwen_2.5_7b_instruct \
-    training.train_batch_size=[] \
-    training.ppo_batch_size=[] \
-    training.micro_batch_size=[] \
-    optimization.adv_estimator=[] \
-    training.use_kl_loss=True \
-    training.prompt=[]
+    model.experiment_name=sokoban_qwen_2.5_7b_instruct_sft \
+    training.use_sft=True \
+    ... Waiting to be done
+```
+#### [EXP 11]: Prompt for sokoban
+```bash
+waiting to be done
 ```
 
-[EXP 21] Below: Model Scaling experiment(1/4), refer to paper Figure 7
-- method_name: ragen
-- env_name: sokoban
-- rl_method: [blank]
-- model_name: Qwen/Qwen2.5-0.5B-Instruct
-- mode: train mode
+### *EXP SET 4*: Main results for task Frozen Lake.
+We test Frozen Lake with RAGEN, RAGEN w/o thinking, SFT, and prompt. This task aims to show that RAGEN can interact with the more complex and non-deterministic environment and learn from it, without any human supervision.
+#### [EXP 12]: RAGEN for frozen lake
+```bash
+bash train.sh frozenlake \
+    model.base_model=Qwen/Qwen2.5-7B-Instruct \
+    model.experiment_name=frozenlake_qwen_2.5_7b_instruct_ragen \
+    training.micro_batch_size=2 \
+    training.use_kl_loss=True \
+    optimization.adv_estimator=grpo \
+    training.max_turns=5 \
+    training.n_rollout=16 \
+    training.train_batch_size=8 \
+    training.ppo_batch_size=128
+```
+#### [EXP 13]: RAGEN w/o thinking for frozen lake
+```bash
+bash train.sh frozenlake \
+    model.base_model=Qwen/Qwen2.5-7B-Instruct \
+    model.experiment_name=frozenlake_qwen_2.5_7b_instruct_ragen_no_think \
+    training.micro_batch_size=2 \
+    training.use_kl_loss=True \
+    optimization.adv_estimator=grpo \
+    training.no_think_rl=True \
+    training.max_turns=5 \
+    training.n_rollout=16 \
+    training.train_batch_size=8 \
+    training.ppo_batch_size=128
+```
+#### [EXP 14]: SFT for frozen lake
+```bash
+bash train.sh frozenlake \
+    model.base_model=Qwen/Qwen2.5-7B-Instruct \
+    model.experiment_name=frozenlake_qwen_2.5_7b_instruct_sft \
+    training.use_sft=True \
+    ... Waiting to be done
+```
+#### [EXP 15]: Prompt for frozen lake
+```bash
+waiting to be done
+```
+
+### *EXP SET 5*: Generalization.
+Question: how to do inference?
+
+### *EXP SET 6*: ICL.
+Question: how to import prompt to the environment?
+
+### *EXP SET 7*: Model Scaling.
+This analysis aims to investigate how model scale affects the performance of RAGEN. We use Sokoban as the base environment and test the model scaling from 0.5B to 7B.
+#### [EXP ]: 0.5B Model.
 ```bash
 bash train.sh sokoban \
     model.base_model=Qwen/Qwen2.5-0.5B-Instruct \
     model.experiment_name=model_scaling_sokoban_qwen_2.5_0.5b_instruct \
-    training.train_batch_size=[] \
-    training.ppo_batch_size=[] \
-    training.micro_batch_size=[] \
-    optimization.adv_estimator=[] \
-    training.use_kl_loss=True
+    training.micro_batch_size=2 \
+    training.use_kl_loss=True \
+    optimization.adv_estimator=grpo \
+    training.max_turns=5 \
+    training.n_rollout=16 \
+    training.train_batch_size=8 \
+    training.ppo_batch_size=128
 ```
-
-[EXP 22] Below: Model Scaling experiment(2/4), refer to paper Figure 7
-- method_name: ragen
-- env_name: sokoban
-- rl_method: [blank]
-- model_name: Qwen/Qwen2.5-1.5B-Instruct
-- mode: train mode
+#### [EXP ]: 1.5B Model.
 ```bash
 bash train.sh sokoban \
     model.base_model=Qwen/Qwen2.5-1.5B-Instruct \
     model.experiment_name=model_scaling_sokoban_qwen_2.5_1.5b_instruct \
-    training.train_batch_size=[] \
-    training.ppo_batch_size=[] \
-    training.micro_batch_size=[] \
-    optimization.adv_estimator=[] \
-    training.use_kl_loss=True
+    training.micro_batch_size=2 \
+    training.use_kl_loss=True \
+    optimization.adv_estimator=grpo \
+    training.max_turns=5 \
+    training.n_rollout=16 \
+    training.train_batch_size=8 \
+    training.ppo_batch_size=128
 ```
-
-[EXP 23] Below: Model Scaling experiment(3/4), refer to paper Figure 7
-- method_name: ragen
-- env_name: sokoban
-- rl_method: [blank]
-- model_name: Qwen/Qwen2.5-3B-Instruct
-- mode: train mode
+#### [EXP xxx]: 3B Model.
 ```bash
 bash train.sh sokoban \
     model.base_model=Qwen/Qwen2.5-3B-Instruct \
     model.experiment_name=model_scaling_sokoban_qwen_2.5_3b_instruct \
-    training.train_batch_size=[] \
-    training.ppo_batch_size=[] \
-    training.micro_batch_size=[] \
-    optimization.adv_estimator=[] \
-    training.use_kl_loss=True
+    training.micro_batch_size=2 \
+    training.use_kl_loss=True \
+    optimization.adv_estimator=grpo \
+    training.max_turns=5 \
+    training.n_rollout=16 \
+    training.train_batch_size=8 \
+    training.ppo_batch_size=128
 ```
+#### [EXP ]: 7B Model.
+**Same as [EXP 8]**
 
-[EXP 24] Below: Model Scaling experiment(4/4), refer to paper Figure 7
-- method_name: ragen
-- env_name: sokoban
-- rl_method: [blank]
-- model_name: Qwen/Qwen2.5-7B-Instruct
-- mode: train mode
-
-***Same as [EXP 2]***
-
-[EXP 25] Below: Base vs Instruct, refer to paper Figure 7
-- method_name: ragen
-- env_name: sokoban
-- rl_method: [blank]
-- model_name: Qwen/Qwen2.5-3B
-- mode: train mode
+### *EXP SET 8*: Base vs Instruct.
+In this analysis, we aim to investigate how instruction tuning affects the performance of RAGEN. We use Sokoban as the base environment.
+#### [EXP ]: Base Model.
 ```bash
 bash train.sh sokoban \
     model.base_model=Qwen/Qwen2.5-3B \
     model.experiment_name=base_vs_instruct_sokoban_qwen_2.5_3b_base \
-    training.train_batch_size=[] \
-    training.ppo_batch_size=[] \
-    training.micro_batch_size=[] \
-    optimization.adv_estimator=[] \
-    training.use_kl_loss=True
+    training.micro_batch_size=2 \
+    training.use_kl_loss=True \
+    optimization.adv_estimator=grpo \
+    training.max_turns=5 \
+    training.n_rollout=16 \
+    training.train_batch_size=8 \
+    training.ppo_batch_size=128
 ```
+#### [EXP ]: Instruct Model.
+**Same as [EXP xxx]**
 
-[EXP 26] Below: Base vs Instruct, refer to paper Figure 8
-- method_name: ragen
-- env_name: sokoban
-- rl_method: [blank]
-- model_name: Qwen/Qwen2.5-3B-Instruct
-- mode: train mode
-***Same as [EXP 23]***
-
-[EXP 27] RL algorithm (1/3), refer to paper table 3
-- method_name: ragen
-- env_name: sokoban
-- rl_method: [blank]
-- model_name: Qwen/Qwen2.5-3B-Instruct
-- mode: train mode
-- RL algorithm: APO (which is PPO)
-```bash
-waiting to be done
-```
-
-[EXP 28] RL algorithm (2/3), refer to paper table 3
-- method_name: ragen
-- env_name: sokoban
-- rl_method: [blank]
-- model_name: Qwen/Qwen2.5-3B-Instruct
-- mode: train mode
-- RL algorithm: BRPO
-```bash
-waiting to be done
-```
-
-[EXP 29] RL algorithm (3/3), refer to paper table 3
-- method_name: ragen
-- env_name: sokoban
-- rl_method: [blank]
-- model_name: Qwen/Qwen2.5-3B-Instruct
-- mode: train mode
-- RL algorithm: GRPO
-```bash
-waiting to be done
-```
-
-[EXP 30] Below: context length extrapolation, refer to table 4
-- method_name: ragen
-- env_name: sokoban
-- rl_method: [blank]
-- model_name: Qwen/Qwen2.5-3B-Instruct
-- mode: train mode
-- context length: 4000
-***Same as [EXP 23]***
-
-[EXP 31] Below: context length extrapolation, refer to table 4
-- method_name: ragen
-- env_name: sokoban
-- rl_method: [blank]
-- model_name: Qwen/Qwen2.5-3B-Instruct
-- mode: train mode
-- context length: 8000
-```bash
-waiting to be done
-```
-[EXP 32] Below: context length extrapolation, refer to table 4
-- method_name: ragen
-- env_name: sokoban
-- rl_method: [blank]
-- model_name: Qwen/Qwen2.5-3B-Instruct
-- mode: train mode
-- context length: 16000
-```bash
-waiting to be done
-```
-
-[EXP 33] Below: Do turns and temperature work? refer to paper Figure 9
-- method_name: ragen
-- env_name: sokoban
-- rl_method: [blank]
-- model_name: Qwen/Qwen2.5-3B-Instruct
-- mode: train mode
-- temperature: 0
+### *EXP SET 9*: RL algorithm.
+In this analysis, we aim to investigate how RL algorithm affects the performance of RAGEN. We use Sokoban as the base environment.
+#### [EXP ]: APO.
 ```bash
 bash train.sh sokoban \
     model.base_model=Qwen/Qwen2.5-3B-Instruct \
-    model.experiment_name=turns_and_temperature_sokoban_qwen_2.5_3b_instruct \
-    training.train_batch_size=[] \
-    training.ppo_batch_size=[] \
-    training.micro_batch_size=[] \
-    optimization.adv_estimator=[] \
+    model.experiment_name=rl_algorithm_sokoban_qwen_2.5_3b_instruct_apo \
+    training.micro_batch_size=2 \
     training.use_kl_loss=True \
-    training.temperature=0
+    optimization.adv_estimator=apo \
+    training.max_turns=5 \
+    training.n_rollout=1 \
+    training.train_batch_size=8 \
+    training.ppo_batch_size=128
 ```
 
-[EXP 34] Below: Do turns and temperature work? refer to paper Figure 9
-- method_name: ragen
-- env_name: sokoban
-- rl_method: [blank]
-- model_name: Qwen/Qwen2.5-3B-Instruct
-- mode: train mode
-- temperature: 0.5
+#### [EXP ]: BRPO.
 ```bash
 bash train.sh sokoban \
     model.base_model=Qwen/Qwen2.5-3B-Instruct \
-    model.experiment_name=turns_and_temperature_sokoban_qwen_2.5_3b_instruct \
-    training.train_batch_size=[] \
-    training.ppo_batch_size=[] \
-    training.micro_batch_size=[] \
-    optimization.adv_estimator=[] \
+    model.experiment_name=rl_algorithm_sokoban_qwen_2.5_3b_instruct_brpo \
+    training.micro_batch_size=2 \
     training.use_kl_loss=True \
-    training.temperature=0.5
+    optimization.adv_estimator=brpo \
+    training.max_turns=5 \
+    training.n_rollout=16 \
+    training.train_batch_size=8 \
+    training.ppo_batch_size=128
 ```
 
-[EXP 35] Below: Do turns and temperature work? refer to paper Figure 9
-- method_name: ragen
-- env_name: sokoban
-- rl_method: [blank]
-- model_name: Qwen/Qwen2.5-3B-Instruct
-- mode: train mode
-- temperature: 1
+#### [EXP ]: GRPO.
+**Same as [EXP xxx]**
 
-***Same as [EXP 23]***
-
-[EXP 36] Below: Do turns and temperature work? refer to paper Figure 9
-- method_name: ragen
-- env_name: sokoban
-- rl_method: [blank]
-- model_name: Qwen/Qwen2.5-3B-Instruct
-- mode: train mode
-- max_turns: 1
-```bash
-bash train.sh sokoban \
-    model.base_model=Qwen/Qwen2.5-3B-Instruct \
-    model.experiment_name=max_turns_sokoban_qwen_2.5_3b_instruct \
-    training.train_batch_size=[] \
-    training.ppo_batch_size=[] \
-    training.micro_batch_size=[] \
-    optimization.adv_estimator=[] \
-    training.use_kl_loss=True \
-    training.max_turns=1
-```
-
-[EXP 37] Below: Do turns and temperature work? refer to paper Figure 9
-- method_name: ragen
-- env_name: sokoban
-- rl_method: [blank]
-- model_name: Qwen/Qwen2.5-3B-Instruct
-- mode: train mode
-- max_turns: 5
-
-***Same as [EXP 23]***
-
-[EXP 38] Below: Do turns and temperature work? refer to paper Figure 9
-- method_name: ragen
-- env_name: sokoban
-- rl_method: [blank]
-- model_name: Qwen/Qwen2.5-3B-Instruct
-- mode: train mode
-- max_turns: 8
-```bash
-bash train.sh sokoban \
-    model.base_model=Qwen/Qwen2.5-3B-Instruct \
-    model.experiment_name=max_turns_sokoban_qwen_2.5_3b_instruct \
-    training.train_batch_size=[] \
-    training.ppo_batch_size=[] \
-    training.micro_batch_size=[] \
-    optimization.adv_estimator=[] \
-    training.use_kl_loss=True \
-    training.max_turns=8
-```
-
-[EXP 39] Below: binary and non-binary reward, refer to paper Table 5
-- method_name: ragen
-- env_name: sokoban
-- rl_method: [blank]
-- model_name: Qwen/Qwen2.5-3B-Instruct
-- mode: train mode
-- reward_type: binary
+### *EXP SET 10*: Context length extrapolation.
+In this analysis, we aim to investigate how context length affects the performance of RAGEN. We use Sokoban as the base environment.
+#### [EXP ]: 4000.
 ```bash
 waiting to be done
-    training.reward_type=binary
 ```
-
-[EXP 40] Below: binary and non-binary reward, refer to paper Table 5
-- method_name: ragen
-- env_name: sokoban
-- rl_method: [blank]
-- model_name: Qwen/Qwen2.5-3B-Instruct
-- mode: train mode
-- reward_type: non-binary
-***Same as [EXP 23]***
-
-
-[EXP 41] Below: Do we need to mask state? refer to paper Table 6
-- method_name: ragen
-- env_name: sokoban
-- rl_method: [blank]
-- model_name: Qwen/Qwen2.5-3B-Instruct
-- mode: train mode
-- mask_state: True
+#### [EXP ]: 8000.
 ```bash
 waiting to be done
+```
+#### [EXP ]: 16000.
+```bash
+waiting to be done
+```
+
+### *EXP SET 11*: Do turns and temperature work?
+In this analysis, we aim to investigate how turns and temperature affect the performance of RAGEN. We use Sokoban as the base environment.
+#### [EXP yyy-zzz]: Max turns in [2, 5, 8], temperature in [0, 0.5, 1].
+**Same as [EXP 4]**
+
+### *EXP SET 12*: Binary and non-binary reward.
+In this ablation study, we aim to investigate how binary and non-binary reward affects the performance of RAGEN. We use Sokoban as the base environment.
+#### [EXP ]: Binary reward.
+```bash
+bash train.sh sokoban \
+    model.base_model=Qwen/Qwen2.5-3B-Instruct \
+    model.experiment_name=binary_reward_sokoban_qwen_2.5_3b_instruct \
+    training.micro_batch_size=2 \
+    training.use_kl_loss=True \
+    optimization.adv_estimator=grpo \
+    training.max_turns=5 \
+    training.n_rollout=16 \
+    training.train_batch_size=8 \
+    training.ppo_batch_size=128 \
+    training.binary_reward=True
+```
+#### [EXP ]: Non-binary reward.
+**Same as [EXP xxx]**
+
+### *EXP SET 13*: Do we need to mask state?
+In this ablation study, we aim to investigate how masking state affects the performance of RAGEN. We use Sokoban as the base environment.
+#### [EXP ]: Mask state.
+```bash
+bash train.sh sokoban \
+    model.base_model=Qwen/Qwen2.5-3B-Instruct \
+    model.experiment_name=mask_state_sokoban_qwen_2.5_3b_instruct \
+    training.micro_batch_size=2 \
+    training.use_kl_loss=True \
+    optimization.adv_estimator=grpo \
+    training.max_turns=5 \
+    training.n_rollout=16 \
+    training.train_batch_size=8 \
+    training.ppo_batch_size=128 \
     training.mask_state=True
 ```
 
-[EXP 42] Below: Do we need to mask state? refer to paper Table 6
-- method_name: ragen
-- env_name: sokoban
-- rl_method: [blank]
-- model_name: Qwen/Qwen2.5-3B-Instruct
-- mode: train mode
-- mask_state: False
-***Same as [EXP 23]***
+#### [EXP ]: Non-mask state.
+**Same as [EXP xxx]**
 
+### *EXP SET 14*: Output length penalty.
+In this ablation study, we aim to investigate how output length penalty affects the performance of RAGEN. We use Sokoban as the base environment.
+#### [EXP ]: Output length penalty.
+```bash
+bash train.sh sokoban \
+    model.base_model=Qwen/Qwen2.5-3B-Instruct \
+    model.experiment_name=output_length_penalty_sokoban_qwen_2.5_3b_instruct \
+    training.micro_batch_size=2 \
+    training.use_kl_loss=True \
+    optimization.adv_estimator=grpo \
+    training.max_turns=5 \
+    training.n_rollout=16 \
+    training.train_batch_size=8 \
+    training.ppo_batch_size=128 \
+    training.length_penalty=True
+```
+#### [EXP ]: Non-output length penalty.
+**Same as [EXP xxx]**
 
 ---
+## Below are some examples.
+
 ```bash
 bash train.sh sokoban \
     model.experiment_name=new_test

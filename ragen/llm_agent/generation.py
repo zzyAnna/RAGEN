@@ -11,6 +11,7 @@ from ragen.utils.plot import (
     parse_llm_output
 )
 from verl import DataProto
+from verl.utils.tracking import Tracking
 import shutil
 
 @dataclass
@@ -30,12 +31,14 @@ class LLMGenerationManager:
         tokenizer,
         actor_rollout_wg,
         env_class,
-        config: GenerationConfig
+        config: GenerationConfig,
+        logger: Tracking
     ):
         self.tokenizer = tokenizer
         self.actor_rollout_wg = actor_rollout_wg
         self.env_class = env_class
         self.config = config
+        self.logger = logger
         
         self.tensor_fn = TensorHelper(TensorConfig(
             pad_token_id=tokenizer.pad_token_id,
@@ -278,7 +281,11 @@ class LLMGenerationManager:
         save_step_size = self.config.logging.log_image_step_size
         if not global_steps % save_step_size:
             os.makedirs(output_dir, exist_ok=True)
-            save_trajectory_to_output(trajectory, save_dir=output_dir)
+            filenames = save_trajectory_to_output(trajectory, save_dir=output_dir)
+            if 'wandb' in self.logger.logger:
+                for filename in filenames:
+                    self.logger.logger['wandb'].save(filename)
+
 
     def _compose_final_output(self, left_side: Dict,
                             right_side: Dict,
