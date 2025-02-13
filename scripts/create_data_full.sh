@@ -57,7 +57,7 @@ create_frozen_lake_dataset() {
     print_step "Configuring FrozenLake environment settings..."
     
     # FrozenLake environment settings
-    export SIZE=6  # size * size grid
+    export SIZE=4  # size * size grid
     export P=0.8   # percentage of frozen tiles
     
     print_step "Creating FrozenLake dataset..."

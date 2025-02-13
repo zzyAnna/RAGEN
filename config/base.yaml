@@ -98,6 +98,6 @@ sft:
   
   # FrozenLake-specific settings
   frozenlake:
-    size: 6
+    size: 4
     p: 0.8
     is_slippery: true
