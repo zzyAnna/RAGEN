@@ -4,7 +4,6 @@ rl_or_sft: "rl"
 # System settings
 system:
   cuda_visible_devices: 0
-  python_hash_seed: 10000
   n_gpus: 1
   multi_processing: "ray"
   vllm_attention_backend: "XFORMERS"

@@ -261,17 +261,26 @@ def compute_data_metrics(batch, use_critic=True):
             torch.min(prompt_length).detach().item(),
         'prompt_length/clip_ratio':
             torch.mean(torch.eq(prompt_length, max_prompt_length).float()).detach().item(),
+            
+        # metrics for actions
+        'metric/finished':
+            int(np.array(batch.non_tensor_batch['finished'], dtype=np.int16).sum()),
+        'metric/traj_length':
+            float(np.array(batch.non_tensor_batch['traj_length'], dtype=np.int16).mean()),
+        'metric/valid_action':
+            float(np.array(batch.non_tensor_batch['valid_action'], dtype=np.int16).mean()),
+        'metric/effective_action':
+            float(np.array(batch.non_tensor_batch['effective_action'], dtype=np.int16).mean()),
+        'metric/effective_action_ratio':
+            float(np.array(batch.non_tensor_batch['effective_action_ratio'], dtype=np.float32).mean()),
     }
 
     # metric for two-armed bandit
     if batch.non_tensor_batch['data_source'][0] == 'two_armed_bandit':
-        batch_action = torch.from_numpy(np.array(batch.non_tensor_batch['bandit_metrics'], dtype=np.int16))
-        n_low_arm = torch.sum(batch_action == 1).detach().item()
-        n_high_arm = torch.sum(batch_action == 2).detach().item()
-        n_invalid = torch.sum(batch_action == 0).detach().item()
-        metrics['metric/n_low_arm'] = n_low_arm
-        metrics['metric/n_high_arm'] = n_high_arm
-        metrics['metric/n_invalid'] = n_invalid
+        batch_action = np.array(batch.non_tensor_batch['bandit_metrics'], dtype=np.int16)
+        metrics['metric/n_low_arm'] = int(np.sum(batch_action == 1))
+        metrics['metric/n_high_arm'] = int(np.sum(batch_action == 2))
+        metrics['metric/n_invalid'] = int(np.sum(batch_action == 0))
 
     return metrics
 
@@ -551,8 +560,8 @@ class RayPPOTrainer(object):
         self.global_steps = 0
         # perform validation before training
         # currently, we only support validation using the reward_function.
-        val_metrics = self._validate()
         if self.val_reward_fn is not None and self.config.trainer.get('val_before_train', True):
+            val_metrics = self._validate()
             if self.config.trainer.get('val_only', False):
                 return
 
@@ -671,6 +680,20 @@ class RayPPOTrainer(object):
                         for idx, env in enumerate(envs):
                             batch.non_tensor_batch['bandit_metrics'][idx] = env.get_last_action()
 
+                    # metrics for actions
+                    batch.non_tensor_batch['finished'] = np.array([0 for _ in range(len(envs))], dtype=object)
+                    batch.non_tensor_batch['traj_length'] = np.array([0 for _ in range(len(envs))], dtype=object)
+                    batch.non_tensor_batch['valid_action'] = np.array([0 for _ in range(len(envs))], dtype=object)
+                    batch.non_tensor_batch['effective_action'] = np.array([0 for _ in range(len(envs))], dtype=object)
+                    batch.non_tensor_batch['effective_action_ratio'] = np.array([0 for _ in range(len(envs))], dtype=object)
+                    for idx, env in enumerate(envs):
+                        batch.non_tensor_batch['finished'][idx] = int(env.success())
+                        tracking_vars = env.get_tracking_variables()
+                        batch.non_tensor_batch['traj_length'][idx] = len(tracking_vars['actions'])
+                        batch.non_tensor_batch['valid_action'][idx] = sum(1 for x in tracking_vars['actions_valid'] if x is not None)
+                        batch.non_tensor_batch['effective_action'][idx] = sum(1 for x in tracking_vars['actions_effective'] if x is not None)
+                        batch.non_tensor_batch['effective_action_ratio'][idx] = sum(1 for x in tracking_vars['actions_effective'] if x is not None) / len(tracking_vars['actions'])
+
                     batch = batch.repeat(repeat_times=self.config.actor_rollout_ref.rollout.n, interleave=True)
                     batch = batch.union(final_gen_batch_output)
 
@@ -778,6 +801,7 @@ class RayPPOTrainer(object):
         # Initialize global metric storage
         global_token_scores = []
         global_metrics = {}
+        metrics = defaultdict(list)
 
         self.val_num += 1
 
@@ -845,36 +869,55 @@ class RayPPOTrainer(object):
                 for idx, env in enumerate(envs):
                     test_batch.non_tensor_batch['reward'][idx] = env.reward
 
-                # metric for two-armed bandit
-                # NOTE here we assume invalid action is 0, low arm is 1, high arm is 2
                 if test_batch.non_tensor_batch['data_source'][0] == 'two_armed_bandit':
+                    # metric for two-armed bandit
+                    # NOTE here we assume invalid action is 0, low arm is 1, high arm is 2
                     test_batch.non_tensor_batch['bandit_metrics'] = np.array([0 for _ in range(len(envs))], dtype=object)
                     for idx, env in enumerate(envs):
                         test_batch.non_tensor_batch['bandit_metrics'][idx] = env.get_last_action()
-                    if 'actions' not in global_metrics:
-                        global_metrics['actions'] = []
-                    global_metrics['actions'].extend(test_batch.non_tensor_batch['bandit_metrics'])
+                    metrics['bandit_metrics'].append(test_batch.non_tensor_batch['bandit_metrics'])
+                
+                test_batch.non_tensor_batch['finished'] = np.array([0 for _ in range(len(envs))], dtype=object)
+                test_batch.non_tensor_batch['traj_length'] = np.array([0 for _ in range(len(envs))], dtype=object)
+                test_batch.non_tensor_batch['valid_action'] = np.array([0 for _ in range(len(envs))], dtype=object)
+                test_batch.non_tensor_batch['effective_action'] = np.array([0 for _ in range(len(envs))], dtype=object)
+                test_batch.non_tensor_batch['effective_action_ratio'] = np.array([0 for _ in range(len(envs))], dtype=object)
+                for idx, env in enumerate(envs):
+                    test_batch.non_tensor_batch['finished'][idx] = int(env.success())
+                    tracking_vars = env.get_tracking_variables()
+                    test_batch.non_tensor_batch['traj_length'][idx] = len(tracking_vars['actions'])
+                    test_batch.non_tensor_batch['valid_action'][idx] = sum(1 for x in tracking_vars['actions_valid'] if x is not None)
+                    test_batch.non_tensor_batch['effective_action'][idx] = sum(1 for x in tracking_vars['actions_effective'] if x is not None)
+                    test_batch.non_tensor_batch['effective_action_ratio'][idx] = sum(1 for x in tracking_vars['actions_effective'] if x is not None) / len(tracking_vars['actions'])
+
+                # action metrics
+                metrics['finished'].append(test_batch.non_tensor_batch['finished'])
+                metrics['traj_length'].append(test_batch.non_tensor_batch['traj_length'])
+                metrics['valid_action'].append(test_batch.non_tensor_batch['valid_action'])
+                metrics['effective_action'].append(test_batch.non_tensor_batch['effective_action'])
+                metrics['effective_action_ratio'].append(test_batch.non_tensor_batch['effective_action_ratio'])
 
                 # Accumulate batch metrics into global storage
                 global_token_scores.append(test_batch.non_tensor_batch['reward'])
 
 
         global_scores = np.concatenate(global_token_scores, axis=0)
-        global_metrics.update({
+        global_metrics = {
             'global_score/mean': float(global_scores.mean()),
             'global_score/max': float(global_scores.max()),
             'global_score/min': float(global_scores.min()),
             'global_score/std': float(global_scores.std()),
-        })
-        if 'actions' in global_metrics: # NOTE hard code for two-armed bandit
-            batch_action = torch.from_numpy(np.array(global_metrics['actions'], dtype=np.int16))
-            n_low_arm = torch.sum(batch_action == 1).detach().item()
-            n_high_arm = torch.sum(batch_action == 2).detach().item()
-            n_invalid = torch.sum(batch_action == 0).detach().item()
-            global_metrics['validate_metric/n_low_arm'] = n_low_arm
-            global_metrics['validate_metric/n_high_arm'] = n_high_arm
-            global_metrics['validate_metric/n_invalid'] = n_invalid
-            global_metrics.pop('actions')
+            'validate_metric/finished': int(np.array(metrics['finished'], dtype=np.int16).sum()),
+            'validate_metric/traj_length': float(np.array(metrics['traj_length'], dtype=np.int16).mean()),
+            'validate_metric/valid_action': float(np.array(metrics['valid_action'], dtype=np.int16).mean()),
+            'validate_metric/effective_action': float(np.array(metrics['effective_action'], dtype=np.int16).mean()),
+            'validate_metric/effective_action_ratio': float(np.array(metrics['effective_action_ratio'], dtype=np.float32).mean()),
+        }
+        if 'bandit_metrics' in metrics: # NOTE hard code for two-armed bandit
+            batch_action = np.array(metrics['bandit_metrics'], dtype=np.int16)
+            global_metrics['validate_metric/n_low_arm'] = int(np.sum(batch_action == 1))
+            global_metrics['validate_metric/n_high_arm'] = int(np.sum(batch_action == 2))
+            global_metrics['validate_metric/n_invalid'] = int(np.sum(batch_action == 0))
         print("global_metrics", global_metrics)
         self.logger.log(data=global_metrics, step=self.val_num)
         return global_metrics

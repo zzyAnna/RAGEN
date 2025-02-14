@@ -5,6 +5,7 @@ from ragen.utils import NoLoggerWarnings
 from .room_utils import generate_room
 from ragen.utils import set_seed
 import re
+import copy
 
 from ..base import BaseDiscreteActionEnv
 
@@ -30,7 +31,7 @@ class SokobanEnv(BaseDiscreteActionEnv, GymSokobanEnv):
     }
 
     INVALID_ACTION = 0
-    PENALTY_FOR_INVALID = 0
+    PENALTY_FOR_INVALID = -1
 
     def __init__(self, **kwargs):
         BaseDiscreteActionEnv.__init__(self)
@@ -46,8 +47,7 @@ class SokobanEnv(BaseDiscreteActionEnv, GymSokobanEnv):
         )
         self.ACTION_SPACE = gym.spaces.discrete.Discrete(4, start=1)
         self.reward = 0
-
-
+        self._valid_actions = []
     def extract_action(self, text):
         """
         Extract action from text.
@@ -75,7 +75,7 @@ class SokobanEnv(BaseDiscreteActionEnv, GymSokobanEnv):
 
 
     def reset(self, mode='tiny_rgb_array', seed=None):
-        self.reward = 0
+        self._reset_tracking_variables()
         with NoLoggerWarnings():
             try:
                 with set_seed(seed):
@@ -101,17 +101,30 @@ class SokobanEnv(BaseDiscreteActionEnv, GymSokobanEnv):
         return self.boxes_on_target == self.num_boxes
     
 
-    def step(self, action: int or list):
-        actions = [action] if isinstance(action, int) else action
+    # def step(self, action: int or list):
+    #     actions = [action] if isinstance(action, int) else action
             
-        for act in actions:
-            with NoLoggerWarnings():
-                _, reward, done, _ = GymSokobanEnv.step(self, action, observation_mode='tiny_rgb_array')
-            if done:
-                break
+    #     for act in actions:
+    #         with NoLoggerWarnings():
+    #             if act != self.INVALID_ACTION:
+    #                 self._valid_actions.append(act)
+    #             _, reward, done, _ = GymSokobanEnv.step(self, action, observation_mode='tiny_rgb_array')
+    #         if done:
+    #             break
+            
+    #     obs = self.render()
+    #     return obs, reward, done, _
+
+    def step(self, action: int):
+        """
+        - Step the environment with the given action.
+        - Check if the action is effective (whether player moves in the env).
+        """
+        prev_player_position = self.player_position
+        _, reward, done, _ = GymSokobanEnv.step(self, action, observation_mode='tiny_rgb_array')
             
         obs = self.render()
-        return obs, reward, done, _
+        return obs, reward, done, {"action_is_effective": not np.array_equal(prev_player_position, self.player_position)}
      
 
     def render(self, mode='tiny_rgb_array'):
@@ -149,6 +162,7 @@ class SokobanEnv(BaseDiscreteActionEnv, GymSokobanEnv):
         new_self.action_sequence = self.action_sequence.copy()
         new_self.player_position = self.player_position.copy()
         new_self.reward = self.reward
+        new_self._valid_actions = copy.deepcopy(self._valid_actions)
         return new_self
     
 
