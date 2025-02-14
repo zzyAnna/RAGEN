@@ -50,8 +50,8 @@ logging:
   mode: "['wandb']"
   log_images: true
   log_image_dir: "log/trajectory"
-  log_image_step_size: 1
-  log_n_image_per_batch: 8
+  log_image_step_size: 4
+  log_n_image_per_batch: 32
 
 # Trainer settings
 trainer:
