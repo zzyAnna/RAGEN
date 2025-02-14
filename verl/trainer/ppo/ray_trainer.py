@@ -383,6 +383,13 @@ class RayPPOTrainer(object):
                                          filter_prompts=True,
                                          return_raw_chat=self.config.data.get('return_raw_chat', False),
                                          truncation='error')
+        if self.config.data.train_data_num is not None:
+            if self.config.data.train_data_num > len(self.train_dataset.dataframe):
+                print(f"[WARNING] training dataset size is smaller than desired size. Using the dataset as the original size {len(self.train_dataset.dataframe)}")
+            else:
+                self.train_dataset.dataframe = self.train_dataset.dataframe.sample(self.config.data.train_data_num, random_state=42)
+        print(f"filtered training dataset size: {len(self.train_dataset.dataframe)}")
+
         self.train_dataloader = DataLoader(dataset=self.train_dataset,
                                            batch_size=self.config.data.train_batch_size,
                                            shuffle=self.config.data.shuffle_train_dataloader,
@@ -396,6 +403,13 @@ class RayPPOTrainer(object):
                                        filter_prompts=True,
                                        return_raw_chat=self.config.data.get('return_raw_chat', False),
                                        truncation='error')
+        if self.config.data.val_data_num is not None:
+            if self.config.data.val_data_num > len(self.val_dataset.dataframe):
+                print(f"[WARNING] validation dataset size is smaller than desired size. Using the dataset as the original size {len(self.val_dataset.dataframe)}")
+            else:
+                self.val_dataset.dataframe = self.val_dataset.dataframe.sample(self.config.data.val_data_num, random_state=42)
+        print(f"filtered validation dataset size: {len(self.val_dataset.dataframe)}")
+
         self.val_dataloader = DataLoader(dataset=self.val_dataset,
                                          batch_size=self.config.data.val_batch_size,
                                          shuffle=True,

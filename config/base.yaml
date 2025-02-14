@@ -21,6 +21,8 @@ training:
   train_batch_size: 8
   val_batch_size: 10
   ppo_batch_size: 128
+  train_data_num: null
+  val_data_num: null
   max_start_length: 400
   max_response_length: 400
   max_obs_length: 200
