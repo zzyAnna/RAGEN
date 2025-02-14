@@ -230,6 +230,12 @@ sudo apt-get install fonts-noto-cjk
 </p>
 
 
+4. Download visualization data from wandb:
+```python
+from ragen.utils.wandb import download_wandb
+download_wandb("RUN_ID") # e.g., 9o465jqj
+```
+
 ## Cases
 Please see cases/ file.
 There are only limited cases for now, including [reward hacking](https://github.com/ZihanWang314/agent-r1/blob/main/cases/reward_hacking.txt) and the [suck moment](https://github.com/ZihanWang314/agent-r1/blob/main/cases/suck_moment.txt). we will add more cases recently.
