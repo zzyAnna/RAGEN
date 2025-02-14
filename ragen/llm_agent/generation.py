@@ -67,12 +67,14 @@ class LLMGenerationManager:
         responses_str = [resp.split('</answer>')[0] + '</answer>' 
                     if '</answer>' in resp else resp 
                     for resp in responses_str]
-        # Remove reward hacking patterns
-        hack_pattern = r'reward: (-?\d+\.\d+)\ndone: (True|False)'
-        hacked = [resp for resp in responses_str if re.search(hack_pattern, resp)]
-        if hacked:
-            print(f"[WARNING] HACKED RESPONSES: {hacked}")
-        responses_str = [re.sub(hack_pattern, '', resp) for resp in responses_str]
+        
+        # # Remove reward hacking patterns
+        # hack_pattern = r'reward: (-?\d+\.\d+)\ndone: (True|False)'
+        # hacked = [resp for resp in responses_str if re.search(hack_pattern, resp)]
+        # if hacked:
+        #     print(f"[WARNING] HACKED RESPONSES: {hacked}")
+        # responses_str = [re.sub(hack_pattern, '', resp) for resp in responses_str]
+
         if self.config.no_think_rl:
             # if no_think_rl is enabled, only keep action in the str
             actions,_=self.env_class.postprocess_predictions(envs, responses_str)
@@ -115,9 +117,9 @@ class LLMGenerationManager:
         max_len = min(self.config.max_prompt_length, effective_len)
         
         return DataProto.from_dict({
-            'input_ids': new_input_ids[:, :max_len],
-            'position_ids': new_position_ids[:, :max_len],
-            'attention_mask': new_attention_mask[:, :max_len]
+            'input_ids': new_input_ids[:, -max_len:],
+            'position_ids': new_position_ids[:, -max_len:],
+            'attention_mask': new_attention_mask[:, -max_len:]
         })
 
     def _update_right_side(self, right_side: Dict, 
@@ -133,7 +135,7 @@ class LLMGenerationManager:
         effective_len = self.tensor_fn.create_attention_mask(responses).sum(dim=1).max()
         max_len = min(self.config.max_prompt_length, effective_len)
         
-        return {'responses': responses[:, :max_len]}
+        return {'responses': responses[:, -max_len:]}
 
 
     def _generate_with_gpu_padding(self, active_batch: DataProto) -> DataProto:
@@ -195,7 +197,7 @@ class LLMGenerationManager:
         original_right_side = {'responses': initial_input_ids[:, []]}
         
         active_mask = torch.ones(gen_batch.batch['input_ids'].shape[0], dtype=torch.bool)
-        active_num_list = [active_mask.sum().item()] 
+        active_num_list = [active_mask.sum().item()]
         rollings = gen_batch
 
 

@@ -76,7 +76,7 @@ def get_rl_train_command(config: Dict[str, Any]) -> str:
     ])
    
     cmd = [
-        f"PYTHONHASHSEED=10000", # to ensure hash() is deterministic
+        f"VLLM_ATTENTION_BACKEND={config['system']['vllm_attention_backend']}",
         "python -m verl.trainer.main_ppo",
         f"multi_processing={config['system']['multi_processing']}",
         f"data.train_files={config['env']['data_dir']}/train.parquet",
