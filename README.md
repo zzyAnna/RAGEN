@@ -204,8 +204,8 @@ python sft/utils/merge_lora.py \
 ```bash
 logging.log_images=True # set to True to log images
 logging.log_image_dir=log/trajectory # set to the directory to save images
-logging.log_image_step_size=1 # save image every _ steps
-logging.log_n_image_per_batch=8 # save _ images per batch
+logging.log_image_step_size=4 # save image every _ steps
+logging.log_n_image_per_batch=32 # save _ images per batch
 ```
 
 You may use this command to visualize the trajectory:
