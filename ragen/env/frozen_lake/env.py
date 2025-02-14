@@ -197,6 +197,7 @@ class FrozenLakeEnv(BaseDiscreteActionEnv, GymFrozenLakeEnv):
         } # map from custom Env action to action defined in FrozenLakeEnv in gymnasium
 
         self.reward = 0
+        self._valid_actions = []
 
     def _get_player_position(self):
         return (self.s // self.ncol, self.s % self.ncol) # (row, col)
@@ -253,7 +254,7 @@ class FrozenLakeEnv(BaseDiscreteActionEnv, GymFrozenLakeEnv):
                 is_slippery=self.env_kwargs["is_slippery"],
             )
         GymFrozenLakeEnv.reset(self, seed=seed)
-        
+        self._reset_tracking_variables()
         return self.render(mode)
         
     def success(self):
@@ -265,18 +266,21 @@ class FrozenLakeEnv(BaseDiscreteActionEnv, GymFrozenLakeEnv):
     
     def step(self, action: int):
         """
-        Map custom action to gymnasium FrozenLakeEnv action and take the step
+        - Map custom action to gymnasium FrozenLakeEnv action and take the step
+        - Check if the action is effective (whether player moves in the env).
         """
         assert isinstance(action, int), "Action must be an integer"
         assert not self.success(), "Agent has already reached the goal or hole"
 
-        if action == self.INVALID_ACTION:
-            return self.render(), 0, False, {}
+        if action == self.INVALID_ACTION: # no penalty for invalid action
+            return self.render(), 0, False, {"action_is_effective": False}
+        
+        prev_player_position = int(self.s)
         with NoLoggerWarnings():
             player_pos, reward, done, _, prob = GymFrozenLakeEnv.step(self, self.action_map[action])
-            
+
         obs = self.render()
-        return obs, reward, done, _
+        return obs, reward, done, {"action_is_effective": prev_player_position != int(player_pos)}
     
 
      

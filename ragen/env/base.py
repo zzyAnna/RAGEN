@@ -3,7 +3,7 @@ import gymnasium as gym
 import re
 import numpy as np
 from typing import Optional, List, Tuple, Any, Dict
-
+from copy import deepcopy
 class BaseEnv(ABC):
     """
     Abstract base class for all environments.
@@ -15,6 +15,56 @@ class BaseEnv(ABC):
     PENALTY_FOR_INVALID = -1
     def __init__(self):
         self.reward = 0
+
+        self._actions = [] # list of all actions (including all responses from LLM)
+        self._actions_valid = [] # list of actions that are in the correct format
+        self._actions_effective = [] # list of actions that are effective (actual moving in env)
+
+    def _reset_tracking_variables(self):
+        self.reward = 0
+        self._actions = []
+        self._actions_valid = []
+        self._actions_effective = []
+
+    def get_tracking_variables(self) -> Dict:
+        """Get statistics of valid actions."""
+        return {
+            "reward": self.reward,
+            "actions": self._actions,
+            "actions_valid": self._actions_valid,
+            "actions_effective": self._actions_effective,
+        }
+    
+    def _update_tracking_variables(
+            self, 
+            response: str,
+            action: int, 
+            action_is_valid: bool,
+            action_is_effective: bool,
+            reward: float,
+        ):
+        """
+        All of _actions, _actions_valid, _actions_effective are lists of the same length
+            - None is used for _actions_valid and _actions_effective if the action is invalid or ineffective
+        """
+        self._actions.append(response)
+        if action_is_valid:
+            self._actions_valid.append(action)
+        else:
+            self._actions_valid.append(None)
+        if action_is_effective:
+            self._actions_effective.append(action)
+        else:
+            self._actions_effective.append(None)
+        self.reward += reward if action_is_valid else (reward + self.PENALTY_FOR_INVALID)
+
+    def _copy_tracking_variables(self, other: 'BaseEnv'):
+        self.reward = other.reward
+        self._actions = deepcopy(other._actions)
+        self._actions_valid = deepcopy(other._actions_valid)
+        self._actions_effective = deepcopy(other._actions_effective)
+
+
 
     
     
@@ -81,8 +131,14 @@ class BaseEnv(ABC):
                     (observation, reward, done, extra_info), 
                     av
                 )
-                env.reward += reward if av else (reward + env.PENALTY_FOR_INVALID)
                 obs += "\n <|im_start|>user\n" + env_feedback + "<|im_end|>\n" + "<|im_start|>assistant\n<think>"
+                env._update_tracking_variables(
+                    response=response, 
+                    action=action, 
+                    action_is_valid=av, 
+                    action_is_effective=extra_info.get("action_is_effective", False), 
+                    reward=reward, 
+                )
             next_obs.append(obs)
             dones.append(done)
         return next_obs, dones

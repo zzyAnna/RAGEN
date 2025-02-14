@@ -37,6 +37,7 @@ class BanditEnv(BaseDiscreteActionEnv, gym.Env):
             n_arms: int = 2,
             seed: Optional[int] = None,
     ):
+        BaseDiscreteActionEnv.__init__(self)
         self.n_arms = n_arms
         self.ACTION_SPACE = gym.spaces.discrete.Discrete(n_arms, start=1)
         
@@ -47,19 +48,16 @@ class BanditEnv(BaseDiscreteActionEnv, gym.Env):
             "seed": seed,
         }
         
-        # Initialize tracking variables
-        self.last_action = None
-        self.reward = 0
+        self.last_action = None # track last effective action
 
     def reset(self, seed=None, mode='text'):
         """Reset the environment and reward distributions"""
         gym.Env.reset(self, seed=seed)
+        self._reset_tracking_variables()
             
         # Generate new reward distributions
         self.reward_means = self.np_random.normal(0, 1, size=self.n_arms)
-        self.reward = 0
         self.last_action = None
-        
         return self.render(mode)
 
     def step(self, action: int):
@@ -69,12 +67,11 @@ class BanditEnv(BaseDiscreteActionEnv, gym.Env):
             return self.render(), 0, False, {}
         
         assert action in self.get_all_actions(), f"Invalid action {action}"
-        
         arm_idx = action - 1  # Convert to 0-based index
         reward = self.np_random.normal(self.reward_means[arm_idx], 1)
         self.last_action = action
         
-        return self.render(), reward, False, {}
+        return self.render(), reward, False, {"action_is_effective": True}
 
     def render(self, mode='text'):
         """Render the current state"""
@@ -121,7 +118,7 @@ class BanditEnv(BaseDiscreteActionEnv, gym.Env):
         )
         new_env.reward_means = copy.deepcopy(self.reward_means)
         new_env.last_action = self.last_action
-        new_env.reward = self.reward
+        new_env._copy_tracking_variables(self)
         return new_env
     
     def success(self):
@@ -167,6 +164,7 @@ class TwoArmedBanditEnv(BaseDiscreteActionEnv, gym.Env):
             high_risk_name: Name for the high-risk arm (default: "dragon")
             seed: Random seed
         """
+        BaseDiscreteActionEnv.__init__(self)
         self.n_arms = 2
         self.ACTION_SPACE = gym.spaces.discrete.Discrete(self.n_arms, start=1)
         
@@ -194,7 +192,6 @@ class TwoArmedBanditEnv(BaseDiscreteActionEnv, gym.Env):
         
         # Initialize tracking variables
         self.last_action = None
-        self.reward = 0
         self._success = False
 
     def _low_risk_arm_reward_distribution(self):
@@ -226,7 +223,7 @@ class TwoArmedBanditEnv(BaseDiscreteActionEnv, gym.Env):
         gym.Env.reset(self, seed=seed)
             
         # Reset tracking variables
-        self.reward = 0
+        self._reset_tracking_variables()
         self.last_action = None
         self._success = False
         
@@ -240,8 +237,8 @@ class TwoArmedBanditEnv(BaseDiscreteActionEnv, gym.Env):
         """
         assert isinstance(action, int)
         self._success = True
-        if action == self.INVALID_ACTION:
-            return self.render(), 0, True, {}
+        if action == self.INVALID_ACTION: # no penalty for invalid action
+            return self.render(), 0, True, {"action_is_effective": False}
         
         assert action in self.get_all_actions(), f"Invalid action {action}"
         
@@ -251,7 +248,7 @@ class TwoArmedBanditEnv(BaseDiscreteActionEnv, gym.Env):
             reward = self._high_risk_arm_reward_distribution()
         self.last_action = action
         
-        return self.render(), reward, True, {}  # only one step
+        return self.render(), reward, True, {"action_is_effective": True}  # only one step
 
     def render(self, mode='text'):
         """Render the current state"""
@@ -301,7 +298,7 @@ class TwoArmedBanditEnv(BaseDiscreteActionEnv, gym.Env):
             seed=self.env_kwargs["seed"]
         )
         new_env.last_action = self.last_action
-        new_env.reward = self.reward
+        new_env._copy_tracking_variables(self)
         return new_env
     
     def success(self):
