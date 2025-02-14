@@ -1,48 +1,60 @@
-```bash
-bash train.sh sokoban \
-    model.experiment_name=new_test
+## Base Experiments
 
-# override config
+### Bandit
+
+```bash
+mkdir -p ./log/terminal
+
+bash train.sh two_armed_bandit \
+    model.base_model=Qwen/Qwen2.5-3B-Instruct \
+    model.experiment_name=two_armed_bandit_ragen_main \
+    training.micro_batch_size=32 \
+    training.train_batch_size=128 \
+    training.ppo_batch_size=128 \
+    training.max_turns=1 \
+    training.n_rollout=1 \
+    training.use_kl_loss=True \
+    training.total_training_steps=500 \
+    training.use_kl_loss=False \
+    optimization.kl_coef=0.001 \
+    optimization.adv_estimator=brpo
+```
+
+### Sokoban
+
+```bash
+mkdir -p ./log/terminal
+
 bash train.sh sokoban \
-    model.experiment_name=test_zihan \
+    model.base_model=Qwen/Qwen2.5-3B-Instruct \
+    model.experiment_name=sokoban_ragen_main \
+    training.micro_batch_size=32 \
     training.train_batch_size=8 \
-    training.ppo_batch_size=4
-
-# For developers, if you want to add your own config keys, please check [ base.yaml | train.sh | ragen/train.py | verl/trainer/config/ppo_trainer.yaml | and the main_ppo.py in verl/trainer/ppo ] to make sure the changes are reflected coherently.
-```
-
-Below:Base experiment -> figure X in paper, aiming to xxx
-
-```bash
-bash train.sh sokoban \
-    model.experiment_name=XXXX \
-    argument ...
-```
-
-
-Below:Base experiment
-
-```bash
-bash train.sh sokoban \
-    model.experiment_name=test_base
-```
-
-Below:GRPO
-
-```bash
-bash train.sh sokoban \
-    model.experiment_name=test_zihan_brpo_p8r16m32 \
+    training.ppo_batch_size=128 \
+    training.max_turns=5 \
     training.n_rollout=16 \
-    training.train_batch_size=8 \
-    training.ppo_batch_size=32 \
-    training.micro_batch_size=2 \
-    optimization.adv_estimator=brpo \
-    training.use_kl_loss=True
-    # train_batch_size: rollout prompts
-    # n_rollout: responses for each prompt
-    # ppo_batch_size: update things
-    # consider making the "epoch X step X" as "Rollout step X, update step X*X"?
-    # grpo | brpo | apo
-    # effective batch size: training.train_batch_size * training.n_rollout
+    training.use_kl_loss=True \
+    training.total_training_steps=500 \
+    training.use_kl_loss=False \
+    optimization.kl_coef=0.001 \
+    optimization.adv_estimator=brpo
 ```
 
+### FrozenLake
+
+```bash
+mkdir -p ./log/terminal
+bash train.sh frozenlake \
+    model.base_model=Qwen/Qwen2.5-3B-Instruct \
+    model.experiment_name=frozenlake_ragen_main \
+    training.micro_batch_size=32 \
+    training.train_batch_size=8 \
+    training.ppo_batch_size=128 \
+    training.max_turns=5 \
+    training.n_rollout=16 \
+    training.use_kl_loss=True \
+    training.total_training_steps=500 \
+    training.use_kl_loss=False \
+    optimization.kl_coef=0.001 \
+    optimization.adv_estimator=brpo
+```

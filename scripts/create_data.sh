@@ -82,7 +82,7 @@ create_two_armed_bandit_dataset() {
         --output data/two_armed_bandit \
         --seed 100000 \
         --train_size 10000 \
-        --test_size 10 \
+        --test_size 500 \
         --prefix qwen-instruct
         
     echo -e "${GREEN}Two-Armed Bandit dataset created successfully!${NC}"

@@ -537,10 +537,8 @@ class RayPPOTrainer(object):
         self.global_steps = 0
         # perform validation before training
         # currently, we only support validation using the reward_function.
+        val_metrics = self._validate()
         if self.val_reward_fn is not None and self.config.trainer.get('val_before_train', True):
-            val_metrics = self._validate()
-            pprint(f'Initial validation metrics: {val_metrics}')
-            logger.log(data=val_metrics, step=self.global_steps)
             if self.config.trainer.get('val_only', False):
                 return
 
@@ -756,8 +754,6 @@ class RayPPOTrainer(object):
                     # perform validation after training
                     if self.val_reward_fn is not None:
                         val_metrics = self._validate()
-                        pprint(f'Final validation metrics: {val_metrics}')
-                        logger.log(data=val_metrics, step=self.global_steps)
                     return
 
     def _validate(self):
@@ -768,7 +764,7 @@ class RayPPOTrainer(object):
         import torch
         # Initialize global metric storage
         global_token_scores = []
-        global_metrics = defaultdict(list) # NOTE only implemented for two-armed bandit
+        global_metrics = {}
 
         self.val_num += 1
 
@@ -842,6 +838,8 @@ class RayPPOTrainer(object):
                     test_batch.non_tensor_batch['bandit_metrics'] = np.array([0 for _ in range(len(envs))], dtype=object)
                     for idx, env in enumerate(envs):
                         test_batch.non_tensor_batch['bandit_metrics'][idx] = env.get_last_action()
+                    if 'actions' not in global_metrics:
+                        global_metrics['actions'] = []
                     global_metrics['actions'].extend(test_batch.non_tensor_batch['bandit_metrics'])
 
                 # Accumulate batch metrics into global storage
@@ -865,6 +863,7 @@ class RayPPOTrainer(object):
             global_metrics['validate_metric/n_invalid'] = n_invalid
             global_metrics.pop('actions')
         print("global_metrics", global_metrics)
+        self.logger.log(data=global_metrics, step=self.val_num)
         return global_metrics
     
     
