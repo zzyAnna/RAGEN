@@ -135,7 +135,7 @@ class LLMGenerationManager:
         effective_len = self.tensor_fn.create_attention_mask(responses).sum(dim=1).max()
         max_len = min(self.config.max_prompt_length, effective_len)
         
-        return {'responses': responses[:, -max_len:]}
+        return {'responses': responses[:, :max_len]}
 
 
     def _generate_with_gpu_padding(self, active_batch: DataProto) -> DataProto:
