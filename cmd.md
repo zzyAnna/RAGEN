@@ -26,7 +26,7 @@ mkdir -p ./log/terminal
 
 bash train.sh two_armed_bandit \
     model.base_model=Qwen/Qwen2.5-0.5B-Instruct \
-    model.experiment_name=two_armed_bandit_ragen_main \
+    model.experiment_name=two_armed_bandit_ragen_no_think_rl \
     training.micro_batch_size=4 \
     training.train_batch_size=128 \
     training.ppo_batch_size=128 \
@@ -46,7 +46,7 @@ mkdir -p ./log/terminal
 
 bash train.sh sokoban \
     model.base_model=Qwen/Qwen2.5-0.5B-Instruct \
-    model.experiment_name=wqn_sokoban_ragen_main \
+    model.experiment_name=sokoban_ragen_main \
     training.micro_batch_size=1 \
     training.train_batch_size=4 \
     training.ppo_batch_size=32 \
@@ -64,7 +64,7 @@ mkdir -p ./log/terminal
 
 bash train.sh sokoban \
     model.base_model=Qwen/Qwen2.5-0.5B-Instruct \
-    model.experiment_name=wqn_sokoban_ragen_main \
+    model.experiment_name=sokoban_ragen_no_think_rl \
     training.micro_batch_size=1 \
     training.train_batch_size=4 \
     training.ppo_batch_size=32 \
@@ -102,7 +102,7 @@ mkdir -p ./log/terminal
 
 bash train.sh frozenlake \
     model.base_model=Qwen/Qwen2.5-0.5B-Instruct \
-    model.experiment_name=frozenlake_ragen_main \
+    model.experiment_name=frozenlake_ragen_no_think_rl \
     training.micro_batch_size=4 \
     training.train_batch_size=4 \
     training.ppo_batch_size=32 \
