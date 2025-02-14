@@ -17,7 +17,7 @@ bash train.sh two_armed_bandit \
     training.total_training_steps=500 \
     training.use_kl_loss=False \
     optimization.kl_coef=0.001 \
-    optimization.adv_estimator=brpo
+    optimization.adv_estimator=brpo > ./log/terminal/two_armed_bandit_ragen_main.log
 ```
 
 ### Sokoban
@@ -37,7 +37,7 @@ bash train.sh sokoban \
     training.total_training_steps=500 \
     training.use_kl_loss=False \
     optimization.kl_coef=0.001 \
-    optimization.adv_estimator=brpo
+    optimization.adv_estimator=brpo > ./log/terminal/sokoban_ragen_main.log
 ```
 
 ### FrozenLake
@@ -56,5 +56,5 @@ bash train.sh frozenlake \
     training.total_training_steps=500 \
     training.use_kl_loss=False \
     optimization.kl_coef=0.001 \
-    optimization.adv_estimator=brpo
+    optimization.adv_estimator=brpo > ./log/terminal/frozenlake_ragen_main.log
 ```
