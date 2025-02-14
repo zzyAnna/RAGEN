@@ -13,7 +13,6 @@ bash train.sh two_armed_bandit \
     training.ppo_batch_size=128 \
     training.max_turns=1 \
     training.n_rollout=1 \
-    training.use_kl_loss=True \
     training.total_training_steps=500 \
     training.use_kl_loss=False \
     optimization.kl_coef=0.001 \
@@ -33,7 +32,6 @@ bash train.sh sokoban \
     training.ppo_batch_size=128 \
     training.max_turns=5 \
     training.n_rollout=16 \
-    training.use_kl_loss=True \
     training.total_training_steps=500 \
     training.use_kl_loss=False \
     optimization.kl_coef=0.001 \
@@ -52,7 +50,6 @@ bash train.sh frozenlake \
     training.ppo_batch_size=128 \
     training.max_turns=5 \
     training.n_rollout=16 \
-    training.use_kl_loss=True \
     training.total_training_steps=500 \
     training.use_kl_loss=False \
     optimization.kl_coef=0.001 \
