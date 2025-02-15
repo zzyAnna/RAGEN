@@ -580,6 +580,7 @@ class RayPPOTrainer(object):
             logging=self.config.logging,
             num_gpus=self.config.trainer.n_gpus_per_node,
             no_think_rl=self.config.algorithm.no_think_rl,
+            state_masking=self.config.algorithm.state_masking,
         )
 
         generation_manager = LLMGenerationManager(
@@ -761,7 +762,53 @@ class RayPPOTrainer(object):
                     if self.config.trainer.critic_warmup <= self.global_steps:
                         # update actor
                         with _timer('update_actor', timing_raw):
-                            actor_output = self.actor_rollout_wg.update_actor(batch)
+                            if self.config.algorithm.state_masking:
+                                # mask the state tokens
+                                # Create mask for tokens between <state> </state>tags
+                                response_length = batch.batch['responses'].shape[-1]
+                                response_mask = batch.batch['attention_mask'][:, -response_length:]
+                                
+                                # Initialize state mask
+                                state_mask = torch.zeros_like(response_mask)
+                                
+                                # Decode responses and create masks
+                                responses = [self.tokenizer.decode(resp) for resp in batch.batch['responses']]
+                                for i, response in enumerate(responses):
+                                    # Find all pairs of <state> and </state> positions
+                                    start_positions = [m.start() for m in re.finditer('<state>', response)]
+                                    end_positions = [m.start() for m in re.finditer('</state>', response)]
+                                    
+                                    # Convert character positions to token positions
+                                    for start, end in zip(start_positions, end_positions):
+                                        # Get text up to position to count tokens
+                                        prefix_to_start = response[:start]
+                                        prefix_to_end = response[:end]
+                                        
+                                        # Convert to token positions
+                                        start_token_pos = len(self.tokenizer.encode(prefix_to_start)) - 1  # -1 to adjust for any special tokens
+                                        end_token_pos = len(self.tokenizer.encode(prefix_to_end)) - 1
+                                        
+                                        # Set mask to 1 for tokens between <state> and </state>
+                                        state_mask[i, start_token_pos:end_token_pos] = 1
+                                
+                                # Combine with response mask to ensure we only include valid tokens
+                                loss_mask = state_mask * response_mask
+                                
+                                # Add mask to batch
+                                batch.batch['loss_mask'] = loss_mask
+                                
+                                # Update metrics to track state token coverage
+                                metrics.update({
+                                    'state_tokens/total': loss_mask.sum().item(),
+                                    'state_tokens/coverage': (loss_mask.sum() / response_mask.sum()).item(),
+                                })
+                                
+                                print("Raw batch[0] (before masking):",self.tokenizer.decode(batch.batch['responses'][0]))
+                                response_ids = batch.batch['responses'][0]
+                                unmasked_ids = response_ids[loss_mask[0] == 0]
+                                print("Unmasked batch[0] (aftter masking):",self.tokenizer.decode(unmasked_ids))
+                            else:
+                                actor_output = self.actor_rollout_wg.update_actor(batch)
                         actor_output_metrics = reduce_metrics(actor_output.meta_info['metrics'])
                         metrics.update(actor_output_metrics)
 
