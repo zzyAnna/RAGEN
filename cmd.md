@@ -11,11 +11,8 @@ bash train.sh two_armed_bandit \
     training.micro_batch_size=4 \
     training.train_batch_size=32 \
     training.ppo_batch_size=32 \
-    training.val_data_num=50 \
     training.max_turns=1 \
     training.n_rollout=1 \
-    training.total_training_steps=200 \
-    training.use_kl_loss=False \
     optimization.kl_coef=0.001 \
     optimization.adv_estimator=brpo > ./log/terminal/two_armed_bandit_0_5B_instruct_ragen_main.log
 ```
@@ -29,11 +26,8 @@ bash train.sh two_armed_bandit \
     training.micro_batch_size=4 \
     training.train_batch_size=32 \
     training.ppo_batch_size=32 \
-    training.val_data_num=50 \
     training.max_turns=1 \
     training.n_rollout=1 \
-    training.total_training_steps=200 \
-    training.use_kl_loss=False \
     optimization.kl_coef=0.001 \
     optimization.adv_estimator=brpo > ./log/terminal/two_armed_bandit_3B_instruct_ragen_main.log
 ```
@@ -48,12 +42,9 @@ bash train.sh two_armed_bandit \
     training.micro_batch_size=4 \
     training.train_batch_size=32 \
     training.ppo_batch_size=32 \
-    training.val_data_num=50 \
     training.max_turns=1 \
     training.n_rollout=1 \
-    training.total_training_steps=200 \
     training.no_think_rl=True \
-    training.use_kl_loss=False \
     optimization.kl_coef=0.001 \
     optimization.adv_estimator=brpo > ./log/terminal/two_armed_bandit_0_5B_instruct_ragen_no_think.log
 ```
@@ -67,12 +58,9 @@ bash train.sh two_armed_bandit \
     training.micro_batch_size=4 \
     training.train_batch_size=32 \
     training.ppo_batch_size=32 \
-    training.val_data_num=50 \
     training.max_turns=1 \
     training.n_rollout=1 \
-    training.total_training_steps=200 \
     training.no_think_rl=True \
-    training.use_kl_loss=False \
     optimization.kl_coef=0.001 \
     optimization.adv_estimator=brpo > ./log/terminal/two_armed_bandit_3B_instruct_ragen_no_think.log
 ```
@@ -89,11 +77,8 @@ bash train.sh sokoban \
     training.micro_batch_size=4 \
     training.train_batch_size=4 \
     training.ppo_batch_size=32 \
-    training.val_data_num=50 \
     training.max_turns=5 \
     training.n_rollout=8 \
-    training.total_training_steps=200 \
-    training.use_kl_loss=False \
     optimization.kl_coef=0.001 \
     optimization.adv_estimator=brpo > ./log/terminal/sokoban_0_5B_instruct_ragen_main.log
 ```
@@ -108,11 +93,8 @@ bash train.sh sokoban \
     training.micro_batch_size=4 \
     training.train_batch_size=4 \
     training.ppo_batch_size=32 \
-    training.val_data_num=50 \
     training.max_turns=5 \
     training.n_rollout=8 \
-    training.total_training_steps=200 \
-    training.use_kl_loss=False \
     optimization.kl_coef=0.001 \
     optimization.adv_estimator=brpo > ./log/terminal/sokoban_3B_instruct_ragen_main.log
 ```
@@ -127,12 +109,9 @@ bash train.sh sokoban \
     training.micro_batch_size=4 \
     training.train_batch_size=4 \
     training.ppo_batch_size=32 \
-    training.val_data_num=50 \
     training.max_turns=5 \
     training.n_rollout=8 \
-    training.total_training_steps=200 \
     training.no_think_rl=True \
-    training.use_kl_loss=False \
     optimization.kl_coef=0.001 \
     optimization.adv_estimator=brpo > ./log/terminal/sokoban_0_5B_instruct_ragen_no_think.log
 ```
@@ -147,12 +126,9 @@ bash train.sh sokoban \
     training.micro_batch_size=4 \
     training.train_batch_size=4 \
     training.ppo_batch_size=32 \
-    training.val_data_num=50 \
     training.max_turns=5 \
     training.n_rollout=8 \
-    training.total_training_steps=200 \
     training.no_think_rl=True \
-    training.use_kl_loss=False \
     optimization.kl_coef=0.001 \
     optimization.adv_estimator=brpo > ./log/terminal/sokoban_3B_instruct_ragen_no_think.log
 ```
@@ -199,11 +175,8 @@ bash train.sh frozenlake \
     training.micro_batch_size=4 \
     training.train_batch_size=4 \
     training.ppo_batch_size=32 \
-    training.val_data_num=50 \
     training.max_turns=5 \
     training.n_rollout=8 \
-    training.total_training_steps=200 \
-    training.use_kl_loss=False \
     optimization.kl_coef=0.001 \
     optimization.adv_estimator=brpo > ./log/terminal/frozenlake_0_5B_instruct_ragen_main.log
 ```
@@ -217,11 +190,8 @@ bash train.sh frozenlake \
     training.micro_batch_size=4 \
     training.train_batch_size=4 \
     training.ppo_batch_size=32 \
-    training.val_data_num=50 \
     training.max_turns=5 \
     training.n_rollout=8 \
-    training.total_training_steps=200 \
-    training.use_kl_loss=False \
     optimization.kl_coef=0.001 \
     optimization.adv_estimator=brpo > ./log/terminal/frozenlake_3B_instruct_ragen_main.log
 ```
@@ -236,12 +206,9 @@ bash train.sh frozenlake \
     training.micro_batch_size=4 \
     training.train_batch_size=4 \
     training.ppo_batch_size=32 \
-    training.val_data_num=50 \
     training.max_turns=5 \
     training.n_rollout=8 \
-    training.total_training_steps=200 \
     training.no_think_rl=True \
-    training.use_kl_loss=False \
     optimization.kl_coef=0.001 \
     optimization.adv_estimator=brpo > ./log/terminal/frozenlake_0_5B_instruct_ragen_no_think.log
 ```
@@ -256,12 +223,9 @@ bash train.sh frozenlake \
     training.micro_batch_size=4 \
     training.train_batch_size=4 \
     training.ppo_batch_size=32 \
-    training.val_data_num=50 \
     training.max_turns=5 \
     training.n_rollout=8 \
-    training.total_training_steps=200 \
     training.no_think_rl=True \
-    training.use_kl_loss=False \
     optimization.kl_coef=0.001 \
     optimization.adv_estimator=brpo > ./log/terminal/frozenlake_3B_instruct_ragen_no_think.log
 ```
@@ -314,11 +278,8 @@ bash train.sh sokoban \
     training.micro_batch_size=4 \
     training.train_batch_size=4 \
     training.ppo_batch_size=32 \
-    training.val_data_num=50 \
     training.max_turns=5 \
     training.n_rollout=8 \
-    training.total_training_steps=200 \
-    training.use_kl_loss=False \
     optimization.kl_coef=0.001 \
     optimization.adv_estimator=brpo > ./log/terminal/sokoban_1_5B_instruct_ragen_main.log
 ```
@@ -337,11 +298,8 @@ bash train.sh sokoban \
     training.micro_batch_size=4 \
     training.train_batch_size=4 \
     training.ppo_batch_size=32 \
-    training.val_data_num=50 \
     training.max_turns=5 \
     training.n_rollout=8 \
-    training.total_training_steps=200 \
-    training.use_kl_loss=False \
     optimization.kl_coef=0.001 \
     optimization.adv_estimator=brpo > ./log/terminal/sokoban_7B_instruct_ragen_main.log
 ```

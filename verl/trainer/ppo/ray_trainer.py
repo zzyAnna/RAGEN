@@ -138,7 +138,7 @@ def compute_advantage(data: DataProto, adv_estimator, gamma=1.0, lam=1.0, num_re
                                                                       lam=lam)
         data.batch['advantages'] = advantages
         data.batch['returns'] = returns
-    elif adv_estimator in ['grpo', 'brpo', 'apo']:
+    elif adv_estimator in ['grpo', 'brpo', 'arpo']:
         token_level_rewards = data.batch['token_level_rewards']
         index = data.non_tensor_batch['uid']
         responses = data.batch['responses']
@@ -463,12 +463,16 @@ class RayPPOTrainer(object):
 
         # create critic
         if self.config.algorithm.adv_estimator == 'gae':
-            resource_pool = self.resource_pool_manager.get_resource_pool(Role.Critic)
-            critic_cls = RayClassWithInitArgs(cls=self.role_worker_mapping[Role.Critic], config=self.config.critic)
-            self.resource_pool_to_cls[resource_pool]['critic'] = critic_cls
-            self.use_critic = True
-        elif self.config.algorithm.adv_estimator in ['grpo', 'brpo', 'apo']:
-            self.use_critic = False
+            raise NotImplementedError("GAE requires a trained critic network which is not implemented in our repo. Consider changing config.optimization.adv_estimator with grpo/brpo/arpo.")
+        
+            ## original code here
+            # resource_pool = self.resource_pool_manager.get_resource_pool(Role.Critic)
+            # critic_cls = RayClassWithInitArgs(cls=self.role_worker_mapping[Role.Critic], config=self.config.critic)
+            # self.resource_pool_to_cls[resource_pool]['critic'] = critic_cls
+            # self.use_critic = True
+            
+        elif self.config.algorithm.adv_estimator in ['grpo', 'brpo', 'arpo']:
+            self.use_critic = False   # use a first-step reference model instead, and use the "low_var_kl" instead
         else:
             raise NotImplementedError
 
@@ -668,7 +672,7 @@ class RayPPOTrainer(object):
                         batch.non_tensor_batch['uid'] = np.array([str(i) for i in env_seeds], dtype=object)
                     elif self.config.algorithm.adv_estimator == 'brpo':
                         batch.non_tensor_batch['uid'] = np.array(["" for _ in range(len(batch.batch))], dtype=object)
-                    elif self.config.algorithm.adv_estimator == 'apo':
+                    elif self.config.algorithm.adv_estimator == 'arpo':
                         batch.non_tensor_batch['uid'] = np.array([str(uuid.uuid4()) for _ in range(len(batch.batch))], dtype=object) # No Relative normalization
 
                     # reward
