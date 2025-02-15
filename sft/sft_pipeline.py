@@ -23,6 +23,7 @@ class SFTPipeline:
         self.output_dir = config['sft']['output_dir']
         
         # Create output directory if it doesn't exist
+        assert not os.path.exists(self.output_dir), f"Output directory {self.output_dir} already exists"
         os.makedirs(self.output_dir, exist_ok=True)
         
         # Environment-specific configurations
@@ -51,7 +52,7 @@ class SFTPipeline:
                 os.environ[key] = str(value)
         
         data_gen_config = self.config['sft']['data_generation']
-        output_dir = os.path.join('sft/data', self.env_type)
+        output_dir = os.path.join(data_gen_config['data_dir'], self.env_type)
         os.makedirs(output_dir, exist_ok=True)
 
         cmd = [
@@ -120,6 +121,7 @@ class SFTPipeline:
         logger.info("Merging base model with LoRA weights")
         
         merged_model_path = os.path.join(self.output_dir, "merged_model")
+        assert not os.path.exists(merged_model_path), f"Merged model path {merged_model_path} already exists"
 
         # read information from log file to find checkpoint with lowest validation loss
         log_file = os.path.join(lora_path, "train.log")
@@ -138,7 +140,6 @@ class SFTPipeline:
         if best_step == 0:
             raise ValueError("No validation loss found in log file, finetuning failed")
         checkpoint_path = os.path.join(lora_path, f"global_step_{best_step}")
-        print(f"Merging model from {checkpoint_path}")
         
         cmd = [
             "python -m sft.utils.merge_lora",
@@ -148,7 +149,82 @@ class SFTPipeline:
         ]
         subprocess.run(" ".join(cmd), shell=True, check=True)
         
-        logger.info(f"Model merged and saved to {merged_model_path}")
+        logger.info(f"Model merged from {checkpoint_path} and saved to {merged_model_path}")
+        return merged_model_path
+    
+    def validate_model(self, merged_model_path: str) -> None:
+        """Validate the model on the validation set using the RL script."""
+        logger.info("Validating model")
+        
+        log_file = os.path.join(merged_model_path, "validate.log")
+        max_prompt_length = (self.config['training']['max_start_length'] +
+                            self.config['training']['max_response_length'] * (self.config['training']['max_turns'] - 1) +
+                            self.config['training']['max_obs_length'] * self.config['training']['max_turns'])
+    
+        # Define the command template with proper indentation
+        env_kwargs = self.config['env']['env_kwargs']
+        env_kwargs_str = " \\\n    ".join([
+            f"+env.{key}={value}" for key, value in env_kwargs.items()
+        ])
+        
+        
+        cmd = [
+            f"VLLM_ATTENTION_BACKEND={self.config['system']['vllm_attention_backend']}",
+            f"CUDA_VISIBLE_DEVICES={self.config['system']['cuda_visible_devices']}",
+            "python -m verl.trainer.main_ppo",
+            f"multi_processing={self.config['system']['multi_processing']}",
+            f"data.train_files={self.config['env']['data_dir']}/train.parquet",
+            f"data.val_files={self.config['env']['data_dir']}/test.parquet",
+            f"data.train_data_num={self.config['training']['train_data_num'] or 'null'}",
+            f"data.val_data_num={self.config['training']['val_data_num'] or 'null'}",
+            f"data.train_batch_size={self.config['training']['train_batch_size']}",
+            f"data.val_batch_size={self.config['training']['val_batch_size']}",
+            f"data.max_prompt_length={max_prompt_length}",
+            f"data.max_response_length={self.config['training']['max_response_length']}",
+            f"data.max_start_length={self.config['training']['max_start_length']}",
+            f"data.max_obs_length={self.config['training']['max_obs_length']}",
+            "data.shuffle_train_dataloader=True",
+            f"algorithm.adv_estimator={self.config['optimization']['adv_estimator']}",
+            f"actor_rollout_ref.model.path={self.config['model']['base_model']}",
+            f"actor_rollout_ref.model.enable_gradient_checkpointing={str(self.config['model']['gradient_checkpointing']).lower()}",
+            f"actor_rollout_ref.actor.optim.lr={self.config['optimization']['actor_lr']}",
+            f"actor_rollout_ref.actor.use_kl_loss={self.config['training']['use_kl_loss']}",
+            f"actor_rollout_ref.actor.ppo_mini_batch_size={self.config['training']['ppo_batch_size']}",
+            f"actor_rollout_ref.actor.ppo_micro_batch_size={self.config['training']['micro_batch_size']}",
+            f"actor_rollout_ref.rollout.log_prob_micro_batch_size={self.config['training']['micro_batch_size']}",
+            f"actor_rollout_ref.rollout.tensor_model_parallel_size={self.config['training']['rollout_tp_size']}",
+            f"actor_rollout_ref.rollout.gpu_memory_utilization={self.config['optimization']['gpu_memory_utilization']}",
+            f"actor_rollout_ref.ref.log_prob_micro_batch_size={self.config['training']['micro_batch_size']}",
+            f"actor_rollout_ref.actor.kl_loss_coef={self.config['optimization']['kl_coef']}", # for use_kl_loss=True. ARPO/BRPO/GRPO needs the original model with "low_var_kl"
+            f"actor_rollout_ref.actor.kl_loss_type={self.config['optimization']['kl_loss_type']}",
+            f"algorithm.no_think_rl={self.config['training']['no_think_rl']}",
+            f"actor_rollout_ref.rollout.n_agent={self.config['training']['n_rollout']}",
+            f"actor_rollout_ref.rollout.temperature={self.config['training']['temperature']}",
+            f"actor_rollout_ref.actor.state_masking={self.config['training']['state_masking']}",
+            f"trainer.logger={self.config['logging']['mode']}",
+            f"+trainer.val_only=true",
+            f"+trainer.val_before_train=true",
+            f"trainer.default_hdfs_dir={self.config['trainer']['default_hdfs_dir'] or 'null'}",
+            f"trainer.n_gpus_per_node={self.config['system']['n_gpus']}",
+            f"trainer.nnodes={self.config['trainer']['nnodes']}",
+            f"trainer.save_freq={self.config['trainer']['save_freq']}",
+            f"trainer.test_freq={self.config['trainer']['test_freq']}",
+            f"trainer.project_name={self.config['trainer']['project_name']}",
+            f"trainer.experiment_name={self.config['model']['experiment_name']}",
+            f"trainer.total_epochs={self.config['training']['total_epochs']}",
+            f"trainer.total_training_steps={self.config['training']['total_training_steps'] or 'null'}",
+            f"env.name={self.config['env']['name']}",
+            env_kwargs_str,
+            f"max_turns={self.config['training']['max_turns']}",
+            f"logging.log_images={str(self.config['logging']['log_images']).lower()}",
+            f"logging.log_image_dir={self.config['logging']['log_image_dir']}",
+            f"logging.log_image_step_size={self.config['logging']['log_image_step_size']}",
+            f"logging.log_n_image_per_batch={self.config['logging']['log_n_image_per_batch']}",
+            f"2>&1 | tee {log_file}"
+        ]
+        subprocess.run(" ".join(cmd), shell=True, check=True)
+        
+        logger.info(f"Model validation completed, log saved to {log_file}")
 
     def run(self) -> None:
         """Run the complete SFT pipeline."""
@@ -160,7 +236,10 @@ class SFTPipeline:
             lora_path = self.finetune_model()
             
             # Step 3: Merge the model
-            self.merge_model(lora_path)
+            merged_model_path = self.merge_model(lora_path)
+            
+            # Step 4: Validate the model
+            self.validate_model(merged_model_path)
             
             logger.info("SFT pipeline completed successfully")
             

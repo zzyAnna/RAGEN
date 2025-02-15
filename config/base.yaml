@@ -59,27 +59,12 @@ logging:
 # Trainer settings
 trainer:
   val_before_train: false
+  val_only: false
   default_hdfs_dir: null
   nnodes: 1
   save_freq: 100
   test_freq: 100
   project_name: "RAGEN"
-
-
-# System settings
-system:
-  cuda_visible_devices: 0
-  python_hash_seed: 10000
-  n_gpus: 1
-  multi_processing: "ray"
-  vllm_attention_backend: "XFORMERS"
-
-# Model settings
-model:
-  base_model: "Qwen/Qwen2.5-0.5B-Instruct"
-  experiment_name: "ragen-main-exp"
-  gradient_checkpointing: true
-
 
 # SFT settings
 sft:
@@ -88,6 +73,7 @@ sft:
 
   # Data generation parameters
   data_generation:
+    data_dir: "sft/data2"
     algo: "bfs"
     seed: 100000 # needs to be different from the seed in the RL config
     train_size: 1000
