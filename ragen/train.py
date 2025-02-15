@@ -3,7 +3,7 @@ import os
 import argparse
 import json
 from typing import Dict, Any
-
+import time
 def deep_update(base_dict: Dict[str, Any], update_dict: Dict[str, Any], noassert_keys=["env", ""]) -> Dict[str, Any]:
     """Recursively update a dictionary."""
     assert isinstance(base_dict, dict) and isinstance(update_dict, dict)
@@ -132,13 +132,34 @@ def get_rl_train_command(config: Dict[str, Any]) -> str:
    
     return " \\\n    ".join(cmd)
 
-def get_sft_train_command(config: Dict[str, Any]) -> str:
-    """Generate the SFT training command by calling the SFT pipeline."""
+def get_sft_train_command(config: Dict[str, Any],config_dir="./sft_configs") -> str:
+    """
+    Generate the SFT training command by saving the config to a temporary YAML file
+    and using it for the SFT pipeline.
     
-    # Call the SFT pipeline with the appropriate config
+    Args:
+        config (Dict[str, Any]): Configuration dictionary for SFT training
+        
+    Returns:
+        str: The complete command string for running SFT training
+    """
+    # Create sft_configs directory if it doesn't exist
+    
+    os.makedirs(config_dir, exist_ok=True)
+    # Generate unique filename using process ID and timestamp
+    pid = os.getpid()
+    timestamp = int(time.time())
+    config_hash = f"{pid}_{timestamp}"
+    config_path = os.path.join(config_dir, f"sft_config_{config_hash}.yaml")
+    
+    # Save config to YAML file
+    with open(config_path, "w") as f:
+        yaml.safe_dump(config, f)
+    
+    # Generate command using the temporary config file
     cmd = [
         "python -m sft.sft_pipeline",
-        f"--config config/base.yaml",
+        f"--config {config_path}",
         f"--env_type {config['env']['name']}"
     ]
     

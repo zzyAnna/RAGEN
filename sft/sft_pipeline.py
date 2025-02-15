@@ -93,9 +93,9 @@ class SFTPipeline:
             f"optim.lr={training_config['learning_rate']}",
             f"data.train_batch_size={training_config['train_batch_size']}",
             f"data.micro_batch_size={training_config['micro_batch_size']}",
-            f"model.partial_pretrain={self.base_model}",
             f"trainer.default_local_dir={lora_output_dir}",
             f"trainer.experiment_name={training_config['experiment_name']}",
+            f"trainer.project_name={training_config['project_name']}",
             f"trainer.logger={training_config['logger']}",
             f"trainer.total_epochs={training_config['epochs']}",
             f"trainer.default_hdfs_dir=null", # NOTE hard code here
@@ -103,7 +103,9 @@ class SFTPipeline:
             f"model.lora_rank={training_config['lora_rank']}",
             f"model.lora_alpha={training_config['lora_alpha']}",
             f"model.target_modules={training_config['target_modules']}",
-            f"model.enable_gradient_checkpointing={str(training_config.get('enable_gradient_checkpointing', False)).lower()}"
+            f"model.enable_gradient_checkpointing={str(training_config.get('enable_gradient_checkpointing', False)).lower()}",
+            f"model.partial_pretrain={training_config['base_model']}",
+            
         ]
 
         log_file = os.path.join(lora_output_dir, "train.log")
@@ -175,9 +177,9 @@ def main():
     # Load configuration
     with open(args.config, 'r') as f:
         config = yaml.safe_load(f)
+    print(config)
     if args.env_type is not None:
         config['sft']['env_type'] = args.env_type
-    
     # Run pipeline
     pipeline = SFTPipeline(config)
     pipeline.run()
