@@ -110,3 +110,4 @@ bash train.sh frozenlake \
     training.micro_batch_size=2 \
     training.total_training_steps=100 \
     trainer.test_freq=10  >> ./log/terminal/frozenlake_abl_base.log &
+

@@ -64,12 +64,12 @@ run_experiment() {
 mkdir -p log/terminal
 
 # Run original experiments (without validation arms)
-# run_experiment "bandit_main" "data/two_armed_bandit" "phoenix" "dragon" 0
-# run_experiment "bandit_main" "data/two_armed_bandit" "phoenix" "dragon" 1 true
+run_experiment "bandit_main" "data/two_armed_bandit" "phoenix" "dragon" 0
+run_experiment "bandit_main" "data/two_armed_bandit" "phoenix" "dragon" 1 true
 
 # Run reverse experiments (without validation arms)
-# run_experiment "bandit_reverse" "data/two_armed_bandit_reverse" "dragon" "phoenix" 2
-# run_experiment "bandit_reverse" "data/two_armed_bandit_reverse" "dragon" "phoenix" 3 true
+run_experiment "bandit_reverse" "data/two_armed_bandit_reverse" "dragon" "phoenix" 2
+run_experiment "bandit_reverse" "data/two_armed_bandit_reverse" "dragon" "phoenix" 3 true
 
 # Run generalization experiments (without validation arms)
 # run_experiment "bandit_genea_regular" "data/two_armed_bandit_genea_regular" "teacher" "engineer" 0
@@ -79,5 +79,5 @@ mkdir -p log/terminal
 # run_experiment "bandit_genea_reverse" "data/two_armed_bandit_genea_reverse" "engineer" "teacher" 2
 # run_experiment "bandit_genea_reverse" "data/two_armed_bandit_genea_reverse" "engineer" "teacher" 3 true
 
-run_experiment "bandit_genea_reverse_testdiff" "data/two_armed_bandit_genea_reverse" "engineer" "teacher" 0 false "trader"   "librarian"
-run_experiment "bandit_genea_reverse_testdiff" "data/two_armed_bandit_genea_reverse" "engineer" "teacher" 1 true "trader"   "librarian"
+# run_experiment "bandit_genea_reverse_testdiff" "data/two_armed_bandit_genea_reverse" "engineer" "teacher" 0 false "trader"   "librarian"
+# run_experiment "bandit_genea_reverse_testdiff" "data/two_armed_bandit_genea_reverse" "engineer" "teacher" 1 true "trader"   "librarian"
