@@ -38,7 +38,7 @@ run_experiment() {
         training.ppo_batch_size=128 \
         training.max_turns=1 \
         training.n_rollout=1 \
-        training.total_training_steps=100 \
+        training.total_training_steps=50 \
         trainer.test_freq=10 \
         optimization.adv_estimator=brpo"
 
@@ -62,12 +62,12 @@ run_experiment() {
 }
 
 # Run original experiments (without validation arms)
-# run_experiment "bandit_main" "data/two_armed_bandit" "phoenix" "dragon" 0
-# run_experiment "bandit_main" "data/two_armed_bandit" "phoenix" "dragon" 1 true
+run_experiment "bandit_main" "data/two_armed_bandit" "phoenix" "dragon" 0
+run_experiment "bandit_main" "data/two_armed_bandit" "phoenix" "dragon" 1 true
 
 # Run reverse experiments (without validation arms)
-# run_experiment "bandit_reverse" "data/two_armed_bandit_reverse" "dragon" "phoenix" 2
-# run_experiment "bandit_reverse" "data/two_armed_bandit_reverse" "dragon" "phoenix" 3 true
+run_experiment "bandit_reverse" "data/two_armed_bandit_reverse" "dragon" "phoenix" 2
+run_experiment "bandit_reverse" "data/two_armed_bandit_reverse" "dragon" "phoenix" 3 true
 
 # Run generalization experiments (without validation arms)
 run_experiment "bandit_genea_regular" "data/two_armed_bandit_genea_regular" "teacher" "engineer" 0
