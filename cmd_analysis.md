@@ -2,7 +2,14 @@
 
 3.1 Experiments
 ```bash
+# 10 experiments for bandits
 bash scripts/analysis/bandits.sh
+
+# 4 experiments for sokoban and frozenlake
+bash scripts/analysis/multiturn.sh
+
+# 16 experiments for ablation studies
+bash scripts/analysis/ablation.sh
 
 
 

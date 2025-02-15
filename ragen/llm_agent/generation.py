@@ -304,7 +304,7 @@ class LLMGenerationManager:
             return
             
         save_step_size = self.config.logging.log_image_step_size
-        if not global_steps % save_step_size or self.is_validate:
+        if not global_steps % save_step_size or self.is_validation:
             os.makedirs(output_dir, exist_ok=True)
             filenames = save_trajectory_to_output(trajectory, save_dir=output_dir)
             if 'wandb' in self.logger.logger:
