@@ -33,6 +33,7 @@ training:
   use_sft: false
   use_kl_loss: false # this means actor KL Loss
   no_think_rl: false
+  state_masking: false
   binary_reward: false
   mask_state: false
   length_penalty: false

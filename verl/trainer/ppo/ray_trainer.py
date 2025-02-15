@@ -580,6 +580,9 @@ class RayPPOTrainer(object):
             logging=self.config.logging,
             num_gpus=self.config.trainer.n_gpus_per_node,
             no_think_rl=self.config.algorithm.no_think_rl,
+            state_masking=self.config.actor_rollout_ref.actor.state_masking,
+            start_state_marker=self.config.algorithm.state_masking.start_state_marker,
+            end_state_marker=self.config.algorithm.state_masking.end_state_marker,
         )
 
         generation_manager = LLMGenerationManager(
@@ -761,6 +764,8 @@ class RayPPOTrainer(object):
                     if self.config.trainer.critic_warmup <= self.global_steps:
                         # update actor
                         with _timer('update_actor', timing_raw):
+                            if self.config.actor_rollout_ref.actor.state_masking:
+                                batch,metrics = self._create_loss_mask(batch, metrics)
                             actor_output = self.actor_rollout_wg.update_actor(batch)
                         actor_output_metrics = reduce_metrics(actor_output.meta_info['metrics'])
                         metrics.update(actor_output_metrics)
@@ -791,6 +796,57 @@ class RayPPOTrainer(object):
                     if self.val_reward_fn is not None:
                         val_metrics = self._validate()
                     return
+    def _create_loss_mask(self, batch, metrics):
+        """Create loss mask for state tokens."""
+        response_length = batch.batch['responses'].shape[-1]
+        response_mask = batch.batch['attention_mask'][:, -response_length:]
+        
+        # Initialize state mask
+        state_mask = torch.zeros_like(response_mask)
+        
+        responses = [self.tokenizer.decode(resp, skip_special_tokens=False) for resp in batch.batch['responses']]
+    
+        for i, response in enumerate(responses):
+            # Find all pairs of start and end marker positions
+            start_marker = self.config.algorithm.state_masking.start_state_marker
+            end_marker = self.config.algorithm.state_masking.end_state_marker   
+            
+            # Get all start and end positions
+            start_positions = [m.start() for m in re.finditer(re.escape(start_marker), response)]
+            end_positions = [m.start() + len(end_marker) for m in re.finditer(re.escape(end_marker), response)]
+            
+            
+            # Convert character positions to token positions
+            for start, end in zip(start_positions, end_positions):
+                prefix_to_start = response[:start]
+                state_section = response[start:end]
+                
+                start_tokens = self.tokenizer.encode(prefix_to_start, add_special_tokens=False)
+                state_tokens = self.tokenizer.encode(state_section, add_special_tokens=False)
+                
+                start_token_pos = len(start_tokens)
+                end_token_pos = start_token_pos + len(state_tokens)
+                
+                state_mask[i, start_token_pos:end_token_pos] = 1
+        
+        loss_mask = state_mask * response_mask
+        batch.batch['loss_mask'] = loss_mask
+        
+        # Debug print
+        print("\nRaw batch[0] (before masking):\n", self.tokenizer.decode(batch.batch['responses'][0]))
+        response_ids = batch.batch['responses'][0]
+        unmasked_ids = response_ids[loss_mask[0] == 0]
+        print("\nUnmasked batch[0] (after masking):\n", self.tokenizer.decode(unmasked_ids))
+        
+        masked_ids = response_ids[loss_mask[0] == 1]
+        print("\nMasked batch[0] (masked parts):\n", self.tokenizer.decode(masked_ids))
+        
+        metrics.update({
+            'state_tokens/total': loss_mask.sum().item(),
+            'state_tokens/coverage': (loss_mask.sum() / response_mask.sum()).item(),
+        })
+        
+        return batch, metrics
 
     def _validate(self):
         """
@@ -814,6 +870,9 @@ class RayPPOTrainer(object):
             logging=self.config.logging,
             num_gpus=self.config.trainer.n_gpus_per_node,
             no_think_rl=self.config.algorithm.no_think_rl,
+            state_masking=self.config.actor_rollout_ref.actor.state_masking,
+            start_state_marker=self.config.algorithm.state_masking.start_state_marker,
+            end_state_marker=self.config.algorithm.state_masking.end_state_marker,
         )
 
         # Agent config preparation
