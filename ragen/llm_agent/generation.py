@@ -24,6 +24,7 @@ class GenerationConfig:
     logging: dict
     num_gpus: int
     no_think_rl: bool=False
+    state_masking: bool=False
 
 class LLMGenerationManager:
     def __init__(
@@ -74,6 +75,13 @@ class LLMGenerationManager:
         # if hacked:
         #     print(f"[WARNING] HACKED RESPONSES: {hacked}")
         # responses_str = [re.sub(hack_pattern, '', resp) for resp in responses_str]
+        if self.config.state_masking:
+            # check if <state>xxx</state> is in the response, if so, remove it
+            hack_pattern = r'<state>[\s\S]*?</state>'  # Changed to handle newlines and non-greedy matching
+            hacked = [resp for resp in responses_str if re.search(hack_pattern, resp, re.DOTALL)]
+            if hacked:
+                print(f"[WARNING] HACKED RESPONSES: {hacked}")
+            responses_str = [re.sub(hack_pattern, '', resp, re.DOTALL) for resp in responses_str]
 
         if self.config.no_think_rl:
             # if no_think_rl is enabled, only keep action in the str
@@ -86,6 +94,11 @@ class LLMGenerationManager:
 
     def _process_next_obs(self, next_obs: List[str]) -> torch.Tensor:
         """Process next observations from environment."""
+        if self.config.state_masking:
+            # check if there's already a <state> and </state> in the observation, if so, replace them <inner_state> and </inner_state>
+            next_obs = [re.sub(r'<state>', '<inner_state>', obs) for obs in next_obs]
+            next_obs = [re.sub(r'</state>', '</inner_state>', obs) for obs in next_obs]
+            next_obs = [f"<state>{obs}</state>" for obs in next_obs]
         next_obs_ids = self.tokenizer(
             next_obs, 
             padding='longest',
