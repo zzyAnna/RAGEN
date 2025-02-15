@@ -42,6 +42,7 @@ training:
 # Optimization parameters
 optimization:
   actor_lr: 1e-6
+  critic_lr: 1e-5
   kl_coef: 0.001
   kl_loss_type: low_var_kl
   adv_estimator: grpo

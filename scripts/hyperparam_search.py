@@ -42,27 +42,33 @@ class HyperParamConfig:
         self.groups: Dict[int, HyperParamGroup] = {}
         self.fixed_params: Dict[str, Any] = {
             "model.base_model": ["Qwen/Qwen2.5-3B-Instruct"],
-            "optimization.adv_estimator": ["brpo"],
-            "training.use_kl_loss": [False],
+            "optimization.adv_estimator": ["grpo"],
+            "training.train_data_num": [500],
             "training.val_data_num": [50],
-            "training.micro_batch_size": [2]
+            "training.micro_batch_size": [2],
+            "training.total_epochs": [1],
         }
         self._initialize_groups()
 
     def _initialize_groups(self):
         """Initialize all hyperparameter groups"""
         self.groups = {
-            1: HyperParamGroup(1, [
-                HyperParam("training.ppo_batch_size", ParamType.NUMERIC, 64, 
-                          search_space=[16, 32, 64, 128, 256], group=1)
-            ], "PPO Batch Size"), # 128
+            # 1: HyperParamGroup(1, [
+            #     HyperParam("training.ppo_batch_size", ParamType.NUMERIC, 64, 
+            #               search_space=[16, 32, 64, 128, 256], group=1)
+            # ], "PPO Batch Size"), # 128
             
-            2: HyperParamGroup(2, [
+            1: HyperParamGroup(1, [
                 HyperParam("training.train_batch_size", ParamType.NUMERIC, 8,
-                          search_space=[8, 32, 64, 128, 256], group=2), # if bandits 128, if sokoban/fr 8
+                          search_space=[4, 8, 16], group=1), # if bandits 128, if sokoban/fr 8
                 HyperParam("training.n_rollout", ParamType.NUMERIC, 16,
-                          search_space=[1, 2, 4, 8, 16], group=2) # if bandits 1, if sokoban/fr 16
+                          search_space=[4, 8, 16], group=1) # if bandits 1, if sokoban/fr 16
             ], "Training Batch Size and Rollout"),
+
+            2: HyperParamGroup(2, [
+                HyperParam("training.actor_lr", ParamType.NUMERIC, 1e-6,
+                          search_space=[5e-7, 1e-6, 5e-6, 1e-5], group=2) # 1e-6
+            ], "Actor Learning Rate"),
             
             3: HyperParamGroup(3, [
                 HyperParam("training.kl_coef", ParamType.NUMERIC, 0.04,
@@ -75,11 +81,6 @@ class HyperParamConfig:
                 HyperParam("training.temperature", ParamType.NUMERIC, 1.0,
                           search_space=[0.1, 0.5, 1], group=4) # eval 0.7
             ], "Max Turns and Temperature"),
-            
-            5: HyperParamGroup(5, [
-                HyperParam("training.actor_lr", ParamType.NUMERIC, 1e-6,
-                          search_space=[1e-6, 5e-6, 1e-5, 5e-5], group=5) # 1e-6
-            ], "Actor Learning Rate")
         }
 
 
@@ -185,7 +186,7 @@ class HyperParamSearch:
                 print(f"Skipping invalid combination: {params}")
                 print('-' * 80)
                 continue
-                
+            params["training.ppo_batch_size"] = params["training.train_batch_size"] * params["training.n_rollout"]
             command = self.generate_command(params, base_experiment_name, env_name)
             print(f"Running combination {i}/{len(combinations)}:")
             print(command)
@@ -197,6 +198,21 @@ class HyperParamSearch:
                     best_param_combination = params
                     best_score_so_far = my_dict['global_score/mean']
                     print(f"New best combination: {params} with score {best_score_so_far}")
+            else:
+                # For dry run, synthetic score
+                fake_metrics = {
+                    'global_score/mean': float(hash(str(params)) % 100) / 10.0,  # Generate deterministic fake score
+                    'global_score/max': float(hash(str(params)) % 150) / 10.0,
+                    'global_score/min': float(hash(str(params)) % 50) / 10.0,
+                    'global_score/std': float(hash(str(params)) % 20) / 10.0
+                }
+                print('Dry run - simulated metrics:', fake_metrics)
+                if all(param in params for param in self.searching_params):
+                    file_name = os.path.join(self.searched_param_log_path, f"searched_params_group_{self.search_group_id}_dry_run.json")
+                    os.makedirs(self.searched_param_log_path, exist_ok=True)
+                    with open(file_name, 'w') as f:
+                        json.dump(params, f, indent=2)
+                    print(f"Dry run - wrote simulated params to: {file_name}")
         if not dry_run:
             if best_param_combination:
                 print(f"Best combination found: {best_param_combination} with score {best_score_so_far}")
@@ -249,8 +265,8 @@ def create_argument_parser() -> argparse.ArgumentParser:
                       help='Environment name (e.g., sokoban)')
     parser.add_argument('--base_experiment_name', type=str, required=True,
                       help='Base name for the experiment')
-    parser.add_argument('--search_group', type=int, required=True, choices=range(1, 6),
-                      help='Group number to search (1-5)')
+    parser.add_argument('--search_group', type=int, required=True, choices=range(1, 5),
+                      help='Group number to search (1-4)')
     
     # Optional arguments
     parser.add_argument('--dry_run', action='store_true',
@@ -278,6 +294,8 @@ def create_argument_parser() -> argparse.ArgumentParser:
 
 def read_searched_params(group_id: int, params: List[str]) -> Union[Dict[str, Any], None]:
     """Read searched parameters from JSON file"""
+    if group_id == 0:
+        return None
     file_name = os.path.join('./log/searched_hyper_params', f"searched_params_group_{group_id}.json")
     if not os.path.exists(file_name):
         assert False, f"searched params for group {group_id} not found, please run the search first"
@@ -285,7 +303,11 @@ def read_searched_params(group_id: int, params: List[str]) -> Union[Dict[str, An
         searched_params = json.load(f)
     return {param: searched_params[param] for param in params}
 
-def validate_args(args: argparse.Namespace) -> None:
+def get_param_arg_name(param_name: str) -> str:
+    """Convert parameter name to argument name"""
+    return param_name.split('.')[-1]
+
+def validate_args(args: argparse.Namespace, config: HyperParamConfig) -> None:
     """
     Validate command line arguments based on search group requirements.
     Reads parameters from previous search groups if available.
@@ -295,64 +317,97 @@ def validate_args(args: argparse.Namespace) -> None:
     Raises:
         ValueError: If required arguments for the specified search group are missing
     """
-    # Group 2 requirements
-    if args.search_group > 1:
-        params = read_searched_params(1, ["training.ppo_batch_size"])
-        if params and args.ppo_batch_size is None:
-            args.ppo_batch_size = params.get('training.ppo_batch_size')
-            print("Read ppo_batch_size from searched params:", args.ppo_batch_size)
-        if args.ppo_batch_size is None:
-            raise ValueError("--ppo_batch_size required for groups 2-5")
 
-    # Group 3 requirements
-    if args.search_group > 2:
-        params = read_searched_params(2, [
-            "training.train_batch_size",
-            "training.n_rollout"
-        ])
-        if params:
-            if args.train_batch_size is None:
-                args.train_batch_size = params.get('training.train_batch_size')
-                print("Read train_batch_size from searched params:", args.train_batch_size)
-            if args.n_rollout is None:
-                args.n_rollout = params.get('training.n_rollout')
-                print("Read n_rollout from searched params:", args.n_rollout)
-        if args.train_batch_size is None or args.n_rollout is None:
-            raise ValueError("--train_batch_size and --n_rollout required for groups 3-5")
+    for group_id in range(1, args.search_group):
+        group = config.groups.get(group_id)
+        if not group:
+            continue
 
-    # Group 4 requirements
-    if args.search_group > 3:
-        params = read_searched_params(3, ["training.kl_coef"])
-        if params and args.kl_coef is None:
-            args.kl_coef = params.get('training.kl_coef')
-            print("Read kl_coef from searched params:", args.kl_coef)
-        if args.kl_coef is None:
-            raise ValueError("--kl_coef required for groups 4-5")
+        # Get all parameter names in this group
+        param_names = [param.name for param in group.params]
 
-    # Group 5 requirements
-    if args.search_group > 4:
-        params = read_searched_params(4, [
-            "training.max_turns",
-            "training.temperature"
-        ])
-        if params:
-            if args.max_turns is None:
-                args.max_turns = params.get('training.max_turns')
-                print("Read max_turns from searched params:", args.max_turns)
-            if args.temperature is None:
-                args.temperature = params.get('training.temperature')
-                print("Read temperature from searched params:", args.temperature)
-        if args.max_turns is None or args.temperature is None:
-            raise ValueError("--max_turns and --temperature required for group 5")
+        # Try to read parameters from previous searched results
+        params = read_searched_params(group_id, param_names)
+        print("params", params)
+
+        for param in group.params:
+            arg_name = get_param_arg_name(param.name)
+            arg_value = getattr(args, arg_name, None)
+
+            # If the argument is not provided, try to read from searched params
+            if arg_value is None and params:
+                searched_value = params.get(param.name)
+                if searched_value is not None:
+                    setattr(args, arg_name, searched_value)
+                    print(f"Read {arg_name} from searched params:", searched_value)
+                else:
+                    print(f"Warning: {arg_name} not found in searched params for group {group_id}")
+            
+            # If still None, raise an error
+            if getattr(args, arg_name, None) is None:
+                raise ValueError(f"--{arg_name} required for group {args.search_group}")
+
+    # # Group 2 requirements
+    # if args.search_group > 1:
+    #     params = read_searched_params(1, ["training.ppo_batch_size"])
+    #     if params and args.ppo_batch_size is None:
+    #         args.ppo_batch_size = params.get('training.ppo_batch_size')
+    #         print("Read ppo_batch_size from searched params:", args.ppo_batch_size)
+    #     if args.ppo_batch_size is None:
+    #         raise ValueError("--ppo_batch_size required for groups 2-5")
+
+    # # Group 3 requirements
+    # if args.search_group > 2:
+    #     params = read_searched_params(2, [
+    #         "training.train_batch_size",
+    #         "training.n_rollout"
+    #     ])
+    #     if params:
+    #         if args.train_batch_size is None:
+    #             args.train_batch_size = params.get('training.train_batch_size')
+    #             print("Read train_batch_size from searched params:", args.train_batch_size)
+    #         if args.n_rollout is None:
+    #             args.n_rollout = params.get('training.n_rollout')
+    #             print("Read n_rollout from searched params:", args.n_rollout)
+    #     if args.train_batch_size is None or args.n_rollout is None:
+    #         raise ValueError("--train_batch_size and --n_rollout required for groups 3-5")
+
+    # # Group 4 requirements
+    # if args.search_group > 3:
+    #     params = read_searched_params(3, ["training.kl_coef"])
+    #     if params and args.kl_coef is None:
+    #         args.kl_coef = params.get('training.kl_coef')
+    #         print("Read kl_coef from searched params:", args.kl_coef)
+    #     if args.kl_coef is None:
+    #         raise ValueError("--kl_coef required for groups 4-5")
+
+    # # Group 5 requirements
+    # if args.search_group > 4:
+    #     params = read_searched_params(4, [
+    #         "training.max_turns",
+    #         "training.temperature"
+    #     ])
+    #     if params:
+    #         if args.max_turns is None:
+    #             args.max_turns = params.get('training.max_turns')
+    #             print("Read max_turns from searched params:", args.max_turns)
+    #         if args.temperature is None:
+    #             args.temperature = params.get('training.temperature')
+    #             print("Read temperature from searched params:", args.temperature)
+    #     if args.max_turns is None or args.temperature is None:
+    #         raise ValueError("--max_turns and --temperature required for group 5")
 
 def main():
     parser = create_argument_parser()
     args = parser.parse_args()
-    validate_args(args)
-    print("=" * 80)
     
     # Create config and search objects
     config = HyperParamConfig()
+
+    validate_args(args, config)
+    print("=" * 80)
+    
+    
     search = HyperParamSearch(config)
     
     # Collect fixed values from arguments
@@ -369,6 +424,8 @@ def main():
         fixed_values["training.max_turns"] = args.max_turns
     if args.temperature is not None:
         fixed_values["training.temperature"] = args.temperature
+    if args.actor_lr is not None:
+        fixed_values["training.actor_lr"] = args.actor_lr
     if args.n_gpus is not None:
         fixed_values["system.n_gpus"] = args.n_gpus
     if args.micro_batch_size is not None:
