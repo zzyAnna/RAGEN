@@ -1,5 +1,63 @@
 # Base Experiments
 
+## Hyperparameter search.
+We first do hyperparameter search, hoping to find a good combination to guide later experiment settings.
+
+**[Note]** Current multi-GPUs strategy is **FSDP**. We are running with **3B** models.
+
+#### [BUDGET]: In total: ***27*** runs, Qwen2.5-3B-Instruct, Sokoban
+- Search group 1: 9 runs
+    - train_batch_size: [4, 8, 16]
+    - n_rollout: [4, 8, 16]
+- Search group 2: 4 runs
+    - actor_lr: [5e-7, 1e-6, 5e-6, 1e-5]
+- Search group 3: 5 runs
+    - kl_coef: [0.001, 0.005, 0.01, 0.04, 0.1, 0.5]
+- Search group 4: 9 runs
+    - max_turns: [2, 5, 8]
+    - temperature: [0.1, 0.5, 1]
+
+#### [EXP 1]: Search group 1 [ppo_batch_size] (Tested)
+```bash
+bash scripts/hyperparam_search.sh \
+    --env_name=sokoban \
+    --exp_base_name="hyperparam_searching" \
+    --search_group 1 \
+    --n_gpus 1
+```
+#### [EXP 2]: Search group 2 [train_batch_size, n_rollout] (Tested)
+```bash
+bash scripts/hyperparam_search.sh \
+    --env_name=sokoban \
+    --exp_base_name="hyperparam_searching" \
+    --search_group 2 \
+    --n_gpus 1
+```
+#### [EXP 3]: Search group 3 [kl_coef]  (Tested)
+```bash
+bash scripts/hyperparam_search.sh \
+    --env_name=sokoban \
+    --exp_base_name="hyperparam_searching" \
+    --search_group 3 \
+    --n_gpus 1
+```
+#### [EXP 4]: Search group 4 [max_turns, temperature] (Tested)
+```bash
+bash scripts/hyperparam_search.sh \
+    --env_name=sokoban \
+    --exp_base_name="hyperparam_searching" \
+    --search_group 4 \
+    --n_gpus 1
+```
+#### [EXP 5]: Search group 5 [actor_lr] (Tested)
+```bash
+bash scripts/hyperparam_search.sh \
+    --env_name=sokoban \
+    --exp_base_name="hyperparam_searching" \
+    --search_group 5 \
+    --n_gpus 1
+```
+
 ## Bandit
 ### `RAGEN` *Qwen2.5-0.5B-Instruct*
 ```bash
