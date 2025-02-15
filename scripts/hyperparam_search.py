@@ -119,7 +119,7 @@ class HyperParamConfig:
     def __init__(self):
         self.groups: Dict[int, HyperParamGroup] = {}
         self.fixed_params: Dict[str, Any] = {
-            "model.base_model": ["Qwen/Qwen2.5-0.5B-Instruct"],
+            "model.base_model": ["Qwen/Qwen2.5-3B-Instruct"],
             "optimization.adv_estimator": ["grpo"],
             "training.train_data_num": [500],
             "training.val_data_num": [50],
