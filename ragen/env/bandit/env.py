@@ -171,6 +171,11 @@ class TwoArmedBanditEnv(BaseDiscreteActionEnv, gym.Env):
         # Set up arm names and mappings
         self.low_risk_name = low_risk_name
         self.high_risk_name = high_risk_name
+        self.ACTION_LOOKUP = {
+            self.INVALID_ACTION: "none",
+            1: self.low_risk_name,
+            2: self.high_risk_name,
+        }
         
         # Fixed mappings: 1 -> low risk, 2 -> high risk
         self.ARM_IDX_TO_NAME = {
