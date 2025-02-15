@@ -37,7 +37,7 @@ training:
   binary_reward: false
   mask_state: false
   length_penalty: false
-  total_training_steps: 200
+  total_training_steps: null
 
 # Optimization parameters
 optimization:
