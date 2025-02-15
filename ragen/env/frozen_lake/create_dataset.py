@@ -34,7 +34,7 @@ Rules:
 2. Frozen tiles are slippery, you may move perpendicular to your intended direction.
 
 Answers:
-<answer> 1 (Left) </answer> | <answer> 2 (Down) </answer> | <answer> 3 (Right) </answer> | <answer> 4 (Up) </answer>
+<answer> Up </answer> | <answer> Down </answer> | <answer> Left </answer> | <answer> Right </answer>
 
 Rewards:
 Fall into hole: 0

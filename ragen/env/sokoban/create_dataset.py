@@ -29,7 +29,7 @@ Rules:
 2. Avoid walls (#).
 
 Answers:
-<answer> 1 (Up) </answer> | <answer> 2 (Down) </answer> | <answer> 3 (Left) </answer> | <answer> 4 (Right) </answer>
+<answer> Up </answer> | <answer> Down </answer> | <answer> Left </answer> | <answer> Right </answer>
 
 Rewards:
 Move: -0.1

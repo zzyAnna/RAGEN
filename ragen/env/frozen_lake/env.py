@@ -216,6 +216,8 @@ class FrozenLakeEnv(BaseDiscreteActionEnv, GymFrozenLakeEnv):
         - 4: Up
         """
         DIRECTION_MAP = {"Left": 1, "Down": 2, "Right": 3, "Up": 4}
+        # TODO: originally, we parse either number (key of direction_map) or direction (value of direction_map).
+        # here we remove numbers and preserve directions only, but regex has not been removed. please remove them later.
         pattern = r'^\s*(([1-4])\s*\((up|down|left|right)\)|(up|down|left|right)|([1-4]))\s*$'
         match = re.fullmatch(pattern, text.strip(), flags=re.IGNORECASE | re.X)
         
