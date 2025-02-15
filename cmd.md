@@ -17,20 +17,22 @@ We first do hyperparameter search, hoping to find a good combination to guide la
     - max_turns: [2, 5, 8]
     - temperature: [0.1, 0.5, 1]
 
-#### [EXP 1]: Search group 1 [ppo_batch_size] (Tested)
+#### [EXP 1]: Search group 1 [train_batch_size, n_rollout] (Tested)
 ```bash
 bash scripts/hyperparam_search.sh \
     --env_name=two_armed_bandit \
     --exp_base_name="hyperparam_searching" \
     --search_group 1 \
+    --micro_batch_size 4 \
     --n_gpus 1
 ```
-#### [EXP 2]: Search group 2 [train_batch_size, n_rollout] (Tested)
+#### [EXP 2]: Search group 2 [actor_lr] (Tested)
 ```bash
 bash scripts/hyperparam_search.sh \
     --env_name=two_armed_bandit \
     --exp_base_name="hyperparam_searching" \
     --search_group 2 \
+    --micro_batch_size 4 \
     --n_gpus 1
 ```
 #### [EXP 3]: Search group 3 [kl_coef]  (Tested)
@@ -39,6 +41,7 @@ bash scripts/hyperparam_search.sh \
     --env_name=two_armed_bandit \
     --exp_base_name="hyperparam_searching" \
     --search_group 3 \
+    --micro_batch_size 4 \
     --n_gpus 1
 ```
 #### [EXP 4]: Search group 4 [max_turns, temperature] (Tested)
@@ -47,14 +50,7 @@ bash scripts/hyperparam_search.sh \
     --env_name=two_armed_bandit \
     --exp_base_name="hyperparam_searching" \
     --search_group 4 \
-    --n_gpus 1
-```
-#### [EXP 5]: Search group 5 [actor_lr] (Tested)
-```bash
-bash scripts/hyperparam_search.sh \
-    --env_name=two_armed_bandit \
-    --exp_base_name="hyperparam_searching" \
-    --search_group 5 \
+    --micro_batch_size 4 \
     --n_gpus 1
 ```
 
