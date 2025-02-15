@@ -72,7 +72,7 @@ def get_rl_train_command(config: Dict[str, Any]) -> str:
     # Define the command template with proper indentation
     env_kwargs = config['env']['env_kwargs']
     env_kwargs_str = " \\\n    ".join([
-        f"+env.{key}={value}" for key, value in env_kwargs.items()
+        f"+env.{key}={value}" if value is not None else f"+env.{key}=null" for key, value in env_kwargs.items()
     ])
    
     cmd = [
