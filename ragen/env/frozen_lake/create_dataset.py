@@ -79,7 +79,7 @@ def main():
 
     def _create_instance(idx, instruction):
         prompt_formatted = templates[args.prefix].format(prompt=instruction)
-        print(prompt_formatted)
+        # print(prompt_formatted)
 
         return {
             "data_source": data_source,

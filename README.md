@@ -111,7 +111,7 @@ api.upload_folder(
 </details>
 
 <details>
-<summary>Click here to see data summarization.</summary>
+<summary>Click here to see full data summarization.</summary>
 
 #### Sokoban Dataset Variants
 
@@ -148,6 +148,8 @@ FrozenLake environment maintains a single configuration:
 ### Export variables and train
 We provide a default config file in `verl/trainer/config/ppo_trainer.yaml`. You can change the parameters in the file. Below scripts would train two Agents on these two tasks, respectively. 
 
+To understand and reproduce our experiments, please checkout `cmd.md` for the command we use for each experiment.
+
 NOTE: All possible arguments are in config/base.yaml and other yaml files.
 
 ```bash
@@ -161,8 +163,9 @@ bash train.sh sokoban \
     training.ppo_batch_size=64
 
 # For developers, if you want to add your own config keys, please check [ base.yaml | train.sh | ragen/train.py | verl/trainer/config/ppo_trainer.yaml | and the main_ppo.py in verl/trainer/ppo ] to make sure the changes are reflected coherently.
-
 ```
+
+
 
 ## Supervised Finetuning (Optional)
 NOTE: Only tested with 1 GPU
