@@ -263,8 +263,10 @@ def compute_data_metrics(batch, use_critic=True):
             torch.mean(torch.eq(prompt_length, max_prompt_length).float()).detach().item(),
             
         # metrics for actions
-        'metric/finished':
-            int(np.array(batch.non_tensor_batch['finished'], dtype=np.int16).sum()),
+        'metric/total_env':
+            int(np.array(batch.non_tensor_batch['total_env'], dtype=np.int16).sum()),
+        'metric/finished_env':
+            int(np.array(batch.non_tensor_batch['finished_env'], dtype=np.int16).sum()),
         'metric/traj_length':
             float(np.array(batch.non_tensor_batch['traj_length'], dtype=np.int16).mean()),
         'metric/valid_action':
@@ -693,19 +695,19 @@ class RayPPOTrainer(object):
                             batch.non_tensor_batch['bandit_metrics'][idx] = env.get_last_action()
 
                     # metrics for actions
-                    batch.non_tensor_batch['finished'] = np.array([0 for _ in range(len(envs))], dtype=object)
+                    batch.non_tensor_batch['total_env'] = np.array([1 for _ in range(len(envs))], dtype=object)
+                    batch.non_tensor_batch['finished_env'] = np.array([0 for _ in range(len(envs))], dtype=object)
                     batch.non_tensor_batch['traj_length'] = np.array([0 for _ in range(len(envs))], dtype=object)
                     batch.non_tensor_batch['valid_action'] = np.array([0 for _ in range(len(envs))], dtype=object)
                     batch.non_tensor_batch['effective_action'] = np.array([0 for _ in range(len(envs))], dtype=object)
                     batch.non_tensor_batch['effective_action_ratio'] = np.array([0 for _ in range(len(envs))], dtype=object)
                     for idx, env in enumerate(envs):
-                        batch.non_tensor_batch['finished'][idx] = int(env.success())
+                        batch.non_tensor_batch['finished_env'][idx] = int(env.success())
                         tracking_vars = env.get_tracking_variables()
                         batch.non_tensor_batch['traj_length'][idx] = len(tracking_vars['actions'])
                         batch.non_tensor_batch['valid_action'][idx] = sum(1 for x in tracking_vars['actions_valid'] if x is not None)
                         batch.non_tensor_batch['effective_action'][idx] = sum(1 for x in tracking_vars['actions_effective'] if x is not None)
                         batch.non_tensor_batch['effective_action_ratio'][idx] = sum(1 for x in tracking_vars['actions_effective'] if x is not None) / len(tracking_vars['actions'])
-
                     batch = batch.repeat(repeat_times=self.config.actor_rollout_ref.rollout.n, interleave=True)
                     batch = batch.union(final_gen_batch_output)
 
@@ -946,13 +948,14 @@ class RayPPOTrainer(object):
                         test_batch.non_tensor_batch['bandit_metrics'][idx] = env.get_last_action()
                     metrics['bandit_metrics'].append(test_batch.non_tensor_batch['bandit_metrics'])
                 
-                test_batch.non_tensor_batch['finished'] = np.array([0 for _ in range(len(envs))], dtype=object)
+                test_batch.non_tensor_batch['total_env'] = np.array([1 for _ in range(len(envs))], dtype=object)
+                test_batch.non_tensor_batch['finished_env'] = np.array([0 for _ in range(len(envs))], dtype=object)
                 test_batch.non_tensor_batch['traj_length'] = np.array([0 for _ in range(len(envs))], dtype=object)
                 test_batch.non_tensor_batch['valid_action'] = np.array([0 for _ in range(len(envs))], dtype=object)
                 test_batch.non_tensor_batch['effective_action'] = np.array([0 for _ in range(len(envs))], dtype=object)
                 test_batch.non_tensor_batch['effective_action_ratio'] = np.array([0 for _ in range(len(envs))], dtype=object)
                 for idx, env in enumerate(envs):
-                    test_batch.non_tensor_batch['finished'][idx] = int(env.success())
+                    test_batch.non_tensor_batch['finished_env'][idx] = int(env.success())
                     tracking_vars = env.get_tracking_variables()
                     test_batch.non_tensor_batch['traj_length'][idx] = len(tracking_vars['actions'])
                     test_batch.non_tensor_batch['valid_action'][idx] = sum(1 for x in tracking_vars['actions_valid'] if x is not None)
@@ -960,7 +963,8 @@ class RayPPOTrainer(object):
                     test_batch.non_tensor_batch['effective_action_ratio'][idx] = sum(1 for x in tracking_vars['actions_effective'] if x is not None) / len(tracking_vars['actions'])
 
                 # action metrics
-                metrics['finished'].append(test_batch.non_tensor_batch['finished'])
+                metrics['total_env'].append(test_batch.non_tensor_batch['total_env'])
+                metrics['finished_env'].append(test_batch.non_tensor_batch['finished_env'])
                 metrics['traj_length'].append(test_batch.non_tensor_batch['traj_length'])
                 metrics['valid_action'].append(test_batch.non_tensor_batch['valid_action'])
                 metrics['effective_action'].append(test_batch.non_tensor_batch['effective_action'])
@@ -976,7 +980,8 @@ class RayPPOTrainer(object):
             'global_score/max': float(global_scores.max()),
             'global_score/min': float(global_scores.min()),
             'global_score/std': float(global_scores.std()),
-            'validate_metric/finished': int(np.array(metrics['finished'], dtype=np.int16).sum()),
+            'validate_metric/total_env': int(np.array(metrics['total_env'], dtype=np.int16).sum()),
+            'validate_metric/finished_env': int(np.array(metrics['finished_env'], dtype=np.int16).sum()),
             'validate_metric/traj_length': float(np.array(metrics['traj_length'], dtype=np.int16).mean()),
             'validate_metric/valid_action': float(np.array(metrics['valid_action'], dtype=np.int16).mean()),
             'validate_metric/effective_action': float(np.array(metrics['effective_action'], dtype=np.int16).mean()),

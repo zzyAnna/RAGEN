@@ -193,33 +193,45 @@ bash train.sh sokoban \
 ```
 
 ### `SFT` *Qwen2.5-0.5B-Instruct*
-**TODO** sft config needs to be added to train.py
+- `training.val_batch_size`: batch size for validation after sft
+- `training.val_data_num`: number of validation data after sft, None means all
+- `training.n_rollout`: number of rollout agents when validating after sft
+**NOTE** Validate on validation set for RL
 ```bash
 mkdir -p ./log/terminal
 
 bash train.sh sokoban \
     rl_or_sft=sft \
+    sft.output_dir=models/sft/Qwen2.5-0.5B-Instruct \
     sft.training.base_model=Qwen/Qwen2.5-0.5B-Instruct \
     sft.training.experiment_name=sokoban_0_5B_instruct_sft \
-    sft.data_generation.train_size=1000 \
-    sft.data_generation.test_size=100 \
+    sft.data_generation.train_size=2000 \
+    sft.data_generation.test_size=200 \
     sft.training.micro_batch_size=4 \
-    optimization.adv_estimator=brpo > ./log/terminal/sokoban_0_5B_instruct_sft.log
+    sft.training.epochs=5 \
+    training.val_batch_size=10 \
+    training.val_data_num= \
+    training.n_rollout=1 \
+    optimization.adv_estimator=brpo 2>&1 | tee ./log/terminal/sokoban_0_5B_instruct_sft.log
 ```
 
 ### `SFT` *Qwen2.5-3B-Instruct*
-**TODO** sft config needs to be added to train.py
 ```bash
 mkdir -p ./log/terminal
 
 bash train.sh sokoban \
     rl_or_sft=sft \
+    sft.output_dir=models/sft/Qwen2.5-3B-Instruct \
     sft.training.base_model=Qwen/Qwen2.5-3B-Instruct \
     sft.training.experiment_name=sokoban_3B_instruct_sft \
-    sft.data_generation.train_size=1000 \
-    sft.data_generation.test_size=100 \
+    sft.data_generation.train_size=2000 \
+    sft.data_generation.test_size=200 \
     sft.training.micro_batch_size=4 \
-    optimization.adv_estimator=brpo > ./log/terminal/sokoban_3B_instruct_sft_1.log
+    sft.training.epochs=5 \
+    training.val_batch_size=10 \
+    training.val_data_num= \
+    training.n_rollout=1 \
+    optimization.adv_estimator=brpo 2>&1 | tee ./log/terminal/sokoban_3B_instruct_sft.log
 ```
 
 ## FrozenLake
@@ -290,33 +302,41 @@ bash train.sh frozenlake \
 ```
 
 ### `SFT` *Qwen2.5-0.5B-Instruct*
-**TODO** sft config needs to be added to train.py
 ```bash
 mkdir -p ./log/terminal
 
 bash train.sh frozenlake \
     rl_or_sft=sft \
+    sft.output_dir=models/sft/Qwen2.5-0.5B-Instruct \
     sft.training.base_model=Qwen/Qwen2.5-0.5B-Instruct \
     sft.training.experiment_name=frozenlake_0_5B_instruct_sft \
-    sft.data_generation.train_size=1000 \
-    sft.data_generation.test_size=100 \
+    sft.data_generation.train_size=2000 \
+    sft.data_generation.test_size=200 \
     sft.training.micro_batch_size=4 \
-    optimization.adv_estimator=brpo > ./log/terminal/frozenlake_0_5B_instruct_sft.log
+    sft.training.epochs=5 \
+    training.val_batch_size=10 \
+    training.val_data_num= \
+    training.n_rollout=1 \
+    optimization.adv_estimator=brpo 2>&1 | tee ./log/terminal/frozenlake_0_5B_instruct_sft.log
 ```
 
 ### `SFT` *Qwen2.5-3B-Instruct*
-**TODO** sft config needs to be added to train.py
 ```bash
 mkdir -p ./log/terminal
 
 bash train.sh frozenlake \
     rl_or_sft=sft \
+    sft.output_dir=models/sft/Qwen2.5-3B-Instruct \
     sft.training.base_model=Qwen/Qwen2.5-3B-Instruct \
     sft.training.experiment_name=frozenlake_3B_instruct_sft \
-    sft.data_generation.train_size=1000 \
-    sft.data_generation.test_size=100 \
+    sft.data_generation.train_size=2000 \
+    sft.data_generation.test_size=200 \
     sft.training.micro_batch_size=4 \
-    optimization.adv_estimator=brpo > ./log/terminal/frozenlake_3B_instruct_sft.log
+    sft.training.epochs=5 \
+    training.val_batch_size=10 \
+    training.val_data_num= \
+    training.n_rollout=1 \
+    optimization.adv_estimator=brpo 2>&1 | tee ./log/terminal/frozenlake_3B_instruct_sft.log
 ```
 
 
