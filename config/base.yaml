@@ -42,9 +42,9 @@ training:
 # Optimization parameters
 optimization:
   actor_lr: 1e-6
-  critic_lr: 1e-5
-  kl_coef: 0.04
-  adv_estimator: gae
+  kl_coef: 0.001
+  kl_loss_type: low_var_kl
+  adv_estimator: grpo
   gpu_memory_utilization: 0.4
 
 # Logging settings
