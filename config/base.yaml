@@ -111,6 +111,7 @@ sft:
     lora_alpha: 32
     target_modules: "all-linear"
     enable_gradient_checkpointing: false
+    base_model: "Qwen/Qwen2.5-0.5B-Instruct"
   
   # Sokoban-specific settings
   sokoban:

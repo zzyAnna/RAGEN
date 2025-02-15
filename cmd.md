@@ -164,11 +164,11 @@ mkdir -p ./log/terminal
 
 bash train.sh sokoban \
     rl_or_sft=sft \
-    model.base_model=Qwen/Qwen2.5-3B-Instruct \
-    model.experiment_name=sokoban_0_5B_instruct_sft \
+    sft.training.base_model=Qwen/Qwen2.5-0.5B-Instruct \
+    sft.training.experiment_name=sokoban_0_5B_instruct_sft \
     sft.data_generation.train_size=1000 \
     sft.data_generation.test_size=100 \
-    sft.micro_batch_size=4 \
+    sft.training.micro_batch_size=4 \
     optimization.adv_estimator=brpo > ./log/terminal/sokoban_0_5B_instruct_sft.log
 ```
 
@@ -179,12 +179,12 @@ mkdir -p ./log/terminal
 
 bash train.sh sokoban \
     rl_or_sft=sft \
-    model.base_model=Qwen/Qwen2.5-3B-Instruct \
-    model.experiment_name=sokoban_3B_instruct_sft \
+    sft.training.base_model=Qwen/Qwen2.5-3B-Instruct \
+    sft.training.experiment_name=sokoban_3B_instruct_sft \
     sft.data_generation.train_size=1000 \
     sft.data_generation.test_size=100 \
-    sft.micro_batch_size=4 \
-    optimization.adv_estimator=brpo > ./log/terminal/sokoban_3B_instruct_sft.log
+    sft.training.micro_batch_size=4 \
+    optimization.adv_estimator=brpo > ./log/terminal/sokoban_3B_instruct_sft_1.log
 ```
 
 ## FrozenLake
@@ -273,11 +273,11 @@ mkdir -p ./log/terminal
 
 bash train.sh frozenlake \
     rl_or_sft=sft \
-    model.base_model=Qwen/Qwen2.5-3B-Instruct \
-    model.experiment_name=frozenlake_0_5B_instruct_sft \
+    sft.training.base_model=Qwen/Qwen2.5-0.5B-Instruct \
+    sft.training.experiment_name=frozenlake_0_5B_instruct_sft \
     sft.data_generation.train_size=1000 \
     sft.data_generation.test_size=100 \
-    sft.micro_batch_size=4 \
+    sft.training.micro_batch_size=4 \
     optimization.adv_estimator=brpo > ./log/terminal/frozenlake_0_5B_instruct_sft.log
 ```
 
@@ -288,11 +288,11 @@ mkdir -p ./log/terminal
 
 bash train.sh frozenlake \
     rl_or_sft=sft \
-    model.base_model=Qwen/Qwen2.5-3B-Instruct \
-    model.experiment_name=frozenlake_3B_instruct_sft \
+    sft.training.base_model=Qwen/Qwen2.5-3B-Instruct \
+    sft.training.experiment_name=frozenlake_3B_instruct_sft \
     sft.data_generation.train_size=1000 \
     sft.data_generation.test_size=100 \
-    sft.micro_batch_size=4 \
+    sft.training.micro_batch_size=4 \
     optimization.adv_estimator=brpo > ./log/terminal/frozenlake_3B_instruct_sft.log
 ```
 
