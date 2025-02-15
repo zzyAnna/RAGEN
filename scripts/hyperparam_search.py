@@ -67,7 +67,10 @@ def run_experiment(command: str, gpu_id: int, result_queue: Queue, log_dir: Path
         log_file = log_dir / f"gpu_{gpu_id}_exp_{datetime.now().strftime('%Y%m%d_%H%M%S')}.log"
         
         # Modify command to use specific GPU
-        gpu_command = f"CUDA_VISIBLE_DEVICES={gpu_id} {command}"
+        # gpu_command = f"CUDA_VISIBLE_DEVICES={gpu_id} {command}"
+        gpu_command = f"system.cuda_visible_devices={gpu_id}"
+        final_command_parts = [command, gpu_command]
+        gpu_command = " \\\n".join(final_command_parts)
         print(f"Running on GPU {gpu_id}: {gpu_command}")
         
         # Run the experiment
@@ -270,6 +273,8 @@ class HyperParamSearch:
         completed_results: List[Tuple[Dict[str, Any], Dict]] = []
         remaining_experiments = experiments.copy()
 
+        is_first_exp = True
+
         while remaining_experiments or running_processes:
             # Start new experiments if GPUs are available
             while remaining_experiments:
@@ -282,6 +287,12 @@ class HyperParamSearch:
                     target=run_experiment,
                     args=(command, gpu_id, result_queue, self.log_dir)
                 )
+                print("Starting experiment on GPU", gpu_id)
+                if is_first_exp:
+                    is_first_exp = False
+                else:
+                    print("Sleeping for 30 seconds to avoid ray conflicts")
+                    time.sleep(30) # Wait for ray to be ready
                 process.start()
                 running_processes.append((process, gpu_id, params))
                 print(f"Started experiment on GPU {gpu_id}")
