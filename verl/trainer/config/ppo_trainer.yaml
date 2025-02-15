@@ -147,7 +147,6 @@ algorithm:
   lam: 1.0
   adv_estimator: gae
   no_think_rl: False
-  state_masking: False
   kl_penalty: kl  # how to estimate kl divergence
   kl_ctrl:
     type: fixed

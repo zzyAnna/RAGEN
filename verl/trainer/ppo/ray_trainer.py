@@ -580,7 +580,7 @@ class RayPPOTrainer(object):
             logging=self.config.logging,
             num_gpus=self.config.trainer.n_gpus_per_node,
             no_think_rl=self.config.algorithm.no_think_rl,
-            state_masking=self.config.algorithm.state_masking,
+            state_masking=self.config.actor_rollout_ref.actor.state_masking,
         )
 
         generation_manager = LLMGenerationManager(
@@ -762,7 +762,7 @@ class RayPPOTrainer(object):
                     if self.config.trainer.critic_warmup <= self.global_steps:
                         # update actor
                         with _timer('update_actor', timing_raw):
-                            if self.config.algorithm.state_masking:
+                            if self.config.actor_rollout_ref.actor.state_masking:
                                 # mask the state tokens
                                 # Create mask for tokens between <state> </state>tags
                                 response_length = batch.batch['responses'].shape[-1]

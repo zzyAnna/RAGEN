@@ -108,6 +108,7 @@ def get_rl_train_command(config: Dict[str, Any]) -> str:
         f"algorithm.no_think_rl={config['training']['no_think_rl']}",
         f"actor_rollout_ref.rollout.n_agent={config['training']['n_rollout']}",
         f"actor_rollout_ref.rollout.temperature={config['training']['temperature']}",
+        f"actor_rollout_ref.actor.state_masking={config['training']['state_masking']}",
         f"trainer.logger={config['logging']['mode']}",
         f"+trainer.val_before_train={str(config['trainer']['val_before_train']).lower()}",
         f"trainer.default_hdfs_dir={config['trainer']['default_hdfs_dir'] or 'null'}",
