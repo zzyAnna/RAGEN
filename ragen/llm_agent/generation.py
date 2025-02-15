@@ -35,13 +35,15 @@ class LLMGenerationManager:
         actor_rollout_wg,
         env_class,
         config: GenerationConfig,
-        logger: Tracking
+        logger: Tracking,
+        is_validation: bool = False,
     ):
         self.tokenizer = tokenizer
         self.actor_rollout_wg = actor_rollout_wg
         self.env_class = env_class
         self.config = config
         self.logger = logger
+        self.is_validation = is_validation
         
         self.tensor_fn = TensorHelper(TensorConfig(
             pad_token_id=tokenizer.pad_token_id,
@@ -302,7 +304,7 @@ class LLMGenerationManager:
             return
             
         save_step_size = self.config.logging.log_image_step_size
-        if not global_steps % save_step_size:
+        if not global_steps % save_step_size or self.is_validate:
             os.makedirs(output_dir, exist_ok=True)
             filenames = save_trajectory_to_output(trajectory, save_dir=output_dir)
             if 'wandb' in self.logger.logger:

@@ -332,6 +332,7 @@ class RayPPOTrainer(object):
                  reward_fn=None,
                  val_reward_fn=None,
                  env=None,
+                 val_env=None,
                  env_class=None):
 
         # assert torch.cuda.is_available(), 'cuda must be available on driver'
@@ -341,7 +342,11 @@ class RayPPOTrainer(object):
         self.reward_fn = reward_fn
         self.val_reward_fn = val_reward_fn
         self.env = env
+        self.val_env = env if val_env is None else val_env
         self.env_class = env_class
+        
+        if val_env is not None:
+            print("[INFO] val env is different from train env, it means you are evaluating the model's generalization capabilities.")
 
         self.hybrid_engine = config.actor_rollout_ref.hybrid_engine
         assert self.hybrid_engine, 'Currently, only support hybrid engine'
@@ -886,9 +891,10 @@ class RayPPOTrainer(object):
             env_class=self.env_class,
             config=gen_config,
             logger = self.logger,
+            is_validation = True,
         )
 
-        envs = [self.env.copy() for _ in range(self.config.data.val_batch_size * self.config.actor_rollout_ref.rollout.n_agent)]
+        envs = [self.val_env.copy() for _ in range(self.config.data.val_batch_size * self.config.actor_rollout_ref.rollout.n_agent)]
         val_global_steps = 1
 
         for batch_dict in self.val_dataloader:

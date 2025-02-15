@@ -7,6 +7,7 @@ import json
 from datasets import Dataset
 import argparse
 from ragen.env import TwoArmedBanditEnv
+import random
 
 templates = {
     'qwen-instruct': '<|im_start|>user\n{prompt}\nAlways output: <think> [Your thoughts] </think> <answer> [your answer] </answer> with no extra text. Strictly follow this format. <|im_end|>\n<|im_start|>assistant\n<think>',
@@ -16,12 +17,10 @@ templates = {
 intro = """You are playing a two-armed bandit game. Goal: Maximize your total reward by choosing which arm to pull.
 x
 Game Rules:
-1. There are 2 arms, named Phoenix and Dragon
+1. There are 2 arms, named {name_a} and {name_b}
 2. Each arm has its own reward distribution, related to their names. 
-3. Please analyze each arm based on their names, guess how their reward distribution would be like, in order to choose from them.
-4. You must choose between Phoenix and Dragon, and output like <answer> [Phoenix or Dragon] </answer>.
-
-
+3. Analyze the symbolic meaning of each arm's name to guess how their reward distribution might behave.
+4. Based on the symbolic meaning of their names, which arm do you think is more likely to give higher rewards on average? Choose between {name_a} and {name_b}, and output like <answer> [{name_a} or {name_b}] </answer>.
 Current State:
 {observation}
 Think and choose which arm to pull:\
@@ -44,18 +43,43 @@ def main():
 
     low_risk_name = os.environ.get("LOW_RISK_NAME")
     high_risk_name = os.environ.get("HIGH_RISK_NAME")
+    
+    low_risk_val_name = os.environ.get("LOW_RISK_VAL_NAME", low_risk_name)
+    high_risk_val_name = os.environ.get("HIGH_RISK_VAL_NAME", high_risk_name)
+
+    if low_risk_val_name != low_risk_name:
+        print("[INFO] YOU ARE USING DIFFERENT TRAIN/VAL LOW-ARM NAMES.")
+        
+    if high_risk_val_name != high_risk_name:
+        print("[INFO] YOU ARE USING DIFFERENT TRAIN/VAL HIGH-ARM NAMES.")
 
     # Generate instructions
     seeds = range(args.seed, args.seed + args.train_size + args.test_size)
+    
+    
+    # Generate training instructions
     instructions = []
-    
-    
-    
-    for seed in seeds:
+    for seed in range(args.seed, args.seed + args.train_size):
         env = TwoArmedBanditEnv(low_risk_name=low_risk_name, high_risk_name=high_risk_name, seed=seed)
         observation = env.reset(seed=seed)
-        instruction = intro.format(observation=observation)
+        # shuffle to make prompt more robust
+        names = [low_risk_name, high_risk_name]
+        rng = random.Random(seed)
+        rng.shuffle(names)  # shuffle in place using seeded random number generator
+        instruction = intro.format(observation=observation, name_a=names[0], name_b=names[1])
         instructions.append(instruction)
+
+    # Generate validation instructions
+    for seed in range(args.seed + args.train_size, args.seed + args.train_size + args.test_size):
+        env = TwoArmedBanditEnv(low_risk_name=low_risk_val_name, high_risk_name=high_risk_val_name, seed=seed)
+        observation = env.reset(seed=seed)
+        # shuffle to make prompt more robust
+        names = [low_risk_val_name, high_risk_val_name]
+        rng = random.Random(seed)
+        rng.shuffle(names)  # shuffle in place using seeded random number generator
+        instruction = intro.format(observation=observation, name_a=names[0], name_b=names[1])
+        instructions.append(instruction)
+
 
     def _create_instance(idx, instruction):
         prompt_formatted = templates[args.prefix].format(prompt=instruction)
