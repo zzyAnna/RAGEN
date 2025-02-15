@@ -17,6 +17,7 @@ We first do hyperparameter search, hoping to find a good combination to guide la
     - max_turns: [2, 5, 8]
     - temperature: [0.1, 0.5, 1]
 
+## **[WARNING] If `--parallel` mode fails (really because of gpu, not out of memory), please remove this argument**
 #### [EXP 1]: Search group 1 [train_batch_size, n_rollout] (Tested)
 ```bash
 bash scripts/hyperparam_search.sh \
@@ -24,6 +25,7 @@ bash scripts/hyperparam_search.sh \
     --exp_base_name="hyperparam_searching" \
     --search_group 1 \
     --micro_batch_size 4 \
+    --parallel \
     --n_gpus 1
 ```
 #### [EXP 2]: Search group 2 [actor_lr] (Tested)
@@ -33,6 +35,7 @@ bash scripts/hyperparam_search.sh \
     --exp_base_name="hyperparam_searching" \
     --search_group 2 \
     --micro_batch_size 4 \
+    --parallel \
     --n_gpus 1
 ```
 #### [EXP 3]: Search group 3 [kl_coef]  (Tested)
@@ -42,6 +45,7 @@ bash scripts/hyperparam_search.sh \
     --exp_base_name="hyperparam_searching" \
     --search_group 3 \
     --micro_batch_size 4 \
+    --parallel \
     --n_gpus 1
 ```
 #### [EXP 4]: Search group 4 [max_turns, temperature] (Tested)
@@ -51,6 +55,7 @@ bash scripts/hyperparam_search.sh \
     --exp_base_name="hyperparam_searching" \
     --search_group 4 \
     --micro_batch_size 4 \
+    --parallel \
     --n_gpus 1
 ```
 

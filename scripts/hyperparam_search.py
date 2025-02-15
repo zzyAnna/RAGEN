@@ -1,15 +1,93 @@
 from dataclasses import dataclass, field
-from typing import Dict, List, Union, Any, Optional
+from typing import Dict, List, Union, Any, Optional, Tuple
 import itertools
 import subprocess
 import os
 from datetime import datetime
+import time
 import argparse
 from enum import Enum, auto
 import re
 import json
 from pathlib import Path
 
+import multiprocessing as mp
+from multiprocessing import Process, Queue, Lock
+
+class GPUManager:
+    def __init__(self):
+        self.lock = Lock()
+        self.device_count = self._get_gpu_count()
+        self.gpu_status = mp.Array('i', [0] * self.device_count)  # 0 = free, 1 = used
+        print(f"Found {self.device_count} GPUs")
+        
+    def _get_gpu_count(self) -> int:
+        """Get number of available GPUs using nvidia-smi"""
+        try:
+            result = subprocess.run(['nvidia-smi', '--query-gpu=gpu_name', '--format=csv,noheader'],
+                                 capture_output=True, text=True)
+            return len(result.stdout.strip().split('\n'))
+        except:
+            print("Warning: Could not get GPU count, falling back to 1")
+            return 1
+    
+    def get_gpu_memory_info(self, gpu_id: int) -> Tuple[int, int]:
+        """Get memory usage for specific GPU using nvidia-smi"""
+        try:
+            result = subprocess.run(
+                ['nvidia-smi', f'--id={gpu_id}', '--query-gpu=memory.used,memory.total', '--format=csv,noheader,nounits'],
+                capture_output=True, text=True
+            )
+            used, total = map(int, result.stdout.strip().split(','))
+            return used, total
+        except Exception as e:
+            print(f"Error getting GPU {gpu_id} memory info: {e}")
+            return 0, 0
+    
+    def acquire_gpu(self) -> Optional[int]:
+        """Try to acquire an available GPU"""
+        with self.lock:
+            for gpu_id in range(self.device_count):
+                if self.gpu_status[gpu_id] == 0:
+                    used, total = self.get_gpu_memory_info(gpu_id)
+                    if total > 0 and used/total < 0.5:  # Less than 50% memory used
+                        self.gpu_status[gpu_id] = 1
+                        return gpu_id
+        return None
+
+    def release_gpu(self, gpu_id: int):
+        """Release a GPU back to the pool"""
+        with self.lock:
+            self.gpu_status[gpu_id] = 0
+
+def run_experiment(command: str, gpu_id: int, result_queue: Queue, log_dir: Path):
+    """Run a single experiment on specified GPU"""
+    try:
+        # Ensure unique log file per process
+        log_file = log_dir / f"gpu_{gpu_id}_exp_{datetime.now().strftime('%Y%m%d_%H%M%S')}.log"
+        
+        # Modify command to use specific GPU
+        gpu_command = f"CUDA_VISIBLE_DEVICES={gpu_id} {command}"
+        print(f"Running on GPU {gpu_id}: {gpu_command}")
+        
+        # Run the experiment
+        with open(log_file, 'w') as f:
+            result = subprocess.run(gpu_command, shell=True, check=True, stdout=f, stderr=subprocess.STDOUT)
+        
+        # Parse results
+        metrics = None
+        if result.returncode == 0:
+            with open(log_file, 'r') as f:
+                log_content = f.read()
+            groups = re.findall(r"global_metrics\s+({[^}]+})", log_content)
+            if groups:
+                metrics = eval(groups[-1])
+        
+        result_queue.put((gpu_id, metrics))
+        
+    except Exception as e:
+        print(f"Error in experiment on GPU {gpu_id}: {e}")
+        result_queue.put((gpu_id, None))
 
 # ============= Hyperparameter Configuration Part =============
 class ParamType(Enum):
@@ -41,7 +119,7 @@ class HyperParamConfig:
     def __init__(self):
         self.groups: Dict[int, HyperParamGroup] = {}
         self.fixed_params: Dict[str, Any] = {
-            "model.base_model": ["Qwen/Qwen2.5-3B-Instruct"],
+            "model.base_model": ["Qwen/Qwen2.5-0.5B-Instruct"],
             "optimization.adv_estimator": ["grpo"],
             "training.train_data_num": [500],
             "training.val_data_num": [50],
@@ -92,7 +170,17 @@ class HyperParamSearch:
         self.searching_params: List[str] = []
         self.log_name = ""
         self.search_group_id = -1
-        self.searched_param_log_path = './log/searched_hyper_params'
+        self.searched_param_log_path = Path('./log/searched_hyper_params')
+        self.log_dir = Path('./log/terminal/hyper_param_search_logs')
+        try:
+            self.gpu_manager = GPUManager()
+        except Exception as e:
+            print(f"Error initializing GPU manager: {e}")
+            print("Falling back to single GPU mode")
+            self.gpu_manager = None
+        # Create directories
+        self.searched_param_log_path.mkdir(parents=True, exist_ok=True)
+        self.log_dir.mkdir(parents=True, exist_ok=True)
 
     def setup_search_group(self, search_group: int, fixed_values: Dict[str, Any]) -> None:
         """Set up parameter grid based on search group and fixed values"""
@@ -168,55 +256,128 @@ class HyperParamSearch:
                 return f"{value:.2e}".replace('-0', '-').replace('+0', '')
             return f"{value:.4f}".rstrip('0').rstrip('.')
         return str(value)
+    
+    def run_parallel_experiments(self, experiments: List[Tuple[Dict[str, Any], str]], 
+                               dry_run: bool = True, is_parallel: bool = False) -> Optional[Dict[str, Any]]:
+        if dry_run:
+            return self._handle_dry_run(experiments)
 
-    def run_grid_search(self, base_experiment_name: str, dry_run: bool = True, env_name: str = "sokoban") -> None:
-        """Run grid search with all parameter combinations"""
+        if not self.gpu_manager or not is_parallel: # if no GPUs or not parallel mode
+            return self._run_sequential(experiments)
+
+        result_queue = Queue()
+        running_processes: List[Tuple[Process, int, Dict[str, Any]]] = []  # (process, gpu_id, params)
+        completed_results: List[Tuple[Dict[str, Any], Dict]] = []
+        remaining_experiments = experiments.copy()
+
+        while remaining_experiments or running_processes:
+            # Start new experiments if GPUs are available
+            while remaining_experiments:
+                gpu_id = self.gpu_manager.acquire_gpu()
+                if gpu_id is None:
+                    break
+                    
+                params, command = remaining_experiments.pop(0)
+                process = Process(
+                    target=run_experiment,
+                    args=(command, gpu_id, result_queue, self.log_dir)
+                )
+                process.start()
+                running_processes.append((process, gpu_id, params))
+                print(f"Started experiment on GPU {gpu_id}")
+
+            # Check for completed processes
+            if not result_queue.empty():
+                gpu_id, result = result_queue.get()
+                for i, (process, proc_gpu_id, params) in enumerate(running_processes):
+                    if proc_gpu_id == gpu_id:
+                        process.join()
+                        self.gpu_manager.release_gpu(gpu_id)
+                        if result is not None:
+                            completed_results.append((params, result))
+                            print(f"Experiment completed with score: {result['global_score/mean']}")
+                        running_processes.pop(i)
+                        print(f"Completed experiment on GPU {gpu_id}")
+                        break
+
+            time.sleep(1)  # Prevent busy waiting
+
+        # Find best result
+        if completed_results:
+            best_result = max(completed_results, key=lambda x: x[1]['global_score/mean'])
+            return best_result[0]
+        return None
+    
+    def _run_sequential(self, experiments: List[Tuple[Dict[str, Any], str]]) -> Optional[Dict[str, Any]]:
+        """Fallback method for sequential execution"""
+        best_params = None
+        best_score = float('-inf')
+
+        for params, command in experiments:
+            print(f"Running experiment with params: {params}")
+            try:
+                log_file = self.log_dir / f"exp_{datetime.now().strftime('%Y%m%d_%H%M%S_%f')}.log"
+                with open(log_file, 'w') as f:
+                    result = subprocess.run(command, shell=True, check=True, stdout=f, stderr=subprocess.STDOUT)
+
+                if result.returncode == 0:
+                    with open(log_file, 'r') as f:
+                        log_content = f.read()
+                    groups = re.findall(r"global_metrics\s+({[^}]+})", log_content)
+                    if groups:
+                        metrics = eval(groups[-1])
+                        score = metrics['global_score/mean']
+                        if score > best_score:
+                            best_score = score
+                            best_params = params
+                            print(f"New best score: {score}")
+            except Exception as e:
+                print(f"Error running experiment: {e}")
+
+        return best_params
+
+    def run_grid_search(self, base_experiment_name: str, dry_run: bool = True, env_name: str = "sokoban", parallel: bool = False) -> None:
+        """Run grid search with parallel GPU execution"""
         combinations = [dict(zip(self.param_grid.keys(), vals)) 
                        for vals in itertools.product(*self.param_grid.values())]
         
-        print(f"Total combinations: {len(combinations)}")
+        print(f"Total combinations to try: {len(combinations)}")
         
-        log_dir = self._setup_log_directory()
-
-        best_param_combination = None
-        best_score_so_far = float('-inf')
-        
-        for i, params in enumerate(combinations, 1):
+        # Prepare experiments
+        experiments = []
+        for params in combinations:
+            if not self.validate_params(params):
+                print(f"Skipping invalid combination: {params}")
+                continue
+                
             params["training.ppo_batch_size"] = params["training.train_batch_size"] * params["training.n_rollout"]
             command = self.generate_command(params, base_experiment_name, env_name)
-            print(f"Running combination {i}/{len(combinations)}:")
-            print(command)
-            print('-' * 80)
+            experiments.append((params, command))
+
+        # Run experiments in parallel
+        best_params = self.run_parallel_experiments(experiments, dry_run, parallel)
+        
+        if best_params and not dry_run:
+            print(f"Best combination found: {best_params}")
             
-            if not dry_run:
-                my_dict = self._run_experiment(command, log_dir)
-                if my_dict is not None and my_dict['global_score/mean'] > best_score_so_far:
-                    best_param_combination = params
-                    best_score_so_far = my_dict['global_score/mean']
-                    print(f"New best combination: {params} with score {best_score_so_far}")
-            else:
-                # For dry run, synthetic score
-                fake_metrics = {
-                    'global_score/mean': float(hash(str(params)) % 100) / 10.0,  # Generate deterministic fake score
-                    'global_score/max': float(hash(str(params)) % 150) / 10.0,
-                    'global_score/min': float(hash(str(params)) % 50) / 10.0,
-                    'global_score/std': float(hash(str(params)) % 20) / 10.0
-                }
-                print('Dry run - simulated metrics:', fake_metrics)
-                if all(param in params for param in self.searching_params):
-                    file_name = os.path.join(self.searched_param_log_path, f"searched_params_group_{self.search_group_id}_dry_run.json")
-                    os.makedirs(self.searched_param_log_path, exist_ok=True)
-                    with open(file_name, 'w') as f:
-                        json.dump(params, f, indent=2)
-                    print(f"Dry run - wrote simulated params to: {file_name}")
-        if not dry_run:
-            if best_param_combination:
-                print(f"Best combination found: {best_param_combination} with score {best_score_so_far}")
-                assert self.search_group_id != -1, "search_group_id should not be -1"
-                file_name = os.path.join(self.searched_param_log_path, f"searched_params_group_{self.search_group_id}.json")
-                os.makedirs(self.searched_param_log_path, exist_ok=True)
-                with open(file_name, 'w') as f:
-                    json.dump(best_param_combination, f, indent=2)
+            # Save best parameters
+            param_file = self.searched_param_log_path / f"searched_params_group_{self.search_group_id}.json"
+            with open(param_file, 'w') as f:
+                json.dump(best_params, f, indent=2)
+    
+    def _handle_dry_run(self, experiments: List[Tuple[Dict[str, Any], str]]) -> Optional[Dict[str, Any]]:
+        """Handle dry run mode with simulated results"""
+        for params, command in experiments:
+            print(f"Would run command: {command}")
+            fake_metrics = {
+                'global_score/mean': float(hash(str(params)) % 100) / 10.0,
+                'global_score/max': float(hash(str(params)) % 150) / 10.0,
+                'global_score/min': float(hash(str(params)) % 50) / 10.0,
+                'global_score/std': float(hash(str(params)) % 20) / 10.0
+            }
+            print('Dry run - simulated metrics:', fake_metrics)
+        
+        return experiments[0][0] if experiments else None
 
 
     def _setup_log_directory(self) -> str:
@@ -225,30 +386,6 @@ class HyperParamSearch:
         
         os.makedirs(log_dir, exist_ok=True)
         return log_dir
-
-    def _run_experiment(self, command: str, log_dir: str) -> Union[Dict, None]:
-        """Run single experiment with logging"""
-        try:
-            log_file = os.path.join(log_dir, 
-                                  f"{self.log_name}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.log")
-            with open(log_file, 'w') as f:
-                subprocess.run(command, shell=True, check=True, stdout=f, stderr=subprocess.STDOUT)
-        except subprocess.CalledProcessError as e:
-            print(f"Error occurred: {e}, return code was {e.returncode}")
-            if hasattr(e, 'output'):
-                print(e.output)
-            return None
-
-        ## read the log file and return the result based on certain pattern
-        ### an example is like "global_metrics {'global_score/mean': -3.55859375, 'global_score/max': 10.9, 'global_score/min': -5.5, 'global_score/std': 3.8139244745355065}"
-        with open(log_file, 'r') as f:
-            log_content = f.read()
-        groups = re.findall(r"global_metrics\s+({[^}]+})", log_content)
-        if groups:
-            metric_values_dict = eval(groups[-1])
-            print(metric_values_dict)
-            return metric_values_dict
-        return None
 
 
 # ============= Main Functionality Part =============
@@ -267,6 +404,8 @@ def create_argument_parser() -> argparse.ArgumentParser:
     # Optional arguments
     parser.add_argument('--dry_run', action='store_true',
                       help='Print commands without executing')
+    parser.add_argument('--parallel', action='store_true',
+                      help='Run experiments in parallel (default: sequential)')
     
     # Group-specific parameters
     parser.add_argument('--ppo_batch_size', type=int,
@@ -438,7 +577,8 @@ def main():
     search.run_grid_search(
         base_experiment_name=args.base_experiment_name,
         dry_run=args.dry_run,
-        env_name=args.env_name
+        env_name=args.env_name,
+        parallel=args.parallel
     )
 
 if __name__ == "__main__":
