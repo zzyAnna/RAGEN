@@ -807,8 +807,7 @@ class RayPPOTrainer(object):
                                 response_ids = batch.batch['responses'][0]
                                 unmasked_ids = response_ids[loss_mask[0] == 0]
                                 print("Unmasked batch[0] (aftter masking):",self.tokenizer.decode(unmasked_ids))
-                            else:
-                                actor_output = self.actor_rollout_wg.update_actor(batch)
+                            actor_output = self.actor_rollout_wg.update_actor(batch)
                         actor_output_metrics = reduce_metrics(actor_output.meta_info['metrics'])
                         metrics.update(actor_output_metrics)
 
