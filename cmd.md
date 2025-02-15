@@ -202,7 +202,7 @@ mkdir -p ./log/terminal
 
 bash train.sh sokoban \
     rl_or_sft=sft \
-    sft.output_dir=models/sft/Qwen2.5-0.5B-Instruct \
+    sft.output_dir=models/sft/sokoban/Qwen2.5-0.5B-Instruct \
     sft.training.base_model=Qwen/Qwen2.5-0.5B-Instruct \
     sft.training.experiment_name=sokoban_0_5B_instruct_sft \
     sft.data_generation.train_size=2000 \
@@ -221,7 +221,7 @@ mkdir -p ./log/terminal
 
 bash train.sh sokoban \
     rl_or_sft=sft \
-    sft.output_dir=models/sft/Qwen2.5-3B-Instruct \
+    sft.output_dir=models/sft/sokoban/Qwen2.5-3B-Instruct \
     sft.training.base_model=Qwen/Qwen2.5-3B-Instruct \
     sft.training.experiment_name=sokoban_3B_instruct_sft \
     sft.data_generation.train_size=2000 \
@@ -307,7 +307,7 @@ mkdir -p ./log/terminal
 
 bash train.sh frozenlake \
     rl_or_sft=sft \
-    sft.output_dir=models/sft/Qwen2.5-0.5B-Instruct \
+    sft.output_dir=models/sft/frozenlake/Qwen2.5-0.5B-Instruct \
     sft.training.base_model=Qwen/Qwen2.5-0.5B-Instruct \
     sft.training.experiment_name=frozenlake_0_5B_instruct_sft \
     sft.data_generation.train_size=2000 \
@@ -326,7 +326,7 @@ mkdir -p ./log/terminal
 
 bash train.sh frozenlake \
     rl_or_sft=sft \
-    sft.output_dir=models/sft/Qwen2.5-3B-Instruct \
+    sft.output_dir=models/sft/frozenlake/Qwen2.5-3B-Instruct \
     sft.training.base_model=Qwen/Qwen2.5-3B-Instruct \
     sft.training.experiment_name=frozenlake_3B_instruct_sft \
     sft.data_generation.train_size=2000 \
