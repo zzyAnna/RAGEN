@@ -66,12 +66,12 @@ class HyperParamConfig:
             ], "Training Batch Size and Rollout"),
 
             2: HyperParamGroup(2, [
-                HyperParam("training.actor_lr", ParamType.NUMERIC, 1e-6,
+                HyperParam("optimization.actor_lr", ParamType.NUMERIC, 1e-6,
                           search_space=[5e-7, 1e-6, 5e-6, 1e-5], group=2) # 1e-6
             ], "Actor Learning Rate"),
             
             3: HyperParamGroup(3, [
-                HyperParam("training.kl_coef", ParamType.NUMERIC, 0.04,
+                HyperParam("optimization.kl_coef", ParamType.NUMERIC, 0.04,
                           search_space=[0.001, 0.005, 0.01, 0.04, 0.1, 0.5], group=3) # 0.04
             ], "KL Coefficient"),
             
@@ -281,9 +281,11 @@ def create_argument_parser() -> argparse.ArgumentParser:
                       help='Fixed value for max turns (required for group 5)')
     parser.add_argument('--temperature', type=float,
                       help='Fixed value for temperature (required for group 5)')
+    parser.add_argument('--actor_lr', type=float,
+                      help='Fixed value for actor learning rate (required for group 2)')
     parser.add_argument('--n_gpus', type=int, default=1,
                         help='Number of GPUs to use for training')
-    parser.add_argument('--micro_batch_size', type=int, default=1,
+    parser.add_argument('--micro_batch_size', type=int, default=2,
                         help='Micro batch size for RAGEN training, must be greater than n_gpus')
     
     return parser
@@ -415,13 +417,13 @@ def main():
     if args.n_rollout is not None:
         fixed_values["training.n_rollout"] = args.n_rollout
     if args.kl_coef is not None:
-        fixed_values["training.kl_coef"] = args.kl_coef
+        fixed_values["optimization.kl_coef"] = args.kl_coef
     if args.max_turns is not None:
         fixed_values["training.max_turns"] = args.max_turns
     if args.temperature is not None:
         fixed_values["training.temperature"] = args.temperature
     if args.actor_lr is not None:
-        fixed_values["training.actor_lr"] = args.actor_lr
+        fixed_values["optimization.actor_lr"] = args.actor_lr
     if args.n_gpus is not None:
         fixed_values["system.n_gpus"] = args.n_gpus
     if args.micro_batch_size is not None:
