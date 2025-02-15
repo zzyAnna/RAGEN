@@ -182,10 +182,6 @@ class HyperParamSearch:
         best_score_so_far = float('-inf')
         
         for i, params in enumerate(combinations, 1):
-            if not self.validate_params(params):
-                print(f"Skipping invalid combination: {params}")
-                print('-' * 80)
-                continue
             params["training.ppo_batch_size"] = params["training.train_batch_size"] * params["training.n_rollout"]
             command = self.generate_command(params, base_experiment_name, env_name)
             print(f"Running combination {i}/{len(combinations)}:")
