@@ -25,6 +25,8 @@ class GenerationConfig:
     num_gpus: int
     no_think_rl: bool=False
     state_masking: bool=False
+    start_state_marker: str="<start-state>"
+    end_state_marker: str="<end-state>"
 
 class LLMGenerationManager:
     def __init__(
@@ -57,9 +59,8 @@ class LLMGenerationManager:
             padding="longest"
         )['input_ids']
 
-    def _postprocess_responses(self, responses: torch.Tensor,envs:List[Any]) -> torch.Tensor:
+    def _postprocess_responses(self, responses: torch.Tensor, envs: List[Any]) -> torch.Tensor:
         """Process responses to remove 1. multiple answers or 2. reward hacking attempts."""
-        # Remove everything after </answer> but keep the tag
         responses_str = self.tokenizer.batch_decode(
             responses, 
             skip_special_tokens=True
@@ -69,15 +70,12 @@ class LLMGenerationManager:
                     if '</answer>' in resp else resp 
                     for resp in responses_str]
         
-        # # Remove reward hacking patterns
-        # hack_pattern = r'reward: (-?\d+\.\d+)\ndone: (True|False)'
-        # hacked = [resp for resp in responses_str if re.search(hack_pattern, resp)]
-        # if hacked:
-        #     print(f"[WARNING] HACKED RESPONSES: {hacked}")
-        # responses_str = [re.sub(hack_pattern, '', resp) for resp in responses_str]
         if self.config.state_masking:
-            # check if <state>xxx</state> is in the response, if so, remove it
-            hack_pattern = r'<state>[\s\S]*?</state>'  # Changed to handle newlines and non-greedy matching
+            # Escape special characters in markers for regex
+            start_marker = re.escape(self.config.start_state_marker)
+            end_marker = re.escape(self.config.end_state_marker)
+            hack_pattern = f'{start_marker}[\\s\\S]*?{end_marker}'
+            
             hacked = [resp for resp in responses_str if re.search(hack_pattern, resp, re.DOTALL)]
             if hacked:
                 print(f"[WARNING] HACKED RESPONSES: {hacked}")
@@ -95,10 +93,20 @@ class LLMGenerationManager:
     def _process_next_obs(self, next_obs: List[str]) -> torch.Tensor:
         """Process next observations from environment."""
         if self.config.state_masking:
-            # check if there's already a <state> and </state> in the observation, if so, replace them <inner_state> and </inner_state>
-            next_obs = [re.sub(r'<state>', '<inner_state>', obs) for obs in next_obs]
-            next_obs = [re.sub(r'</state>', '</inner_state>', obs) for obs in next_obs]
-            next_obs = [f"<state>{obs}</state>" for obs in next_obs]
+            start_marker = self.config.start_state_marker
+            end_marker = self.config.end_state_marker
+            
+            # Create inner versions by adding 'inner_' prefix
+            inner_start = f"<inner_{start_marker[1:]}"
+            inner_end = f"<inner_{end_marker[1:]}"
+            
+            # Replace any existing markers with inner versions
+            next_obs = [re.sub(re.escape(start_marker), inner_start, obs) for obs in next_obs]
+            next_obs = [re.sub(re.escape(end_marker), inner_end, obs) for obs in next_obs]
+            
+            # Wrap with state markers
+            next_obs = [f"{start_marker}{obs}{end_marker}" for obs in next_obs]
+        
         next_obs_ids = self.tokenizer(
             next_obs, 
             padding='longest',
