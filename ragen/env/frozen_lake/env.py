@@ -150,11 +150,11 @@ class FrozenLakeEnv(BaseDiscreteActionEnv, GymFrozenLakeEnv):
     }
 
     ACTION_LOOKUP = {
-        0: "none",
-        1: "left",
-        2: "down",
-        3: "right",
-        4: "up",
+        0: "None",
+        1: "Left",
+        2: "Down",
+        3: "Right",
+        4: "Up",
     }
 
     INVALID_ACTION = 0

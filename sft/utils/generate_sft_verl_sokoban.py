@@ -38,7 +38,7 @@ Rules:
 2. Avoid walls (#).
 
 Answers:
-<answer> 1 (Up) </answer> | <answer> 2 (Down) </answer> | <answer> 3 (Left) </answer> | <answer> 4 (Right) </answer>
+<answer> Up </answer> | <answer> Down </answer> | <answer> Left </answer> | <answer> Right </answer>
 
 Rewards:
 Move: -0.1
@@ -198,8 +198,12 @@ def create_chat_messages_for_env(args):
     # images.append(env.render('rgb_array'))
     gt_action_sequence = get_shortest_action_path(env.room_fixed, env.room_state, MAX_DEPTH=MAX_DEPTH)
     assert gt_action_sequence, f"No action sequence found for seed {seed}"
+    # if len(gt_action_sequence) > 2:
+    #     print(f"Warning: Action sequence length exceeds 2 {len(gt_action_sequence)} for seed {seed}")
+    #     return []
     for action in gt_action_sequence:
-        response_message = templates[prefix]['response'].format(action=action)
+        action_str = env.ACTION_LOOKUP[action]
+        response_message = templates[prefix]['response'].format(action=action_str)
         instance = copy.deepcopy(instance_template)
         instance['prompt'] = copy.deepcopy(messages)
         instance['response'] = response_message

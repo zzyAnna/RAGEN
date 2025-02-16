@@ -30,7 +30,7 @@ Rules:
 2. Avoid walls (#).
 
 Answers:
-<answer> 1 (Up) </answer> | <answer> 2 (Down) </answer> | <answer> 3 (Left) </answer> | <answer> 4 (Right) </answer>
+<answer> Up </answer> | <answer> Down </answer> | <answer> Left </answer> | <answer> Right </answer>
 
 Rewards:
 Move: -0.1
@@ -83,7 +83,8 @@ def main():
         )
         observation = env.reset(seed=seed, mode='tiny_rgb_array')
         gt_action_sequence = get_shortest_action_path(env.room_fixed, env.room_state, MAX_DEPTH=100)
-        if gt_action_sequence is None or len(gt_action_sequence) == 0 or len(gt_action_sequence) > 1:
+        if gt_action_sequence is None or len(gt_action_sequence) > 2:
+            print(f"Warning: Action sequence length exceeds 2 {len(gt_action_sequence)} for seed {seed}")
             continue
         instruction = INSTRUCTION_TEMPLATE.format(observation=observation)
         if seed < args.seed + args.train_size:

@@ -23,11 +23,11 @@ class SokobanEnv(BaseDiscreteActionEnv, GymSokobanEnv):
     }
 
     ACTION_LOOKUP = {
-        0: "none",
-        1: "up",
-        2: "down",
-        3: "left",
-        4: "right",
+        0: "None",
+        1: "Up",
+        2: "Down",
+        3: "Left",
+        4: "Right",
     }
 
     INVALID_ACTION = 0
