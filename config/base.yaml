@@ -31,7 +31,7 @@ training:
   total_epochs: 5
   temperature: 0.7
   use_sft: false
-  use_kl_loss: True # this means actor KL Loss
+  use_kl_loss: true # this means actor KL Loss
   no_think_rl: false
   state_masking: false
   binary_reward: false
@@ -106,7 +106,7 @@ sft:
     dim_x: 6
     dim_y: 6
     num_boxes: 1
-    max_steps: 5
+    max_steps: 100
     search_depth: 30
   
   # FrozenLake-specific settings
