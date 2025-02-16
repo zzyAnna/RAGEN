@@ -23,7 +23,7 @@ class SFTPipeline:
         self.output_dir = config['sft']['output_dir']
         
         # Create output directory if it doesn't exist
-        assert not os.path.exists(self.output_dir), f"Output directory {self.output_dir} already exists"
+        # assert not os.path.exists(self.output_dir), f"Output directory {self.output_dir} already exists"
         os.makedirs(self.output_dir, exist_ok=True)
         
         # Environment-specific configurations
@@ -154,7 +154,7 @@ class SFTPipeline:
     
     def validate_model(self, merged_model_path: str) -> None:
         """Validate the model on the validation set using the RL script."""
-        logger.info("Validating model")
+        logger.info(f"Validating model from {merged_model_path}")
         
         log_file = os.path.join(merged_model_path, "validate.log")
         max_prompt_length = (self.config['training']['max_start_length'] +
@@ -185,7 +185,7 @@ class SFTPipeline:
             f"data.max_obs_length={self.config['training']['max_obs_length']}",
             "data.shuffle_train_dataloader=True",
             f"algorithm.adv_estimator={self.config['optimization']['adv_estimator']}",
-            f"actor_rollout_ref.model.path={self.config['model']['base_model']}",
+            f"actor_rollout_ref.model.path={merged_model_path}",
             f"actor_rollout_ref.model.enable_gradient_checkpointing={str(self.config['model']['gradient_checkpointing']).lower()}",
             f"actor_rollout_ref.actor.optim.lr={self.config['optimization']['actor_lr']}",
             f"actor_rollout_ref.actor.use_kl_loss={self.config['training']['use_kl_loss']}",

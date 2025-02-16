@@ -205,8 +205,8 @@ bash train.sh sokoban \
     sft.output_dir=models/sft/sokoban/Qwen2.5-0.5B-Instruct \
     sft.training.base_model=Qwen/Qwen2.5-0.5B-Instruct \
     sft.training.experiment_name=sokoban_0_5B_instruct_sft \
-    sft.data_generation.train_size=2000 \
-    sft.data_generation.test_size=200 \
+    sft.data_generation.train_size=10000 \
+    sft.data_generation.test_size=500 \
     sft.training.micro_batch_size=4 \
     sft.training.epochs=5 \
     training.val_batch_size=10 \
@@ -224,8 +224,8 @@ bash train.sh sokoban \
     sft.output_dir=models/sft/sokoban/Qwen2.5-3B-Instruct \
     sft.training.base_model=Qwen/Qwen2.5-3B-Instruct \
     sft.training.experiment_name=sokoban_3B_instruct_sft \
-    sft.data_generation.train_size=2000 \
-    sft.data_generation.test_size=200 \
+    sft.data_generation.train_size=10000 \
+    sft.data_generation.test_size=500 \
     sft.training.micro_batch_size=4 \
     sft.training.epochs=5 \
     training.val_batch_size=10 \
@@ -310,8 +310,8 @@ bash train.sh frozenlake \
     sft.output_dir=models/sft/frozenlake/Qwen2.5-0.5B-Instruct \
     sft.training.base_model=Qwen/Qwen2.5-0.5B-Instruct \
     sft.training.experiment_name=frozenlake_0_5B_instruct_sft \
-    sft.data_generation.train_size=2000 \
-    sft.data_generation.test_size=200 \
+    sft.data_generation.train_size=10000 \
+    sft.data_generation.test_size=500 \
     sft.training.micro_batch_size=4 \
     sft.training.epochs=5 \
     training.val_batch_size=10 \
@@ -329,8 +329,8 @@ bash train.sh frozenlake \
     sft.output_dir=models/sft/frozenlake/Qwen2.5-3B-Instruct \
     sft.training.base_model=Qwen/Qwen2.5-3B-Instruct \
     sft.training.experiment_name=frozenlake_3B_instruct_sft \
-    sft.data_generation.train_size=2000 \
-    sft.data_generation.test_size=200 \
+    sft.data_generation.train_size=10000 \
+    sft.data_generation.test_size=500 \
     sft.training.micro_batch_size=4 \
     sft.training.epochs=5 \
     training.val_batch_size=10 \
