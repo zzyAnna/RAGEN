@@ -35,7 +35,7 @@ Rules:
 2. Frozen tiles are slippery, you may move perpendicular to your intended direction.
 
 Answers:
-<answer> 1 (Left) </answer> | <answer> 2 (Down) </answer> | <answer> 3 (Right) </answer> | <answer> 4 (Up) </answer>
+<answer> Left </answer> | <answer> Down </answer> | <answer> Right </answer> | <answer> Up </answer>
 
 Rewards:
 Fall into hole: 0
@@ -200,7 +200,8 @@ def create_chat_messages_for_env(args):
     )
     assert gt_action_sequence, f"No action sequence found for seed {seed}"
     for action in gt_action_sequence:
-        response_message = templates[prefix]['response'].format(action=action)
+        action_str = env.ACTION_LOOKUP[action]
+        response_message = templates[prefix]['response'].format(action=action_str)
         instance = copy.deepcopy(instance_template)
         instance['prompt'] = copy.deepcopy(messages)
         instance['response'] = response_message
