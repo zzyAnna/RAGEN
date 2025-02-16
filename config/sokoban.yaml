@@ -7,4 +7,4 @@ env:
     dim_y: 6
     num_boxes: 1
     max_steps: 100
-    search_depth: 30
+    search_depth: 30 # this will change the starting position of the player

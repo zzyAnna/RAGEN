@@ -83,6 +83,13 @@ def generate_random_map(
     return ["".join(x) for x in board]
 
 
+
+
+
+
+
+
+
 class FrozenLakeEnv(BaseDiscreteActionEnv, GymFrozenLakeEnv):
     """
     Inherits from gymnasium.envs.toy_text.frozen_lake.FrozenLakeEnv
@@ -195,6 +202,9 @@ class FrozenLakeEnv(BaseDiscreteActionEnv, GymFrozenLakeEnv):
     def _get_player_position(self):
         return (self.s // self.ncol, self.s % self.ncol) # (row, col)
     
+
+
+
     def extract_action(self, text):
         """
         Extract action from text.
@@ -248,13 +258,17 @@ class FrozenLakeEnv(BaseDiscreteActionEnv, GymFrozenLakeEnv):
         GymFrozenLakeEnv.reset(self, seed=seed)
         self._reset_tracking_variables()
         return self.render(mode)
+    
+    def finished(self):
+        player_pos = self._get_player_position()
+        return self.desc[player_pos] in b"GH"
         
     def success(self):
         """
-        Check if the agent has reached the goal (G)
+        Check if the agent has reached the goal (G) or hole (H)
         """
-        row, col = self.s // self.ncol, self.s % self.ncol
-        return self.desc[row, col] == b"G"
+        player_pos = self._get_player_position()
+        return self.desc[player_pos] in b"G"
     
     def step(self, action: int):
         """
@@ -262,7 +276,7 @@ class FrozenLakeEnv(BaseDiscreteActionEnv, GymFrozenLakeEnv):
         - Check if the action is effective (whether player moves in the env).
         """
         assert isinstance(action, int), "Action must be an integer"
-        assert not self.success(), "Agent has already reached the goal"
+        assert not self.success(), "Agent has already reached the goal or hole"
 
         if action == self.INVALID_ACTION: # no penalty for invalid action
             return self.render(), 0, False, {"action_is_effective": False}
@@ -272,15 +286,10 @@ class FrozenLakeEnv(BaseDiscreteActionEnv, GymFrozenLakeEnv):
             player_pos, reward, done, _, prob = GymFrozenLakeEnv.step(self, self.action_map[action])
 
         obs = self.render()
-        
-        # Check if the agent has fallen into a hole
-        row, col = player_pos // self.ncol, player_pos % self.ncol
-        if self.desc[row, col] == b"H":
-            done = True
-            reward = 0  # No reward for falling into a hole
-
         return obs, reward, done, {"action_is_effective": prev_player_position != int(player_pos)}
     
+
+     
     def render(self, mode='tiny_rgb_array'):
         assert mode in ['tiny_rgb_array', 'list', 'state', 'rgb_array', 'ansi']
         if mode in ['rgb_array', 'ansi']:
@@ -318,6 +327,8 @@ class FrozenLakeEnv(BaseDiscreteActionEnv, GymFrozenLakeEnv):
         if mode == 'tiny_rgb_array':
             lookup = lambda cell: self.GRID_LOOKUP.get(cell, "?")
             return "\n".join("".join(lookup(cell) for cell in row) for row in room_state)
+    
+        
     
     def copy(self):
         if self.env_kwargs['seed'] is None:

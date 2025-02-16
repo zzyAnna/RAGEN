@@ -2,12 +2,12 @@ import gym
 from gym_sokoban.envs.sokoban_env import SokobanEnv as GymSokobanEnv
 import numpy as np
 from ragen.utils import NoLoggerWarnings
-from .room_utils import generate_room
+from ragen.env.sokoban.room_utils import generate_room
 from ragen.utils import set_seed
 import re
 import copy
 
-from ..base import BaseDiscreteActionEnv
+from ragen.env.base import BaseDiscreteActionEnv
 
 class SokobanEnv(BaseDiscreteActionEnv, GymSokobanEnv):
 
@@ -251,4 +251,10 @@ Enjoy the challenge!
 """
 
 if __name__ == '__main__':
-    print(GUIDE)    
+    # print(GUIDE)
+    import matplotlib.pyplot as plt
+    env = SokobanEnv(dim_room=(6, 6), num_boxes=1, max_steps=100, search_depth=30)
+    print(env.reset(seed=100000))
+    np_img = env.get_image('rgb_array')
+    # save the image
+    plt.imsave('sokoban.png', np_img)
