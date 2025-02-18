@@ -48,6 +48,7 @@ class SokobanEnv(BaseDiscreteActionEnv, GymSokobanEnv):
         self.ACTION_SPACE = gym.spaces.discrete.Discrete(4, start=1)
         self.reward = 0
         self._valid_actions = []
+
     def extract_action(self, text):
         """
         Extract action from text.
@@ -98,6 +99,9 @@ class SokobanEnv(BaseDiscreteActionEnv, GymSokobanEnv):
             self.num_env_steps = self.reward_last = self.boxes_on_target = 0
             return self.render(mode)
         
+
+    def finished(self):
+        return self.num_env_steps >= self.max_steps or self.success()
 
     def success(self):
         return self.boxes_on_target == self.num_boxes
@@ -254,7 +258,14 @@ if __name__ == '__main__':
     # print(GUIDE)
     import matplotlib.pyplot as plt
     env = SokobanEnv(dim_room=(6, 6), num_boxes=1, max_steps=100, search_depth=30)
-    print(env.reset(seed=100000))
+    print(env.reset(seed=1010))
     np_img = env.get_image('rgb_array')
     # save the image
-    plt.imsave('sokoban.png', np_img)
+    plt.imsave('sokoban1.png', np_img)
+    print()
+
+    env2 = env.copy()
+    print(env2.reset(seed=1010))
+    np_img = env2.get_image('rgb_array')
+    # save the image
+    plt.imsave('sokoban2.png', np_img)

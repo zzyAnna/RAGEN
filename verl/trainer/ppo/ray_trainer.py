@@ -267,6 +267,8 @@ def compute_data_metrics(batch, use_critic=True):
             int(np.array(batch.non_tensor_batch['total_env'], dtype=np.int16).sum()),
         'metric/finished_env':
             int(np.array(batch.non_tensor_batch['finished_env'], dtype=np.int16).sum()),
+        'metric/success_env':
+            int(np.array(batch.non_tensor_batch['success_env'], dtype=np.int16).sum()),
         'metric/traj_length':
             float(np.array(batch.non_tensor_batch['traj_length'], dtype=np.int16).mean()),
         'metric/valid_action':
@@ -612,6 +614,19 @@ class RayPPOTrainer(object):
         for epoch in range(self.config.trainer.total_epochs):
             for batch_dict in self.train_dataloader:
                 print(f'epoch {epoch}, step {self.global_steps}')
+
+                # update ref_policy_wg
+                if self.config.trainer.ref_update_steps is not None and self.global_steps % self.config.trainer.ref_update_steps == 0:
+                    self.actor_rollout_wg.save_checkpoint(
+                        local_path=f'./log/temp/actor_rollout_wg_global_step_{self.global_steps}.pt',
+                        hdfs_path=None
+                    )
+                    self.ref_policy_wg.load_model_parameters(
+                        source_model_path=f'./log/temp/actor_rollout_wg_global_step_{self.global_steps}.pt',
+                        strict=True
+                    )
+                    print(f"load parameters from ./log/temp/actor_rollout_wg_global_step_{self.global_steps}.pt to ref_policy_wg")
+
                 metrics = {}
                 timing_raw = {}
 
@@ -622,6 +637,7 @@ class RayPPOTrainer(object):
                 print("env_seeds:", env_seeds)
                 for env, seed in zip(envs, env_seeds):
                     env.reset(seed=seed)
+
 
                 # pop those keys for generation
                 gen_batch = batch.pop(batch_keys=['input_ids', 'attention_mask', 'position_ids'])
@@ -670,6 +686,9 @@ class RayPPOTrainer(object):
                             output_dir=output_dir,
                             global_steps=self.global_steps,
                         )
+                        # print("[RESPONSE]", self.tokenizer.decode(final_gen_batch_output.batch['responses'][0]), final_gen_batch_output.batch['responses'][0].shape, "[/RESPONSE]")
+                        # print("[INPUT_IDS]", self.tokenizer.decode(final_gen_batch_output.batch['input_ids'][0]), final_gen_batch_output.batch['input_ids'][0].shape, "[/INPUT_IDS]")
+                        # print("[PROMPTS]", self.tokenizer.decode(final_gen_batch_output.batch['prompts'][0]), final_gen_batch_output.batch['prompts'][0].shape, "[/PROMPTS]")
 
                     with torch.no_grad():
                         output = self.actor_rollout_wg.compute_log_prob(final_gen_batch_output)
@@ -697,12 +716,14 @@ class RayPPOTrainer(object):
                     # metrics for actions
                     batch.non_tensor_batch['total_env'] = np.array([1 for _ in range(len(envs))], dtype=object)
                     batch.non_tensor_batch['finished_env'] = np.array([0 for _ in range(len(envs))], dtype=object)
+                    batch.non_tensor_batch['success_env'] = np.array([0 for _ in range(len(envs))], dtype=object)
                     batch.non_tensor_batch['traj_length'] = np.array([0 for _ in range(len(envs))], dtype=object)
                     batch.non_tensor_batch['valid_action'] = np.array([0 for _ in range(len(envs))], dtype=object)
                     batch.non_tensor_batch['effective_action'] = np.array([0 for _ in range(len(envs))], dtype=object)
                     batch.non_tensor_batch['effective_action_ratio'] = np.array([0 for _ in range(len(envs))], dtype=object)
                     for idx, env in enumerate(envs):
-                        batch.non_tensor_batch['finished_env'][idx] = int(env.success())
+                        batch.non_tensor_batch['finished_env'][idx] = int(env.finished())
+                        batch.non_tensor_batch['success_env'][idx] = int(env.success())
                         tracking_vars = env.get_tracking_variables()
                         batch.non_tensor_batch['traj_length'][idx] = len(tracking_vars['actions'])
                         batch.non_tensor_batch['valid_action'][idx] = sum(1 for x in tracking_vars['actions_valid'] if x is not None)
@@ -950,12 +971,14 @@ class RayPPOTrainer(object):
                 
                 test_batch.non_tensor_batch['total_env'] = np.array([1 for _ in range(len(envs))], dtype=object)
                 test_batch.non_tensor_batch['finished_env'] = np.array([0 for _ in range(len(envs))], dtype=object)
+                test_batch.non_tensor_batch['success_env'] = np.array([0 for _ in range(len(envs))], dtype=object)
                 test_batch.non_tensor_batch['traj_length'] = np.array([0 for _ in range(len(envs))], dtype=object)
                 test_batch.non_tensor_batch['valid_action'] = np.array([0 for _ in range(len(envs))], dtype=object)
                 test_batch.non_tensor_batch['effective_action'] = np.array([0 for _ in range(len(envs))], dtype=object)
                 test_batch.non_tensor_batch['effective_action_ratio'] = np.array([0 for _ in range(len(envs))], dtype=object)
                 for idx, env in enumerate(envs):
-                    test_batch.non_tensor_batch['finished_env'][idx] = int(env.success())
+                    test_batch.non_tensor_batch['finished_env'][idx] = int(env.finished())
+                    test_batch.non_tensor_batch['success_env'][idx] = int(env.success())
                     tracking_vars = env.get_tracking_variables()
                     test_batch.non_tensor_batch['traj_length'][idx] = len(tracking_vars['actions'])
                     test_batch.non_tensor_batch['valid_action'][idx] = sum(1 for x in tracking_vars['actions_valid'] if x is not None)
@@ -965,6 +988,7 @@ class RayPPOTrainer(object):
                 # action metrics
                 metrics['total_env'].append(test_batch.non_tensor_batch['total_env'])
                 metrics['finished_env'].append(test_batch.non_tensor_batch['finished_env'])
+                metrics['success_env'].append(test_batch.non_tensor_batch['success_env'])
                 metrics['traj_length'].append(test_batch.non_tensor_batch['traj_length'])
                 metrics['valid_action'].append(test_batch.non_tensor_batch['valid_action'])
                 metrics['effective_action'].append(test_batch.non_tensor_batch['effective_action'])
@@ -982,6 +1006,7 @@ class RayPPOTrainer(object):
             'global_score/std': float(global_scores.std()),
             'validate_metric/total_env': int(np.array(metrics['total_env'], dtype=np.int16).sum()),
             'validate_metric/finished_env': int(np.array(metrics['finished_env'], dtype=np.int16).sum()),
+            'validate_metric/success_env': int(np.array(metrics['success_env'], dtype=np.int16).sum()),
             'validate_metric/traj_length': float(np.array(metrics['traj_length'], dtype=np.int16).mean()),
             'validate_metric/valid_action': float(np.array(metrics['valid_action'], dtype=np.int16).mean()),
             'validate_metric/effective_action': float(np.array(metrics['effective_action'], dtype=np.int16).mean()),

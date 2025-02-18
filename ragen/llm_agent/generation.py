@@ -238,10 +238,17 @@ class LLMGenerationManager:
                 k: v[active_mask] for k, v in rollings.batch.items()
             })
             gen_output = self._generate_with_gpu_padding(rollings_active)
+            # print('rollings_active response:', rollings_active.batch['input_ids'][0], 'shape:', rollings_active.batch['input_ids'].shape)
+            # print('gen_output response:', gen_output.batch['responses'][0], 'shape:', gen_output.batch['responses'].shape)
+            # print('gen_output response str:', self.tokenizer.decode(gen_output.batch['responses'][0]))
+            # print('gen_output attention mask:', gen_output.batch['attention_mask'][0], 'shape:', gen_output.batch['attention_mask'].shape)
+            # print("eos token id:", self.tokenizer.eos_token_id)
 
             meta_info = gen_output.meta_info            
             responses_ids, responses_str = self._postprocess_responses(gen_output.batch['responses'],envs=envs)
             responses_ids, responses_str = self.tensor_fn._example_level_pad(responses_ids, responses_str, active_mask)
+
+            # print('gen_output response after postprocess:', responses_ids[0], 'shape:', responses_ids.shape)
 
             # Update visualization
             self._update_trajectory(trajectory, envs, responses_str, active_mask)
@@ -337,5 +344,10 @@ class LLMGenerationManager:
         
         final_output = DataProto.from_dict(final_output)
         final_output.meta_info.update(meta_info)
+
+        # print('final_output input_ids:', final_output.batch['input_ids'][0], 'shape:', final_output.batch['input_ids'].shape)
+        # print('final_output response:', final_output.batch['responses'][0], 'shape:', final_output.batch['responses'].shape)
+        # print('final_output response str:', self.tokenizer.decode(final_output.batch['responses'][0]))
+        # print('final_output attention mask:', final_output.batch['attention_mask'][0], 'shape:', final_output.batch['attention_mask'].shape)
         
         return final_output

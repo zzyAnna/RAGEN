@@ -534,6 +534,103 @@ class ActorRolloutRefWorker(Worker):
         if self._is_offload_param:
             offload_fsdp_param_and_grad(module=self.actor_module_fsdp, offload_grad=self._is_offload_grad)
 
+    # NOTE newly added by pingyue
+    @register(dispatch_mode=Dispatch.ONE_TO_ALL)
+    def load_model_parameters(self, source_model_path, strict=False, hdfs_path=None):
+        """
+        Load parameters from a source model into the current reference model.
+        
+        Args:
+            source_model_path: Path to the source model
+            strict: Whether to require exact parameter matching
+            hdfs_path: Optional HDFS path if the model is stored in HDFS
+        
+        Returns:
+            dict: Statistics about the parameter loading process
+        """
+        assert self._is_ref, "This method can only be called when reference model is initialized"
+        import torch
+        import torch.distributed
+        from torch.distributed.fsdp import FullyShardedDataParallel as FSDP, StateDictType, FullStateDictConfig
+        from transformers import AutoModelForCausalLM
+        
+        if self._is_offload_param:
+            load_fsdp_param_and_grad(module=self.ref_module_fsdp,
+                                    device_id=torch.cuda.current_device(),
+                                    load_grad=self._is_offload_grad)
+        
+        # If model is in HDFS, copy to local path first
+        if hdfs_path is not None:
+            source_model_path = copy_local_path_from_hdfs(hdfs_path)
+        
+        # Load source model with same config as reference model
+        # We assume that the reference model and actor model share the same config structure
+        source_module = AutoModelForCausalLM.from_pretrained(
+            source_model_path,
+            config=self.actor_model_config if hasattr(self, 'actor_model_config') else None,
+            torch_dtype=self.ref_module_fsdp._fsdp_wrapped_module.dtype,
+            trust_remote_code=self.config.model.get('trust_remote_code', False)
+        )
+        
+        stats = {
+            "matched_params": 0,
+            "mismatched_shapes": 0,
+            "missing_params": 0,
+            "extra_params": 0
+        }
+        
+        # Get state dict from source model
+        source_state = {k: v.detach().clone() for k, v in source_module.state_dict().items()}
+        
+        # Get target state dict using FSDP
+        cfg = FullStateDictConfig(offload_to_cpu=True, rank0_only=False)
+        with FSDP.state_dict_type(self.ref_module_fsdp, StateDictType.FULL_STATE_DICT, cfg):
+            target_state = self.ref_module_fsdp.state_dict()
+        
+        # Create new state dict matching parameters
+        new_state = {}
+        with torch.no_grad():
+            for target_name, target_param in target_state.items():
+                print(f"Loading parameter: {target_name}")
+                if target_name in source_state:
+                    source_param = source_state[target_name]
+                    if source_param.shape == target_param.shape and source_param.dtype == target_param.dtype:
+                        new_state[target_name] = source_param
+                        stats["matched_params"] += 1
+                    else:
+                        if strict:
+                            raise ValueError(
+                                f"Shape/dtype mismatch for {target_name}: "
+                                f"source {source_param.shape}/{source_param.dtype} vs "
+                                f"target {target_param.shape}/{target_param.dtype}"
+                            )
+                        new_state[target_name] = target_param
+                        stats["mismatched_shapes"] += 1
+                else:
+                    if strict:
+                        raise ValueError(f"Missing parameter in source: {target_name}")
+                    new_state[target_name] = target_param
+                    stats["missing_params"] += 1
+        
+            # Count extra parameters in source
+            for source_name in source_state:
+                if source_name not in target_state:
+                    stats["extra_params"] += 1
+        
+            # Load parameters into reference module
+            with FSDP.state_dict_type(self.ref_module_fsdp, StateDictType.FULL_STATE_DICT, cfg):
+                self.ref_module_fsdp.load_state_dict(new_state, strict=False)
+        
+        if self.rank == 0:
+            print(f"Reference model parameter loading statistics: {stats}")
+        
+        torch.distributed.barrier()
+        
+        if self._is_offload_param:
+            offload_fsdp_param_and_grad(module=self.ref_module_fsdp, offload_grad=self._is_offload_grad)
+        
+        return stats
+
 
 class CriticWorker(Worker):
 

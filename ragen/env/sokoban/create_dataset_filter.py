@@ -13,7 +13,7 @@ from tqdm import tqdm
 from verl.utils.hdfs_io import copy, makedirs
 import argparse
 import datasets
-
+from collections import defaultdict
 from ragen.env.sokoban import SokobanEnv
 from ragen.env.sokoban.room_utils import get_shortest_action_path
 
@@ -74,6 +74,7 @@ def main():
     dim_x, dim_y, num_boxes, max_steps, search_depth = 6, 6, 1, 10, 30
     seeds = range(args.seed, args.seed + args.train_size + args.test_size)
     train_set, test_set = [], []
+    action_counter = defaultdict(int)
     for seed in seeds:
         env = SokobanEnv(
             dim_room=(dim_x, dim_y),
@@ -83,16 +84,18 @@ def main():
         )
         observation = env.reset(seed=seed, mode='tiny_rgb_array')
         gt_action_sequence = get_shortest_action_path(env.room_fixed, env.room_state, MAX_DEPTH=100)
-        if gt_action_sequence is None or len(gt_action_sequence) > 2:
-            print(f"Warning: Action sequence length exceeds 2 {len(gt_action_sequence)} for seed {seed}")
+        if gt_action_sequence is None or len(gt_action_sequence) > 1:
+            print(f"Warning: Action sequence length exceeds 1 {len(gt_action_sequence)} for seed {seed}")
             continue
+        for action in gt_action_sequence:
+            action_counter[action] += 1
         instruction = INSTRUCTION_TEMPLATE.format(observation=observation)
         if seed < args.seed + args.train_size:
             train_set.append((seed, instruction))
         else:
             test_set.append((seed, instruction))
     
-    
+    print(action_counter)
     def _create_instance(idx, instruction):
         prompt_formatted = templates[args.prefix].format(prompt=instruction)
 
