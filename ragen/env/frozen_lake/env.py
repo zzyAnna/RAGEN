@@ -83,13 +83,6 @@ def generate_random_map(
     return ["".join(x) for x in board]
 
 
-
-
-
-
-
-
-
 class FrozenLakeEnv(BaseDiscreteActionEnv, GymFrozenLakeEnv):
     """
     Inherits from gymnasium.envs.toy_text.frozen_lake.FrozenLakeEnv
@@ -202,9 +195,6 @@ class FrozenLakeEnv(BaseDiscreteActionEnv, GymFrozenLakeEnv):
     def _get_player_position(self):
         return (self.s // self.ncol, self.s % self.ncol) # (row, col)
     
-
-
-
     def extract_action(self, text):
         """
         Extract action from text.
@@ -261,10 +251,10 @@ class FrozenLakeEnv(BaseDiscreteActionEnv, GymFrozenLakeEnv):
         
     def success(self):
         """
-        Check if the agent has reached the goal (G) or hole (H)
+        Check if the agent has reached the goal (G)
         """
         row, col = self.s // self.ncol, self.s % self.ncol
-        return self.desc[row, col] in b"GH"
+        return self.desc[row, col] == b"G"
     
     def step(self, action: int):
         """
@@ -272,7 +262,7 @@ class FrozenLakeEnv(BaseDiscreteActionEnv, GymFrozenLakeEnv):
         - Check if the action is effective (whether player moves in the env).
         """
         assert isinstance(action, int), "Action must be an integer"
-        assert not self.success(), "Agent has already reached the goal or hole"
+        assert not self.success(), "Agent has already reached the goal"
 
         if action == self.INVALID_ACTION: # no penalty for invalid action
             return self.render(), 0, False, {"action_is_effective": False}
@@ -282,10 +272,15 @@ class FrozenLakeEnv(BaseDiscreteActionEnv, GymFrozenLakeEnv):
             player_pos, reward, done, _, prob = GymFrozenLakeEnv.step(self, self.action_map[action])
 
         obs = self.render()
+        
+        # Check if the agent has fallen into a hole
+        row, col = player_pos // self.ncol, player_pos % self.ncol
+        if self.desc[row, col] == b"H":
+            done = True
+            reward = 0  # No reward for falling into a hole
+
         return obs, reward, done, {"action_is_effective": prev_player_position != int(player_pos)}
     
-
-     
     def render(self, mode='tiny_rgb_array'):
         assert mode in ['tiny_rgb_array', 'list', 'state', 'rgb_array', 'ansi']
         if mode in ['rgb_array', 'ansi']:
@@ -324,8 +319,6 @@ class FrozenLakeEnv(BaseDiscreteActionEnv, GymFrozenLakeEnv):
             lookup = lambda cell: self.GRID_LOOKUP.get(cell, "?")
             return "\n".join("".join(lookup(cell) for cell in row) for row in room_state)
     
-        
-    
     def copy(self):
         if self.env_kwargs['seed'] is None:
             print("Warning: seed is None, copy will not be deterministic")
@@ -350,7 +343,6 @@ if __name__ == "__main__":
     import matplotlib.pyplot as plt
     
     def save_render_to_png(np_img, filename):
-        
         fig = plt.figure(frameon=False)
         fig.set_size_inches(np_img.shape[1] / 100, np_img.shape[0] / 100)
         ax = plt.Axes(fig, [0., 0., 1., 1.])
@@ -361,34 +353,33 @@ if __name__ == "__main__":
         plt.savefig(filename, dpi=500, bbox_inches='tight', pad_inches=0)
         plt.close(fig)
 
-    env = FrozenLakeEnv(size=4, p=0.9, seed=10, is_slippery=True)
-    env.reset(seed=10, reset_map=True)
-    save_render_to_png(env.render(mode='rgb_array'), 'frozen_lake_0_0.png')
+    # Test the updated FrozenLakeEnv
+    env = FrozenLakeEnv(size=4, p=0.8, seed=42, is_slippery=False)
+    obs = env.reset(seed=42, reset_map=True)
+    print("Initial state:")
     print(env.render(mode='tiny_rgb_array'))
 
+    # Test reaching the goal
+    actions = [2, 2, 1, 1, 2]  # Down, Down, Left, Left, Down
+    for i, action in enumerate(actions):
+        obs, reward, done, info = env.step(action)
+        print(f"\nStep {i+1}:")
+        print(env.render(mode='tiny_rgb_array'))
+        print(f"Action: {env.ACTION_LOOKUP[action]}, Reward: {reward}, Done: {done}")
+        if done:
+            print("Goal reached!" if env.success() else "Fell into a hole!")
+            break
 
-    # env.step(4)
-    # save_render_to_png(env.render(mode='rgb_array'), 'frozen_lake_0_1.png')
-    # env.step(4)
-    # save_render_to_png(env.render(mode='rgb_array'), 'frozen_lake_0_2.png')
-    # env.step(4)
-    # save_render_to_png(env.render(mode='rgb_array'), 'frozen_lake_0_3.png')
+    # Test falling into a hole
+    env.reset(seed=42, reset_map=True)
+    actions = [2, 2, 3]  # Down, Down, Right
+    for i, action in enumerate(actions):
+        obs, reward, done, info = env.step(action)
+        print(f"\nStep {i+1}:")
+        print(env.render(mode='tiny_rgb_array'))
+        print(f"Action: {env.ACTION_LOOKUP[action]}, Reward: {reward}, Done: {done}")
+        if done:
+            print("Goal reached!" if env.success() else "Fell into a hole!")
+            break
 
-    # env.reset(seed=10, reset_map=True)
-    # save_render_to_png(env.render(mode='rgb_array'), 'frozen_lake_1_0.png')
-    # print(env.render(mode='tiny_rgb_array'))
-    # env.step(3)
-    # save_render_to_png(env.render(mode='rgb_array'), 'frozen_lake_1_1.png')
-    # env.step(3)
-    # save_render_to_png(env.render(mode='rgb_array'), 'frozen_lake_1_2.png')
-    # env.step(3)
-    # save_render_to_png(env.render(mode='rgb_array'), 'frozen_lake_1_3.png')
-
-
-    # obs = FrozenLakeEnv.execute_predictions([env], ["<answer>right</answer>"], "<PAD>")
-    # print(obs)
-    # print(env.render(mode='tiny_rgb_array'))
-
-    
-    
-    # print(env.render(mode='ansi'))
+    print("\nTest completed.")

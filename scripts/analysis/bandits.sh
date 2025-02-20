@@ -33,7 +33,7 @@ run_experiment() {
         env.env_kwargs.low_risk_name=$LOW_RISK_NAME \
         env.env_kwargs.high_risk_name=$HIGH_RISK_NAME \
         system.cuda_visible_devices=$gpu_id \
-        training.micro_batch_size=16 \
+        training.micro_batch_size=1 \
         training.train_batch_size=128 \
         training.ppo_batch_size=128 \
         training.max_turns=1 \
@@ -64,12 +64,12 @@ run_experiment() {
 mkdir -p log/terminal
 
 # Run original experiments (without validation arms)
-run_experiment "bandit_main" "data/two_armed_bandit" "phoenix" "dragon" 0
-run_experiment "bandit_main" "data/two_armed_bandit" "phoenix" "dragon" 1 true
+# run_experiment "bandit_main" "data/two_armed_bandit" "phoenix" "dragon" 0
+# run_experiment "bandit_main" "data/two_armed_bandit" "phoenix" "dragon" 1 true
 
 # Run reverse experiments (without validation arms)
-run_experiment "bandit_reverse" "data/two_armed_bandit_reverse" "dragon" "phoenix" 2
-run_experiment "bandit_reverse" "data/two_armed_bandit_reverse" "dragon" "phoenix" 3 true
+# run_experiment "bandit_reverse" "data/two_armed_bandit_reverse" "dragon" "phoenix" 2
+# run_experiment "bandit_reverse" "data/two_armed_bandit_reverse" "dragon" "phoenix" 3 true
 
 # Run generalization experiments (without validation arms)
 # run_experiment "bandit_genea_regular" "data/two_armed_bandit_genea_regular" "teacher" "engineer" 0
@@ -79,5 +79,5 @@ run_experiment "bandit_reverse" "data/two_armed_bandit_reverse" "dragon" "phoeni
 # run_experiment "bandit_genea_reverse" "data/two_armed_bandit_genea_reverse" "engineer" "teacher" 2
 # run_experiment "bandit_genea_reverse" "data/two_armed_bandit_genea_reverse" "engineer" "teacher" 3 true
 
-# run_experiment "bandit_genea_reverse_testdiff" "data/two_armed_bandit_genea_reverse" "engineer" "teacher" 0 false "trader"   "librarian"
+run_experiment "bandit_genea_reverse_testdiff" "data/two_armed_bandit_genea_reverse" "engineer" "teacher" 0 false "trader"   "librarian"
 # run_experiment "bandit_genea_reverse_testdiff" "data/two_armed_bandit_genea_reverse" "engineer" "teacher" 1 true "trader"   "librarian"
