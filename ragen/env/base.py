@@ -1,11 +1,9 @@
 from abc import ABC, abstractmethod
-import gymnasium as gym
 import re
-import numpy as np
 from typing import Optional, List, Tuple, Any, Dict
 from copy import deepcopy
-
-
+from transformers import AutoTokenizer
+import torch
 
 class BaseEnv(ABC):
     """
@@ -81,9 +79,9 @@ class BaseEnv(ABC):
     @staticmethod
     def formulate_output(env_feedback: str, done: bool = False):
         """
-        Formulate the output string as the feedback to the LLM
-        For Qwen, special tokens like <|im_start|>user and <|im_end|> should be added
-        NOTE hard-coded for Qwen
+        Formulate the environment feedback to as the input to the LLM
+        - e.g., For Qwen, special tokens like <|im_start|>user and <|im_end|> should be added
+        NOTE hard-coded now for Qwen
         """
 
         # obs = "\n <|im_start|>user\n" + env_feedback + "<|im_end|>\n" + "<|im_start|>assistant\n<think>"
@@ -93,7 +91,13 @@ class BaseEnv(ABC):
         return output
 
     @classmethod
-    def execute_predictions(cls, envs: List['BaseEnv'], predictions: List[str], pad_token: str) -> List[str]:
+    def execute_predictions(
+        cls, 
+        envs: List['BaseEnv'], 
+        predictions: List[str], 
+        prediction_ids: torch.Tensor,
+        tokenizer: AutoTokenizer,
+    ) -> List[str]:
         """
         Execute predictions across multiple environments.
         NOTE: the function is the actual `step` function in the environment
@@ -106,22 +110,33 @@ class BaseEnv(ABC):
             
         Returns:
             List of observation strings
+
+
+        TODO modify reward here, not treat penalty_for_invalid as class variable
         """
         cur_actions, action_is_valid = cls.postprocess_predictions(envs, predictions)
         next_obs, dones = [], []
         
-        for env, action, response, av in zip(envs, cur_actions, predictions, action_is_valid):
+        for env, action, response, response_id, av in zip(envs, cur_actions, predictions, prediction_ids, action_is_valid):
             obs = ""
             if "<|im_end|>" not in response:
                 obs += "<|im_end|>"
 
             if env.finished():
-                obs += pad_token
+                obs += tokenizer.pad_token
                 done = True
             else:
-                observation, reward, done, extra_info = env.step(action)
+                # thinking reward
+                thinking_reward = 0
+                n_non_pad = (response_id != tokenizer.pad_token_id).sum().item()
+                if n_non_pad > 50: # NOTE hard-coded here
+                    thinking_reward += 0.1
+                
+                
+                # step in environment
+                observation, env_reward, done, extra_info = env.step(action)
                 env_feedback = cls.parse_update_info_to_obs(
-                    (observation, reward, done, extra_info), 
+                    (observation, env_reward, done, extra_info), 
                     av
                 )
 
@@ -132,7 +147,7 @@ class BaseEnv(ABC):
                     action=action, 
                     action_is_valid=av, 
                     action_is_effective=extra_info.get("action_is_effective", False), 
-                    reward=reward, 
+                    reward=thinking_reward + env_reward, 
                 )
             next_obs.append(obs)
             dones.append(done)

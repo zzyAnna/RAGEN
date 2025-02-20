@@ -591,7 +591,6 @@ class ActorRolloutRefWorker(Worker):
         new_state = {}
         with torch.no_grad():
             for target_name, target_param in target_state.items():
-                print(f"Loading parameter: {target_name}")
                 if target_name in source_state:
                     source_param = source_state[target_name]
                     if source_param.shape == target_param.shape and source_param.dtype == target_param.dtype:

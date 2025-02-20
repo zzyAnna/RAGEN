@@ -117,7 +117,7 @@ class CountdownEnv(BaseLanguageBasedEnv, gym.Env):
         self.last_action = action
 
 
-        # format reward is defined here, so set as 0 here
+        # format reward is set 0.1 for correct format
         # correct answer reward is set as 1
         data = self.data[self.index]
         reward = compute_score(action, data, format_score=0.1, score=1.)

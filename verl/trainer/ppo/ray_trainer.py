@@ -472,13 +472,14 @@ class RayPPOTrainer(object):
 
         # create critic
         if self.config.algorithm.adv_estimator == 'gae':
-            raise NotImplementedError("GAE requires a trained critic network which is not implemented in our repo. Consider changing config.optimization.adv_estimator with grpo/brpo/arpo.")
+            # raise NotImplementedError("GAE requires a trained critic network which is not implemented in our repo. Consider changing config.optimization.adv_estimator with grpo/brpo/arpo.")
         
             ## original code here
-            # resource_pool = self.resource_pool_manager.get_resource_pool(Role.Critic)
-            # critic_cls = RayClassWithInitArgs(cls=self.role_worker_mapping[Role.Critic], config=self.config.critic)
-            # self.resource_pool_to_cls[resource_pool]['critic'] = critic_cls
-            # self.use_critic = True
+            print("[DEBUG] GAE is used")
+            resource_pool = self.resource_pool_manager.get_resource_pool(Role.Critic)
+            critic_cls = RayClassWithInitArgs(cls=self.role_worker_mapping[Role.Critic], config=self.config.critic)
+            self.resource_pool_to_cls[resource_pool]['critic'] = critic_cls
+            self.use_critic = True
             
         elif self.config.algorithm.adv_estimator in ['grpo', 'brpo', 'arpo']:
             self.use_critic = False   # use a first-step reference model instead, and use the "low_var_kl" instead
@@ -618,14 +619,14 @@ class RayPPOTrainer(object):
                 # update ref_policy_wg
                 if self.config.trainer.ref_update_steps is not None and self.global_steps % self.config.trainer.ref_update_steps == 0:
                     self.actor_rollout_wg.save_checkpoint(
-                        local_path=f'./log/temp/actor_rollout_wg_global_step_{self.global_steps}.pt',
+                        local_path=f'./log/temp/actor_rollout_wg_global_step_{self.global_steps}',
                         hdfs_path=None
                     )
                     self.ref_policy_wg.load_model_parameters(
-                        source_model_path=f'./log/temp/actor_rollout_wg_global_step_{self.global_steps}.pt',
+                        source_model_path=f'./log/temp/actor_rollout_wg_global_step_{self.global_steps}',
                         strict=True
                     )
-                    print(f"load parameters from ./log/temp/actor_rollout_wg_global_step_{self.global_steps}.pt to ref_policy_wg")
+                    print(f"load parameters from ./log/temp/actor_rollout_wg_global_step_{self.global_steps} to ref_policy_wg")
 
                 metrics = {}
                 timing_raw = {}
@@ -769,8 +770,8 @@ class RayPPOTrainer(object):
                         reward_tensor = self.reward_fn(batch)
                         batch.batch['token_level_scores'] = reward_tensor
 
-                        # compute rewards. apply_kl_penalty if available
-                        if not self.config.actor_rollout_ref.actor.use_kl_loss:
+                        # compute rewards. apply_kl_penalty if available, no kl_loss or kl_penalty for GAE
+                        if not self.config.actor_rollout_ref.actor.use_kl_loss or self.config.algorithm.adv_estimator != 'gae':
                             batch, kl_metrics = apply_kl_penalty(batch,
                                                                  kl_ctrl=self.kl_ctrl,
                                                                  kl_penalty=self.config.algorithm.kl_penalty)

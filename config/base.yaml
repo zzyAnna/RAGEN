@@ -64,7 +64,7 @@ trainer:
   default_hdfs_dir: null
   nnodes: 1
   save_freq: 100
-  test_freq: 100
+  test_freq: 200 # 100
   project_name: "RAGEN"
 
 # SFT settings

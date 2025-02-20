@@ -6,6 +6,7 @@ from ragen.env.sokoban.room_utils import generate_room
 from ragen.utils import set_seed
 import re
 import copy
+from typing_extensions import override
 
 from ragen.env.base import BaseDiscreteActionEnv
 
@@ -31,7 +32,8 @@ class SokobanEnv(BaseDiscreteActionEnv, GymSokobanEnv):
     }
 
     INVALID_ACTION = 0
-    PENALTY_FOR_INVALID = -1
+    # PENALTY_FOR_INVALID = -1
+    PENALTY_FOR_INVALID = 0
 
     def __init__(self, **kwargs):
         BaseDiscreteActionEnv.__init__(self)
@@ -40,7 +42,7 @@ class SokobanEnv(BaseDiscreteActionEnv, GymSokobanEnv):
         self.search_depth = kwargs.pop('search_depth', 300)
         GymSokobanEnv.__init__(
             self,
-            dim_room=kwargs.pop('dim_room', (7, 7)), 
+            dim_room=kwargs.pop('dim_room', (6, 6)), 
             max_steps=kwargs.pop('max_steps', 100),
             num_boxes=kwargs.pop('num_boxes', 3),
             **kwargs
@@ -48,6 +50,19 @@ class SokobanEnv(BaseDiscreteActionEnv, GymSokobanEnv):
         self.ACTION_SPACE = gym.spaces.discrete.Discrete(4, start=1)
         self.reward = 0
         self._valid_actions = []
+
+
+    @staticmethod
+    @override
+    def formulate_output(env_feedback: str, done: bool = False):
+        """
+        No environment feedback for Sokoban
+        NOTE hard coded for sokoban easy now
+        """
+
+        return ""
+
+
 
     def extract_action(self, text):
         """
@@ -126,8 +141,17 @@ class SokobanEnv(BaseDiscreteActionEnv, GymSokobanEnv):
         - Step the environment with the given action.
         - Check if the action is effective (whether player moves in the env).
         """
+        assert not self.success()
+
+        if action == self.INVALID_ACTION:
+            return self.render(), 0, False, {"action_is_effective": False}
         prev_player_position = self.player_position
         _, reward, done, _ = GymSokobanEnv.step(self, action, observation_mode='tiny_rgb_array')
+        
+        # # aligned with jiayi
+        # reward = 0.1 # format reward
+        # if done:
+        #     reward = 1 # success reward
             
         obs = self.render()
         return obs, reward, done, {"action_is_effective": not np.array_equal(prev_player_position, self.player_position)}

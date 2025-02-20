@@ -1,7 +1,7 @@
 # Environment settings
 env:
   name: "sokoban"
-  data_dir: "data/sokoban"
+  data_dir: "data/sokoban_easy"
   env_kwargs:
     dim_x: 6
     dim_y: 6
