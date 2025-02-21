@@ -32,8 +32,7 @@ Rules:
 1. Push boxes (can't pull).
 2. Avoid walls (#).
 
-Answers:
-<answer> Up </answer> | <answer> Down </answer> | <answer> Left </answer> | <answer> Right </answer>
+Actions you can take: Up, Down, Left, Right. You can only take one action at a time.
 
 Rewards:
 Move: -0.1
@@ -46,10 +45,36 @@ All boxes placed: +10.0
 Decide the next action:\
 """
 
+qwen_instruct = """\
+<|im_start|>system
+You are a helpful assistant. You first thinks about the reasoning process in the mind and then provides the user with the answer.
+<|im_end|>
+<|im_start|>user
+{prompt}
+Show your work in <think> </think> tag. And return the final unique answer in only one <answer> </answer> tag, for example <answer> Up/Down/Left/Right </answer>. <|im_end|>
+<|im_start|>assistant
+<think>\
+"""
+
+base = """\
+A conversation between User and Assistant. The user asks a question, and the Assistant solves it. \
+The assistant first thinks briefly about the reasoning process in the mind and then provides the user with the answer.
+User: {prompt}
+Show your work in <think> </think> tags. And return the final answer in <answer> </answer> tags, for example <think> [Thoughts] </think> <answer> 1 </answer>
+Assistant: 
+<think>
+"""
+
 templates = {
-    'qwen-instruct': '<|im_start|>user\n{prompt}\nAlways output: <think> [Your thoughts] </think> <answer> [your answer] </answer> with no extra text. Strictly follow this format. <|im_end|>\n<|im_start|>assistant\n<think>',
-    'base': 'A conversation between User and Assistant. The user asks a question, and the Assistant solves it. The assistant first thinks briefly about the reasoning process in the mind and then provides the user with the answer.\nUser: {prompt}\nShow your work in <think> </think> tags. And return the final answer in <answer> </answer> tags, for example <think> [Thoughts] </think> <answer> 1 </answer>\nAssistant: \n<think>'
+    'qwen-instruct': qwen_instruct,
+    'base': base
 }
+
+# templates = {
+#     'qwen-instruct': '<|im_start|>user\n{prompt}\nAlways output: <think> [Your thoughts] </think> <answer> [your answer] </answer> with no extra text. Strictly follow this format. <|im_end|>\n<|im_start|>assistant\n<think>',
+#     'base': 'A conversation between User and Assistant. The user asks a question, and the Assistant solves it. The assistant first thinks briefly about the reasoning process in the mind and then provides the user with the answer.\nUser: {prompt}\nShow your work in <think> </think> tags. And return the final answer in <answer> </answer> tags, for example <think> [Thoughts] </think> <answer> 1 </answer>\nAssistant: \n<think>'
+# }
+
 
 def process_seed(seed, env_params):
     """Process a single seed to generate training data"""
@@ -75,8 +100,8 @@ def main():
     parser.add_argument("--algo", type=str, default="bfs", choices=["bfs"], help="Algorithm to use (default: 'bfs').")
     parser.add_argument("--seed", type=int, default=10000, help="Seed for random number generation (default: 10000).")
     parser.add_argument("--output", type=str, default="data/sokoban_easy", help="Output file to save the trajectories (default: 'data/sokoban').")
-    parser.add_argument("--train_size", type=int, default=10000, help="Number of trajectories to generate (default: 10000).")
-    parser.add_argument("--test_size", type=int, default=500, help="Number of trajectories to generate (default: 500).")
+    parser.add_argument("--train_size", type=int, default=50000, help="Number of trajectories to generate (default: 10000).")
+    parser.add_argument("--test_size", type=int, default=2500, help="Number of trajectories to generate (default: 500).")
     parser.add_argument("--bfs_max_nodes", type=int, default=1000, help="Maximum number of nodes to use for BFS (default: 100000).")
     parser.add_argument("--prefix", type=str, default='qwen-instruct', choices=['qwen-instruct', 'base'])
     parser.add_argument("--num_workers", type=int, default=mp.cpu_count(), help="Number of worker processes")

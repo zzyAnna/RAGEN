@@ -32,8 +32,7 @@ class SokobanEnv(BaseDiscreteActionEnv, GymSokobanEnv):
     }
 
     INVALID_ACTION = 0
-    # PENALTY_FOR_INVALID = -1
-    PENALTY_FOR_INVALID = 0
+    PENALTY_FOR_INVALID = 0 # -1
 
     def __init__(self, **kwargs):
         BaseDiscreteActionEnv.__init__(self)

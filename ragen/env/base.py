@@ -128,9 +128,9 @@ class BaseEnv(ABC):
             else:
                 # thinking reward
                 thinking_reward = 0
-                n_non_pad = (response_id != tokenizer.pad_token_id).sum().item()
-                if n_non_pad > 50: # NOTE hard-coded here
-                    thinking_reward += 1
+                # n_non_pad = (response_id != tokenizer.pad_token_id).sum().item()
+                # if n_non_pad > 50: # NOTE hard-coded here
+                #     thinking_reward += 1
                 
                 
                 # step in environment

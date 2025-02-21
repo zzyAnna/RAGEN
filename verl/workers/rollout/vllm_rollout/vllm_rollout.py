@@ -167,8 +167,11 @@ class vLLMRollout(BaseRollout):
                 'top_k': -1,
                 'min_p': 0.0,
                 'temperature': 0,
-                'n': 1  # if greedy, only 1 response
+                'n': 1,  # if greedy, only 1 response
+                'min_tokens': 100 # NOTE hard coded here
             }
+        else:
+            kwargs['min_tokens'] = 100 # NOTE hard coded here
 
         # users can customize different sampling_params at different run
         with self.update_sampling_params(**kwargs):
