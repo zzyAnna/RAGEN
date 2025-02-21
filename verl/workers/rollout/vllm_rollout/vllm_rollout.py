@@ -160,6 +160,18 @@ class vLLMRollout(BaseRollout):
             idx_list.append(_pre_process_inputs(self.pad_token_id, idx[i]))
 
         do_sample = prompts.meta_info.get('do_sample', True)
+        # if not do_sample:
+        #     kwargs = {
+        #         'best_of': 1,
+        #         'top_p': 1.0,
+        #         'top_k': -1,
+        #         'min_p': 0.0,
+        #         'temperature': 0,
+        #         'n': 1,  # if greedy, only 1 response
+        #         'min_tokens': 50 # NOTE hard coded here
+        #     }
+        # else:
+        #     kwargs['min_tokens'] = 50 # NOTE hard coded here
         if not do_sample:
             kwargs = {
                 'best_of': 1,
@@ -168,10 +180,8 @@ class vLLMRollout(BaseRollout):
                 'min_p': 0.0,
                 'temperature': 0,
                 'n': 1,  # if greedy, only 1 response
-                'min_tokens': 100 # NOTE hard coded here
             }
-        else:
-            kwargs['min_tokens'] = 100 # NOTE hard coded here
+
 
         # users can customize different sampling_params at different run
         with self.update_sampling_params(**kwargs):

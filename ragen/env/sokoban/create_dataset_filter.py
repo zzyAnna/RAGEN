@@ -42,16 +42,16 @@ All boxes placed: +10.0
 
 [Cumulative Observations]:
 {observation}
-Decide the next action:\
+Decide your next action.
 """
 
 qwen_instruct = """\
 <|im_start|>system
-You are a helpful assistant. You first thinks about the reasoning process in the mind and then provides the user with the answer.
+You are a helpful assistant. You first think about the reasoning process in the mind and then provides the user with the answer.
 <|im_end|>
 <|im_start|>user
 {prompt}
-Show your work in <think> </think> tag. And return the final unique answer in only one <answer> </answer> tag, for example <answer> Up/Down/Left/Right </answer>. <|im_end|>
+Show your thought between <think> </think> tags. And return the final unique answer between <answer> </answer> tags, for example <answer> Up/Down/Left/Right </answer>. Do not output any other text. <|im_end|>
 <|im_start|>assistant
 <think>\
 """
@@ -87,7 +87,7 @@ def process_seed(seed, env_params):
     observation = env.reset(seed=seed, mode='tiny_rgb_array')
     gt_action_sequence = get_shortest_action_path(env.room_fixed, env.room_state, MAX_DEPTH=100)
     
-    if gt_action_sequence is None or len(gt_action_sequence) > 1:
+    if gt_action_sequence is None or len(gt_action_sequence) != 2:
         return None, None
         
     instruction = INSTRUCTION_TEMPLATE.format(observation=observation)

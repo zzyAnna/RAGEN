@@ -32,7 +32,7 @@ class SokobanEnv(BaseDiscreteActionEnv, GymSokobanEnv):
     }
 
     INVALID_ACTION = 0
-    PENALTY_FOR_INVALID = 0 # -1
+    PENALTY_FOR_INVALID = -1
 
     def __init__(self, **kwargs):
         BaseDiscreteActionEnv.__init__(self)
@@ -51,15 +51,15 @@ class SokobanEnv(BaseDiscreteActionEnv, GymSokobanEnv):
         self._valid_actions = []
 
 
-    @staticmethod
-    @override
-    def formulate_output(env_feedback: str, done: bool = False):
-        """
-        No environment feedback for Sokoban
-        NOTE hard coded for sokoban easy now
-        """
+    # @staticmethod
+    # @override
+    # def formulate_output(env_feedback: str, done: bool = False):
+    #     """
+    #     No environment feedback for Sokoban
+    #     NOTE hard coded for sokoban easy now
+    #     """
 
-        return ""
+    #     return ""
 
 
 
@@ -147,8 +147,8 @@ class SokobanEnv(BaseDiscreteActionEnv, GymSokobanEnv):
         prev_player_position = self.player_position
         _, reward, done, _ = GymSokobanEnv.step(self, action, observation_mode='tiny_rgb_array')
         
-        # # aligned with jiayi
-        # reward = 0.1 # format reward
+        # # NOTE re-define reward for sokoban
+        # reward = -1 # format reward
         # if done:
         #     reward = 1 # success reward
             
