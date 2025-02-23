@@ -27,12 +27,17 @@ Goal: Push all boxes (X) onto targets (O).
 
 Symbols:
 # Wall | _ Floor | O Target | X Box | P You | √ = Box on Target | S = You on Target
+The observation is a 2D grid of the current state of the Sokoban game.
 
 Rules:
 1. Push boxes (can't pull).
 2. Avoid walls (#).
 
 Actions you can take: Up, Down, Left, Right. You can only take one action at a time.
+Up: move up to the cell above (to the above row).
+Down: move down to the cell below (to the below row).
+Left: move left to the cell to the left (to the left column).
+Right: move right to the cell to the right (to the right column).
 
 Rewards:
 Move: -0.1
@@ -44,6 +49,55 @@ All boxes placed: +10.0
 {observation}
 Decide your next action.
 """
+
+# INSTRUCTION_TEMPLATE = """\
+# 1. Environment:
+#    The game is played on a 2D grid where:
+#    - Each cell is represented by a single character
+#    - Rows are separated by newlines (\n)
+#    - All rows must have equal length
+
+# 2. Symbols:
+#    #  = Wall (immovable obstacle)
+#    _  = Empty floor space
+#    O  = Target location
+#    X  = Box (pushable)
+#    P  = Player position
+#    √  = Box on target (success state)
+#    S  = Player on target
+
+# 3. Example Board:
+# #   #   #   #   #
+# #   P   X   O   #
+# #   _   _   _   #
+# #   #   #   #   #
+
+# 4. Movement Rules:
+#    - Player (P) can move one cell at a time: Up, Down, Left, Right, if there's a box in the way, the box will move one cell in the same direction.
+#         - Up: move up to the cell above (to the above row).
+#         - Down: move down to the cell below (to the below row).
+#         - Left: move left to the cell to the left (to the left column).
+#         - Right: move right to the cell to the right (to the right column).
+#    - Player cannot move through walls (#)
+#    - Player can push exactly one box at a time
+#    - Boxes can only be pushed, never pulled
+#    - Boxes cannot be pushed through walls or other boxes
+
+# 5. Scoring System:
+#    - Each move: -0.1 points (encourages efficiency)
+#    - Box reaching target: +1.0 points
+#    - All boxes on targets: +10.0 points (completion bonus)
+
+# 6. Win Condition:
+#    - All boxes must be on targets (all X become √)
+#    - Game continues until win condition or player quits    
+
+# [Cumulative Observations]:
+# {observation}
+# Decide your next action.
+
+# """
+
 
 qwen_instruct = """\
 <|im_start|>system
@@ -87,8 +141,6 @@ def process_seed(seed, env_params):
     observation = env.reset(seed=seed, mode='tiny_rgb_array')
     gt_action_sequence = get_shortest_action_path(env.room_fixed, env.room_state, MAX_DEPTH=100)
     
-    if gt_action_sequence is None or len(gt_action_sequence) != 2:
-        return None, None
         
     instruction = INSTRUCTION_TEMPLATE.format(observation=observation)
     return seed, (instruction, gt_action_sequence)
@@ -105,6 +157,7 @@ def main():
     parser.add_argument("--bfs_max_nodes", type=int, default=1000, help="Maximum number of nodes to use for BFS (default: 100000).")
     parser.add_argument("--prefix", type=str, default='qwen-instruct', choices=['qwen-instruct', 'base'])
     parser.add_argument("--num_workers", type=int, default=mp.cpu_count(), help="Number of worker processes")
+    parser.add_argument("--num_actions", type=int, default=4, help="Number of actions (default: 4).")
 
     args = parser.parse_args()
     
@@ -138,6 +191,8 @@ def main():
         if result is None:
             continue
         instruction, gt_action_sequence = result
+        if gt_action_sequence is None or len(gt_action_sequence) != args.num_actions:
+            continue
         
         for action in gt_action_sequence:
             action_counter[action] += 1

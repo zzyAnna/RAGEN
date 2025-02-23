@@ -687,9 +687,6 @@ class RayPPOTrainer(object):
                             output_dir=output_dir,
                             global_steps=self.global_steps,
                         )
-                        # print("[RESPONSE]", self.tokenizer.decode(final_gen_batch_output.batch['responses'][0]), final_gen_batch_output.batch['responses'][0].shape, "[/RESPONSE]")
-                        # print("[INPUT_IDS]", self.tokenizer.decode(final_gen_batch_output.batch['input_ids'][0]), final_gen_batch_output.batch['input_ids'][0].shape, "[/INPUT_IDS]")
-                        # print("[PROMPTS]", self.tokenizer.decode(final_gen_batch_output.batch['prompts'][0]), final_gen_batch_output.batch['prompts'][0].shape, "[/PROMPTS]")
 
                     with torch.no_grad():
                         output = self.actor_rollout_wg.compute_log_prob(final_gen_batch_output)
