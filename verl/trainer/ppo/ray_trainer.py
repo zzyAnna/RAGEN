@@ -267,6 +267,8 @@ def compute_data_metrics(batch, use_critic=True):
             int(np.array(batch.non_tensor_batch['total_env'], dtype=np.int16).sum()),
         'metric/finished_env':
             int(np.array(batch.non_tensor_batch['finished_env'], dtype=np.int16).sum()),
+        'metric/success_env':
+            int(np.array(batch.non_tensor_batch['success_env'], dtype=np.int16).sum()),
         'metric/traj_length':
             float(np.array(batch.non_tensor_batch['traj_length'], dtype=np.int16).mean()),
         'metric/valid_action':
@@ -470,13 +472,14 @@ class RayPPOTrainer(object):
 
         # create critic
         if self.config.algorithm.adv_estimator == 'gae':
-            raise NotImplementedError("GAE requires a trained critic network which is not implemented in our repo. Consider changing config.optimization.adv_estimator with grpo/brpo/arpo.")
+            # raise NotImplementedError("GAE requires a trained critic network which is not implemented in our repo. Consider changing config.optimization.adv_estimator with grpo/brpo/arpo.")
         
             ## original code here
-            # resource_pool = self.resource_pool_manager.get_resource_pool(Role.Critic)
-            # critic_cls = RayClassWithInitArgs(cls=self.role_worker_mapping[Role.Critic], config=self.config.critic)
-            # self.resource_pool_to_cls[resource_pool]['critic'] = critic_cls
-            # self.use_critic = True
+            print("[DEBUG] GAE is used")
+            resource_pool = self.resource_pool_manager.get_resource_pool(Role.Critic)
+            critic_cls = RayClassWithInitArgs(cls=self.role_worker_mapping[Role.Critic], config=self.config.critic)
+            self.resource_pool_to_cls[resource_pool]['critic'] = critic_cls
+            self.use_critic = True
             
         elif self.config.algorithm.adv_estimator in ['grpo', 'brpo', 'arpo']:
             self.use_critic = False   # use a first-step reference model instead, and use the "low_var_kl" instead
@@ -612,6 +615,19 @@ class RayPPOTrainer(object):
         for epoch in range(self.config.trainer.total_epochs):
             for batch_dict in self.train_dataloader:
                 print(f'epoch {epoch}, step {self.global_steps}')
+
+                # update ref_policy_wg
+                if self.config.trainer.ref_update_steps is not None and self.global_steps % self.config.trainer.ref_update_steps == 0:
+                    self.actor_rollout_wg.save_checkpoint(
+                        local_path=f'./log/temp/actor_rollout_wg_global_step_{self.global_steps}',
+                        hdfs_path=None
+                    )
+                    self.ref_policy_wg.load_model_parameters(
+                        source_model_path=f'./log/temp/actor_rollout_wg_global_step_{self.global_steps}',
+                        strict=True
+                    )
+                    print(f"load parameters from ./log/temp/actor_rollout_wg_global_step_{self.global_steps} to ref_policy_wg")
+
                 metrics = {}
                 timing_raw = {}
 
@@ -622,6 +638,7 @@ class RayPPOTrainer(object):
                 print("env_seeds:", env_seeds)
                 for env, seed in zip(envs, env_seeds):
                     env.reset(seed=seed)
+
 
                 # pop those keys for generation
                 gen_batch = batch.pop(batch_keys=['input_ids', 'attention_mask', 'position_ids'])
@@ -697,12 +714,14 @@ class RayPPOTrainer(object):
                     # metrics for actions
                     batch.non_tensor_batch['total_env'] = np.array([1 for _ in range(len(envs))], dtype=object)
                     batch.non_tensor_batch['finished_env'] = np.array([0 for _ in range(len(envs))], dtype=object)
+                    batch.non_tensor_batch['success_env'] = np.array([0 for _ in range(len(envs))], dtype=object)
                     batch.non_tensor_batch['traj_length'] = np.array([0 for _ in range(len(envs))], dtype=object)
                     batch.non_tensor_batch['valid_action'] = np.array([0 for _ in range(len(envs))], dtype=object)
                     batch.non_tensor_batch['effective_action'] = np.array([0 for _ in range(len(envs))], dtype=object)
                     batch.non_tensor_batch['effective_action_ratio'] = np.array([0 for _ in range(len(envs))], dtype=object)
                     for idx, env in enumerate(envs):
-                        batch.non_tensor_batch['finished_env'][idx] = int(env.success())
+                        batch.non_tensor_batch['finished_env'][idx] = int(env.finished())
+                        batch.non_tensor_batch['success_env'][idx] = int(env.success())
                         tracking_vars = env.get_tracking_variables()
                         batch.non_tensor_batch['traj_length'][idx] = len(tracking_vars['actions'])
                         batch.non_tensor_batch['valid_action'][idx] = sum(1 for x in tracking_vars['actions_valid'] if x is not None)
@@ -748,8 +767,8 @@ class RayPPOTrainer(object):
                         reward_tensor = self.reward_fn(batch)
                         batch.batch['token_level_scores'] = reward_tensor
 
-                        # compute rewards. apply_kl_penalty if available
-                        if not self.config.actor_rollout_ref.actor.use_kl_loss:
+                        # compute rewards. apply_kl_penalty if available, no kl_loss or kl_penalty for GAE
+                        if not self.config.actor_rollout_ref.actor.use_kl_loss or self.config.algorithm.adv_estimator != 'gae':
                             batch, kl_metrics = apply_kl_penalty(batch,
                                                                  kl_ctrl=self.kl_ctrl,
                                                                  kl_penalty=self.config.algorithm.kl_penalty)
@@ -950,12 +969,14 @@ class RayPPOTrainer(object):
                 
                 test_batch.non_tensor_batch['total_env'] = np.array([1 for _ in range(len(envs))], dtype=object)
                 test_batch.non_tensor_batch['finished_env'] = np.array([0 for _ in range(len(envs))], dtype=object)
+                test_batch.non_tensor_batch['success_env'] = np.array([0 for _ in range(len(envs))], dtype=object)
                 test_batch.non_tensor_batch['traj_length'] = np.array([0 for _ in range(len(envs))], dtype=object)
                 test_batch.non_tensor_batch['valid_action'] = np.array([0 for _ in range(len(envs))], dtype=object)
                 test_batch.non_tensor_batch['effective_action'] = np.array([0 for _ in range(len(envs))], dtype=object)
                 test_batch.non_tensor_batch['effective_action_ratio'] = np.array([0 for _ in range(len(envs))], dtype=object)
                 for idx, env in enumerate(envs):
-                    test_batch.non_tensor_batch['finished_env'][idx] = int(env.success())
+                    test_batch.non_tensor_batch['finished_env'][idx] = int(env.finished())
+                    test_batch.non_tensor_batch['success_env'][idx] = int(env.success())
                     tracking_vars = env.get_tracking_variables()
                     test_batch.non_tensor_batch['traj_length'][idx] = len(tracking_vars['actions'])
                     test_batch.non_tensor_batch['valid_action'][idx] = sum(1 for x in tracking_vars['actions_valid'] if x is not None)
@@ -965,6 +986,7 @@ class RayPPOTrainer(object):
                 # action metrics
                 metrics['total_env'].append(test_batch.non_tensor_batch['total_env'])
                 metrics['finished_env'].append(test_batch.non_tensor_batch['finished_env'])
+                metrics['success_env'].append(test_batch.non_tensor_batch['success_env'])
                 metrics['traj_length'].append(test_batch.non_tensor_batch['traj_length'])
                 metrics['valid_action'].append(test_batch.non_tensor_batch['valid_action'])
                 metrics['effective_action'].append(test_batch.non_tensor_batch['effective_action'])
@@ -982,6 +1004,7 @@ class RayPPOTrainer(object):
             'global_score/std': float(global_scores.std()),
             'validate_metric/total_env': int(np.array(metrics['total_env'], dtype=np.int16).sum()),
             'validate_metric/finished_env': int(np.array(metrics['finished_env'], dtype=np.int16).sum()),
+            'validate_metric/success_env': int(np.array(metrics['success_env'], dtype=np.int16).sum()),
             'validate_metric/traj_length': float(np.array(metrics['traj_length'], dtype=np.int16).mean()),
             'validate_metric/valid_action': float(np.array(metrics['valid_action'], dtype=np.int16).mean()),
             'validate_metric/effective_action': float(np.array(metrics['effective_action'], dtype=np.int16).mean()),

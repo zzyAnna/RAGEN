@@ -124,6 +124,7 @@ def get_rl_train_command(config: Dict[str, Any]) -> str:
         f"trainer.experiment_name={config['model']['experiment_name']}",
         f"trainer.total_epochs={config['training']['total_epochs']}",
         f"trainer.total_training_steps={config['training']['total_training_steps'] or 'null'}",
+        f"+trainer.ref_update_steps={config['training']['ref_update_steps'] or 'null'}",
         f"env.name={config['env']['name']}",
         env_kwargs_str,
         f"max_turns={config['training']['max_turns']}",

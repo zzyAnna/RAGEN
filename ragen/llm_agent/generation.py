@@ -61,6 +61,42 @@ class LLMGenerationManager:
             padding="longest"
         )['input_ids']
 
+    @staticmethod
+    def _process_answer_tag(responses_str):
+        """
+        Process a list of response strings to keep only the first <answer></answer> tag pair
+        while preserving the rest of the string content.
+        
+        Args:
+            responses_str (List[str]): List of response strings potentially containing answer tags
+            
+        Returns:
+            List[str]: Processed responses with only first answer tag pair preserved
+        """
+        def process_single_response(resp):
+            # If no answer tags present, return original string
+            if '<answer>' not in resp or '</answer>' not in resp:
+                return resp
+                
+            # Find the first complete <answer> tag pair
+            pattern = r'<answer>.*?</answer>'
+            match = re.search(pattern, resp, re.DOTALL)
+            
+            if not match:
+                return resp
+                
+            # Get the matched answer tag content
+            answer_content = match.group(0)
+            
+            # Replace all subsequent answer tag pairs with their content
+            rest_of_string = resp[match.end():]
+            cleaned_rest = re.sub(r'<answer>(.*?)</answer>', r'\1', rest_of_string, flags=re.DOTALL)
+            
+            return resp[:match.start()] + answer_content + cleaned_rest
+        
+        # Process each response string
+        return [process_single_response(resp) for resp in responses_str]
+
     def _postprocess_responses(self, responses: torch.Tensor, envs: List[Any]) -> torch.Tensor:
         """Process responses to remove 1. multiple answers or 2. reward hacking attempts."""
         responses_str = self.tokenizer.batch_decode(
@@ -68,9 +104,10 @@ class LLMGenerationManager:
             skip_special_tokens=True
         )
 
-        responses_str = [resp.split('</answer>')[0] + '</answer>' 
-                    if '</answer>' in resp else resp 
-                    for resp in responses_str]
+        # responses_str = [resp.split('</answer>')[0] + '</answer>' 
+        #             if '</answer>' in resp else resp 
+        #             for resp in responses_str]
+        responses_str = self._process_answer_tag(responses_str)
         
         if self.config.state_masking:
             # Escape special characters in markers for regex
@@ -90,6 +127,7 @@ class LLMGenerationManager:
             print("RESPONSES:", responses_str)
         responses = self._batch_tokenize(responses_str)
         return responses, responses_str
+
 
 
     def _process_next_obs(self, next_obs: List[str]) -> torch.Tensor:
@@ -248,7 +286,7 @@ class LLMGenerationManager:
 
             # Execute in environment and process observations
             next_obs, dones = self.env_class.execute_predictions(
-                envs, responses_str, self.tokenizer.pad_token
+                envs, responses_str, responses_ids, self.tokenizer
             )
             
             active_mask = torch.tensor([not done for done in dones], dtype=torch.bool)

@@ -20,6 +20,8 @@ tensorflow/my_graph/*
 data
 sft/output/*
 sft/data/*
+sft_configs/
+models/
 
 # Distribution / packaging
 .Python

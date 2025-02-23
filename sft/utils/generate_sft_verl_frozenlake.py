@@ -145,9 +145,14 @@ def create_chat_str_for_env(args):
 
     # images = []
 
-    env.reset(seed=seed)
     # images.append(env.render('rgb_array'))
-    gt_action_sequence = get_shortest_action_path(env.room_fixed, env.room_state, MAX_DEPTH=MAX_DEPTH)
+    gt_action_sequence = get_shortest_action_path(
+        seed=seed,
+        size=env.map_kwargs['size'],
+        p=env.map_kwargs['p'],
+        is_slippery=env.env_kwargs['is_slippery'],
+        MAX_DEPTH=MAX_DEPTH
+    )
     assert gt_action_sequence, f"No action sequence found for seed {seed}"
     user_prompt = init_prompt_formatted
     for action in gt_action_sequence:
@@ -198,7 +203,7 @@ def create_chat_messages_for_env(args):
         is_slippery=env.env_kwargs['is_slippery'],
         MAX_DEPTH=MAX_DEPTH
     )
-    assert gt_action_sequence, f"No action sequence found for seed {seed}"
+    assert len(gt_action_sequence), f"No action sequence found for seed {seed}"
     for action in gt_action_sequence:
         action_str = env.ACTION_LOOKUP[action]
         response_message = templates[prefix]['response'].format(action=action_str)
@@ -223,14 +228,14 @@ def create_chat_messages_for_env(args):
 def main():
 
     parser = argparse.ArgumentParser()
-    parser.add_argument("--env", type=str, default="sokoban", help="Environment name (default: 'sokoban').")
+    parser.add_argument("--env", type=str, default="frozenlake", help="Environment name (default: 'frozenlake').")
     parser.add_argument("--algo", type=str, default="bfs", choices=["bfs"], help="Algorithm to use (default: 'bfs').")
     parser.add_argument("--seed", type=int, default=100000, help="Seed for random number generation (default: 100000).")
     parser.add_argument("--output", type=str, default="sft/data/frozenlake", help="Output file to save the trajectories (default: 'sft/data/frozenlake').")
     parser.add_argument("--train_size", type=int, default=1000, help="Number of training trajectories to generate (default: 1000).")
     parser.add_argument("--test_size", type=int, default=100, help="Number of test trajectories to generate (default: 100).")
     parser.add_argument("--bfs_max_depths", type=int, default=100, help="Maximum number of depths for BFS (default: 100).")
-    parser.add_argument("--prefix", type=str, default='qwen-instruct', choices=['qwen-instruct', 'base', 'message'])
+    parser.add_argument("--prefix", type=str, default='message', choices=['qwen-instruct', 'base', 'message'])
     # parser.add_argument("--without_thinking", action='store_true', help="Whether to exclude <think> </think> tags in the response.")
     parser.add_argument("--num_processes", type=int, default=4, help="Number of processes to use for parallel processing (default: 4).")
     args = parser.parse_args()

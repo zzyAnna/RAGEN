@@ -1,7 +1,3 @@
-"""
-adapted from gym-bandits
-"""
-
 import gymnasium as gym
 import numpy as np
 from typing import Optional
@@ -15,6 +11,7 @@ from ragen.env.base import BaseDiscreteActionEnv
 class BanditEnv(BaseDiscreteActionEnv, gym.Env):
     """
     Wrapper for the BanditTenArmedGaussian environment to match the project structure.
+    Adapted from gym-bandits
     
     ## Description
     N armed bandit mentioned in Sutton and Barto's RL book. Each action
@@ -196,6 +193,7 @@ class TwoArmedBanditEnv(BaseDiscreteActionEnv, gym.Env):
         # Initialize tracking variables
         self.last_action = None
         self._success = False
+        self._finished = False
 
     def _low_risk_arm_reward_distribution(self):
         """
@@ -221,6 +219,10 @@ class TwoArmedBanditEnv(BaseDiscreteActionEnv, gym.Env):
         else:
             return self.np_random.normal(1, 0.1)
 
+
+
+
+
     def reset(self, seed=None, mode='text'):
         """Reset the environment and reward distributions"""
         gym.Env.reset(self, seed=seed)
@@ -229,7 +231,7 @@ class TwoArmedBanditEnv(BaseDiscreteActionEnv, gym.Env):
         self._reset_tracking_variables()
         self.last_action = None
         self._success = False
-        
+        self._finished = False
         return self.render(mode)
 
     def step(self, action: int):
@@ -239,9 +241,10 @@ class TwoArmedBanditEnv(BaseDiscreteActionEnv, gym.Env):
         - action = 2: pull high-risk arm
         """
         assert isinstance(action, int)
-        self._success = True
+        self._finished = True
         if action == self.INVALID_ACTION: # no penalty for invalid action
             return self.render(), 0, True, {"action_is_effective": False}
+        self._success = True
         
         assert action in self.get_all_actions(), f"Invalid action {action}"
         
@@ -304,6 +307,9 @@ class TwoArmedBanditEnv(BaseDiscreteActionEnv, gym.Env):
         new_env._copy_tracking_variables(self)
         return new_env
     
+    def finished(self):
+        return self._finished
+
     def success(self):
         return self._success
     

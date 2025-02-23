@@ -41,7 +41,7 @@ create_sokoban_dataset() {
     python ragen/env/sokoban/create_dataset.py \
         --output data/sokoban \
         --seed 10000 \
-        --train_size 10000 \
+        --train_size 100000 \
         --test_size 500 \
         --prefix qwen-instruct
         
@@ -61,7 +61,7 @@ create_frozen_lake_dataset() {
     python ragen/env/frozen_lake/create_dataset.py \
         --output data/frozenlake \
         --seed 100000 \
-        --train_size 10000 \
+        --train_size 100000 \
         --test_size 500 \
         --prefix qwen-instruct
         
@@ -81,7 +81,7 @@ create_two_armed_bandit_dataset() {
     python ragen/env/bandit/create_dataset_two_armed.py \
         --output data/two_armed_bandit \
         --seed 100000 \
-        --train_size 10000 \
+        --train_size 100000 \
         --test_size 500 \
         --prefix qwen-instruct
         

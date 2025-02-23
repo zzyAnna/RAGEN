@@ -2,12 +2,13 @@ import gym
 from gym_sokoban.envs.sokoban_env import SokobanEnv as GymSokobanEnv
 import numpy as np
 from ragen.utils import NoLoggerWarnings
-from .room_utils import generate_room
+from ragen.env.sokoban.room_utils import generate_room
 from ragen.utils import set_seed
 import re
 import copy
+from typing_extensions import override
 
-from ..base import BaseDiscreteActionEnv
+from ragen.env.base import BaseDiscreteActionEnv
 
 class SokobanEnv(BaseDiscreteActionEnv, GymSokobanEnv):
 
@@ -40,7 +41,7 @@ class SokobanEnv(BaseDiscreteActionEnv, GymSokobanEnv):
         self.search_depth = kwargs.pop('search_depth', 300)
         GymSokobanEnv.__init__(
             self,
-            dim_room=kwargs.pop('dim_room', (7, 7)), 
+            dim_room=kwargs.pop('dim_room', (6, 6)), 
             max_steps=kwargs.pop('max_steps', 100),
             num_boxes=kwargs.pop('num_boxes', 3),
             **kwargs
@@ -48,6 +49,20 @@ class SokobanEnv(BaseDiscreteActionEnv, GymSokobanEnv):
         self.ACTION_SPACE = gym.spaces.discrete.Discrete(4, start=1)
         self.reward = 0
         self._valid_actions = []
+
+
+    # @staticmethod
+    # @override
+    # def formulate_output(env_feedback: str, done: bool = False):
+    #     """
+    #     No environment feedback for Sokoban
+    #     NOTE hard coded for sokoban easy now
+    #     """
+
+    #     return ""
+
+
+
     def extract_action(self, text):
         """
         Extract action from text.
@@ -99,6 +114,9 @@ class SokobanEnv(BaseDiscreteActionEnv, GymSokobanEnv):
             return self.render(mode)
         
 
+    def finished(self):
+        return self.num_env_steps >= self.max_steps or self.success()
+
     def success(self):
         return self.boxes_on_target == self.num_boxes
     
@@ -122,8 +140,17 @@ class SokobanEnv(BaseDiscreteActionEnv, GymSokobanEnv):
         - Step the environment with the given action.
         - Check if the action is effective (whether player moves in the env).
         """
+        assert not self.success()
+
+        if action == self.INVALID_ACTION:
+            return self.render(), 0, False, {"action_is_effective": False}
         prev_player_position = self.player_position
         _, reward, done, _ = GymSokobanEnv.step(self, action, observation_mode='tiny_rgb_array')
+        
+        # # NOTE re-define reward for sokoban
+        # reward = -1 # format reward
+        # if done:
+        #     reward = 1 # success reward
             
         obs = self.render()
         return obs, reward, done, {"action_is_effective": not np.array_equal(prev_player_position, self.player_position)}
@@ -251,4 +278,17 @@ Enjoy the challenge!
 """
 
 if __name__ == '__main__':
-    print(GUIDE)    
+    # print(GUIDE)
+    import matplotlib.pyplot as plt
+    env = SokobanEnv(dim_room=(6, 6), num_boxes=1, max_steps=100, search_depth=30)
+    print(env.reset(seed=1010))
+    np_img = env.get_image('rgb_array')
+    # save the image
+    plt.imsave('sokoban1.png', np_img)
+    print()
+
+    env2 = env.copy()
+    print(env2.reset(seed=1010))
+    np_img = env2.get_image('rgb_array')
+    # save the image
+    plt.imsave('sokoban2.png', np_img)
