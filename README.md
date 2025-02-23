@@ -43,6 +43,9 @@ During the update phase:
 * **Unified Multi-round Processing**: Maintains consistency by avoiding new instance creation that could destabilize batch sizes
 * **World Modeling**: Potentially enables world modeling (state and reward prediction), helps LLM-agent to plan
 
+## Guidelines
+Please check out <a hred="https://ragen-tutorial.readthedocs.io/">documentation</a> for a comprehensive guideline of the RAGEN framework, including QuickStart, Configuration Tutorial, and Example Cases (under implementation).
+
 
 ## Performance
 
@@ -70,6 +73,7 @@ We prepare to release a complete wandb plot for these experiment runs, although 
 
 
 ## Environment Setup
+Please checkout the <a hred="https://ragen-tutorial.readthedocs.io/">documentation</a> for more details. Here we provide a simple guideline for RAGEN setup.
 To setup environment and download data (7MB), you can run:
 ```bash
 bash scripts/setup_ragen.sh
@@ -80,7 +84,7 @@ if it fails, you can try to run the lines in `scripts/setup_ragen.md` manually.
 
 
 ## Train Models
-
+Please checkout the <a hred="https://ragen-tutorial.readthedocs.io/">documentation</a> for more details. Here we provide a simple guideline to train models with RAGEN.
 ### Create data
 
 On the [Gym-Sokoban](https://github.com/mpSchrader/gym-sokoban) and [FrozenLake](https://gymnasium.farama.org/environments/toy_text/frozen_lake/) tasks, We create 10k first-round-observation data for training, respectively.
