@@ -74,6 +74,7 @@ We prepare to release a complete wandb plot for these experiment runs, although 
 
 ## Environment Setup
 Please checkout the [documentation](https://ragen-tutorial.readthedocs.io/) for more details. Here we provide a simple guideline for RAGEN setup.
+
 To setup environment and download data (7MB), you can run:
 ```bash
 bash scripts/setup_ragen.sh
