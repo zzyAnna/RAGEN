@@ -37,60 +37,24 @@ The Reasoning-Interaction Chain Optimization (RICO) framework with two interleav
 </p>
 
 
-### MDP Formulation
+## Algorithm
 
-We formulate agent-environment interactions as Markov Decision Processes (MDPs) where:
-- States and actions are token sequences, allowing LLMs to reason over environment dynamics
-- At time t, state $s_t$ transitions to state $s_{t+1}$ through action $a_t$ following transition function $\mathcal{P}$:
+RAGEN introduces a reinforcement learning framework to train reasoning-capable LLM agents that can operate in interactive, stochastic environments. The framework consists of two key components:
 
-  $$s_{t+1} \sim \mathcal{P}(\cdot|s_t, a_t)$$
+### > MDP Formulation
+We formulate agent-environment interactions as Markov Decision Processes (MDPs) where states and actions are token sequences, allowing LLMs to reason over environment dynamics. At time t, state $s_t$ transitions to state $s_{t+1}$ through action $a_t$ following transition function $\mathcal{P}$: $s_{t+1} \sim \mathcal{P}(\cdot|s_t, a_t)$. The policy $\pi_\theta$ generates actions given the trajectory: $a_t \sim \pi_\theta(\cdot|s_t, [s, a]_{0:t-1})$. The objective is to maximize expected cumulative rewards across multiple interaction turns: $J_{\text{Interactive}}(\theta) = \mathbb{E}_{\substack{s_t \sim \mathcal{D} \\ a_t \sim \pi_{\theta}(\cdot|s_t)}}[\sum_{t} r(s_t,a_t)]$.
 
-- The policy $\pi_\theta$ generates actions given the trajectory:
-
-  $$a_t \sim \pi_\theta(\cdot|s_t, [s, a]_{0:t-1})$$
-
-- The objective is to maximize expected cumulative rewards across multiple interaction turns:
-
-  $$J_{\text{Interactive}}(\theta) = \mathbb{E}_{\substack{s_t \sim \mathcal{D} \\ a_t \sim \pi_{\theta}(\cdot|s_t)}}[\sum_{t} r(s_t,a_t)]$$
-
-### RICO: Reasoning-Interaction Chain Optimization
-
+### >  Reasoning-Interaction Chain Optimization
 RICO enables LLMs to jointly optimize reasoning and action strategies over entire trajectories. The algorithm alternates between two phases:
 
-#### 1. Rollout Stage: Reasoning-Interaction Chain Generation
-- Given an initial state $s_0$, the LLM generates $N$ trajectories, each with up to $K$ turns
-- At each step $t$, the model receives the trajectory history $\tau_{1:t-1}$ and generates a reasoning-guided action:
+#### Rollout Stage: Reasoning-Interaction Chain Generation
+Given an initial state $s_0$, the LLM generates $N$ trajectories, each with up to $K$ turns. At each step $t$, the model receives the trajectory history $\tau_{1:t-1}$ and generates a reasoning-guided action: $a^T_t = \texttt{<think>...</think><ans>} a_t \texttt{</ans>}$. The environment receives $a_t$ and returns feedback (reward $r_t$ and next state $s_{t+1}$).
 
-  $$a^T_t = \texttt{<think>...</think><ans>} a_t \texttt{</ans>}$$
+#### Update Stage: Multi-turn Trajectory Optimization
+After generating trajectories, we train LLMs to optimize expected rewards. Instead of step-by-step optimization, RICO optimizes entire trajectories: $J_{\text{RICO}}(\theta, R) = \mathbb{E}_{\substack{s_0 \sim \mathcal{D} \\ \tau \sim \pi_{\text{old}}(\cdot|s_0)}}\left[\frac{P_\theta(\tau|s_0)}{P_{\text{old}}(\tau|s_0)}R(\tau)\right]$. This approach enables long-horizon reasoning while maintaining computational efficiency.
 
-- The environment receives $a_t$ and returns feedback (reward $r_t$ and next state $s_{t+1}$)
-
-#### 2. Update Stage: Multi-turn Trajectory Optimization
-- After generating trajectories, we train LLMs to optimize expected rewards
-- Instead of step-by-step optimization, RICO optimizes entire trajectories:
-
-  $$J_{\text{RICO}}(\theta, R) = \mathbb{E}_{\substack{s_0 \sim \mathcal{D} \\ \tau \sim \pi_{\text{old}}(\cdot|s_0)}}\left[\frac{P_\theta(\tau|s_0)}{P_{\text{old}}(\tau|s_0)}R(\tau)\right]$$
-
-- This approach enables long-horizon reasoning while maintaining computational efficiency
-
-### Reward Normalization Strategies
-
-We implement three progressive normalization strategies to stabilize training:
-
-1. **Absolute Reward Policy Optimization (ARPO)**
-   - Preserves raw rewards: $R^{\text{ARPO}}(r_{\text{all}}^{(i)}) = r_{\text{all}}^{(i)}$
-   - Simple but may struggle with unstable reward scales
-
-2. **Batch-Relative Policy Optimization (BRPO)**
-   - Normalizes rewards across each training batch: $R^{\text{BRPO}}(r_{\text{all}}^{(i)}) = (r_{\text{all}}^{(i)} - \mu_B)/\sigma_B$
-   - Maintains steady reward scales independent of environments
-   - Adapts to model capabilities by amplifying positive rewards when performance is low
-
-3. **Group-Relative Policy Optimization (GRPO)**
-   - Normalizes within prompt groups: $R^{\text{GRPO}}(r_{\text{all}}^{(i)}) = (r_{\text{all}}^{(i)} - \mu_{p_i})/\sigma_{p_i}$
-   - Balances learning across tasks of varying difficulty
-   - Provides stronger reinforcement for success on difficult prompts
-
+### > Reward Normalization Strategies
+We implement three progressive normalization strategies to stabilize training: (1) **ARPO**: $R^{\text{ARPO}}(r_{\text{all}}^{(i)}) = r_{\text{all}}^{(i)}$ preserves raw rewards; (2) **BRPO**: $R^{\text{BRPO}}(r_{\text{all}}^{(i)}) = (r_{\text{all}}^{(i)} - \mu_B)/\sigma_B$ normalizes across batches; and (3) **GRPO**: $R^{\text{GRPO}}(r_{\text{all}}^{(i)}) = (r_{\text{all}}^{(i)} - \mu_{p_i})/\sigma_{p_i}$ normalizes within prompt groups to balance learning across varying task difficulties.
 
 ## Performance
 
