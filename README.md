@@ -37,7 +37,7 @@ The Reasoning-Interaction Chain Optimization (RICO) framework with two interleav
 </p>
 
 
-## Algorithm
+<!-- ## Algorithm
 
 RAGEN introduces a reinforcement learning framework to train reasoning-capable LLM agents that can operate in interactive, stochastic environments. The framework consists of two key components:
 
@@ -54,7 +54,56 @@ Given an initial state $s_0$, the LLM generates $N$ trajectories, each with up t
 After generating trajectories, we train LLMs to optimize expected rewards. Instead of step-by-step optimization, RICO optimizes entire trajectories: $J_{\text{RICO}}(\theta, R) = \mathbb{E}_{\substack{s_0 \sim \mathcal{D} \\ \tau \sim \pi_{\text{old}}(\cdot|s_0)}}\left[\frac{P_\theta(\tau|s_0)}{P_{\text{old}}(\tau|s_0)}R(\tau)\right]$. This approach enables long-horizon reasoning while maintaining computational efficiency.
 
 ### > Reward Normalization Strategies
-We implement three progressive normalization strategies to stabilize training: (1) **ARPO**: $R^{\text{ARPO}}(r_{\text{all}}^{(i)}) = r_{\text{all}}^{(i)}$ preserves raw rewards; (2) **BRPO**: $R^{\text{BRPO}}(r_{\text{all}}^{(i)}) = (r_{\text{all}}^{(i)} - \mu_B)/\sigma_B$ normalizes across batches; and (3) **GRPO**: $R^{\text{GRPO}}(r_{\text{all}}^{(i)}) = (r_{\text{all}}^{(i)} - \mu_{p_i})/\sigma_{p_i}$ normalizes within prompt groups to balance learning across varying task difficulties.
+We implement three progressive normalization strategies to stabilize training: (1) **ARPO**: $R^{\text{ARPO}}(r_{\text{all}}^{(i)}) = r_{\text{all}}^{(i)}$ preserves raw rewards; (2) **BRPO**: $R^{\text{BRPO}}(r_{\text{all}}^{(i)}) = (r_{\text{all}}^{(i)} - \mu_B)/\sigma_B$ normalizes across batches; and (3) **GRPO**: $R^{\text{GRPO}}(r_{\text{all}}^{(i)}) = (r_{\text{all}}^{(i)} - \mu_{p_i})/\sigma_{p_i}$ normalizes within prompt groups to balance learning across varying task difficulties. -->
+
+<style>
+.math {
+  font-family: "Latin Modern Math", "Computer Modern", serif;
+  font-style: italic;
+}
+</style>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.7/MathJax.js?config=TeX-MML-AM_CHTML"></script>
+<script type="text/x-mathjax-config">
+MathJax.Hub.Config({
+  tex2jax: {
+    inlineMath: [['$','$'], ['\\(','\\)']],
+    displayMath: [['$$','$$'], ['\\[','\\]']],
+    processEscapes: true
+  }
+});
+</script>
+
+
+<div>
+  <p>RAGEN introduces a reinforcement learning framework to train reasoning-capable LLM agents that can operate in interactive, stochastic environments. The framework consists of two key components:</p>
+
+  <h3>> MDP Formulation</h3>
+  <p>
+    We formulate agent-environment interactions as Markov Decision Processes (MDPs) where states and actions are token sequences, allowing LLMs to reason over environment dynamics. At time t, state <span class="math">s_t</span> transitions to state <span class="math">s_{t+1}</span> through action <span class="math">a_t</span> following transition function <span class="math">\mathcal{P}</span>: <span class="math">s_{t+1} \sim \mathcal{P}(\cdot|s_t, a_t)</span>. The policy <span class="math">\pi_\theta</span> generates actions given the trajectory: <span class="math">a_t \sim \pi_\theta(\cdot|s_t, [s, a]_{0:t-1})</span>. The objective is to maximize expected cumulative rewards across multiple interaction turns: <span class="math">J_{\text{Interactive}}(\theta) = \mathbb{E}_{\substack{s_t \sim \mathcal{D} \\ a_t \sim \pi_{\theta}(\cdot|s_t)}}[\sum_{t} r(s_t,a_t)]</span>.
+  </p>
+
+  <h3>> Reasoning-Interaction Chain Optimization</h3>
+  <p>
+    RICO enables LLMs to jointly optimize reasoning and action strategies over entire trajectories. The algorithm alternates between two phases:
+  </p>
+
+  <h4>Rollout Stage: Reasoning-Interaction Chain Generation</h4>
+  <p>
+    Given an initial state <span class="math">s_0</span>, the LLM generates <span class="math">N</span> trajectories, each with up to <span class="math">K</span> turns. At each step <span class="math">t</span>, the model receives the trajectory history <span class="math">\tau_{1:t-1}</span> and generates a reasoning-guided action: <span class="math">a^T_t = \texttt{<think>...</think><ans>} a_t \texttt{</ans>}</span>. The environment receives <span class="math">a_t</span> and returns feedback (reward <span class="math">r_t</span> and next state <span class="math">s_{t+1}</span>).
+  </p>
+
+  <h4>Update Stage: Multi-turn Trajectory Optimization</h4>
+  <p>
+    After generating trajectories, we train LLMs to optimize expected rewards. Instead of step-by-step optimization, RICO optimizes entire trajectories: <span class="math">J_{\text{RICO}}(\theta, R) = \mathbb{E}_{\substack{s_0 \sim \mathcal{D} \\ \tau \sim \pi_{\text{old}}(\cdot|s_0)}}\left[\frac{P_\theta(\tau|s_0)}{P_{\text{old}}(\tau|s_0)}R(\tau)\right]</span>. This approach enables long-horizon reasoning while maintaining computational efficiency.
+  </p>
+
+  <h3>> Reward Normalization Strategies</h3>
+  <p>
+    We implement three progressive normalization strategies to stabilize training: (1) <strong>ARPO</strong>: <span class="math">R^{\text{ARPO}}(r_{\text{all}}^{(i)}) = r_{\text{all}}^{(i)}</span> preserves raw rewards; (2) <strong>BRPO</strong>: <span class="math">R^{\text{BRPO}}(r_{\text{all}}^{(i)}) = (r_{\text{all}}^{(i)} - \mu_B)/\sigma_B</span> normalizes across batches; and (3) <strong>GRPO</strong>: <span class="math">R^{\text{GRPO}}(r_{\text{all}}^{(i)}) = (r_{\text{all}}^{(i)} - \mu_{p_i})/\sigma_{p_i}</span> normalizes within prompt groups to balance learning across varying task difficulties.
+  </p>
+</div>
+
 
 ## Performance
 
