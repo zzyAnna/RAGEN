@@ -59,33 +59,6 @@ We implement three progressive normalization strategies to stabilize training:
 2. **BRPO**: Normalizes rewards across each training batch using batch statistics
 3. **GRPO**: Normalizes within prompt groups to balance learning across varying task difficulties
 
-## Performance
-
-We evaluate RAGEN across multiple model sizes and configurations. Below are results from our Sokoban experiments using Qwen-2.5-{0.5B, 3B}-{Instruct, None} and DeepSeek-R1-Distill-Qwen-1.5B.
-
-<img src="./public/loss_curve.png" width="800px" alt="Loss curves for different models" />
-
-Key observations:
-- Instruct-finetuned models show early advantages but the gap narrows as training progresses
-- Larger models (3B) generally outperform smaller models (0.5B), though the advantage is not dramatic
-- The R1-distilled 1.5B model initially underperforms compared to 0.5B models
-- Training has not yet converged in these experiments
-
-Our analysis reveals two key aspects of LLM agent training with RL:
-1. **Prompt diversity**: Balancing observation variety and effective response comparison
-2. **Online rollout frequency**: Mediating between training stability and data recency
-
-## Example Trajectories
-
-Visualization of agent reasoning on the Sokoban task:
-
-<p align="center" style="display: flex; justify-content: center; gap: 10px;">
-    <img src="./public/step_1.png" width="200px" alt="Step 1" />
-    <img src="./public/step_2.png" width="200px" alt="Step 2" />
-</p>
-
-The visualizations show how the agent reasons through sequential steps to solve the puzzle.
-
 ## Environment Setup
 For detailed setup instructions, please check our [documentation](https://ragen-tutorial.readthedocs.io/). Here's a quick start guide:
 
@@ -175,6 +148,34 @@ from ragen.utils.wandb import download_wandb
 download_wandb("RUN_ID") # e.g., 9o465jqj
 ```
 
+
+## Performance
+
+We evaluate RAGEN across multiple model sizes and configurations. Below are results from our Sokoban experiments using Qwen-2.5-{0.5B, 3B}-{Instruct, None} and DeepSeek-R1-Distill-Qwen-1.5B.
+
+<img src="./public/loss_curve.png" width="800px" alt="Loss curves for different models" />
+
+Key observations:
+- Instruct-finetuned models show early advantages but the gap narrows as training progresses
+- Larger models (3B) generally outperform smaller models (0.5B), though the advantage is not dramatic
+- The R1-distilled 1.5B model initially underperforms compared to 0.5B models
+- Training has not yet converged in these experiments
+
+Our analysis reveals two key aspects of LLM agent training with RL:
+1. **Prompt diversity**: Balancing observation variety and effective response comparison
+2. **Online rollout frequency**: Mediating between training stability and data recency
+
+## Example Trajectories
+
+Visualization of agent reasoning on the Sokoban task:
+
+<p align="center" style="display: flex; justify-content: center; gap: 10px;">
+    <img src="./public/step_1.png" width="200px" alt="Step 1" />
+    <img src="./public/step_2.png" width="200px" alt="Step 2" />
+</p>
+
+The visualizations show how the agent reasons through sequential steps to solve the puzzle.
+
 ## Case Studies
 We provide several case studies showing the model's behavior:
 - [Reward hacking](https://github.com/ZihanWang314/agent-r1/blob/main/cases/reward_hacking.txt)
@@ -185,24 +186,20 @@ More case studies will be added to showcase both successful reasoning patterns a
 ## Feedback
 We welcome all forms of feedback! Please raise an issue for bugs, questions, or suggestions. This helps our team address common problems efficiently and builds a more productive community.
 
-## Authors
-- [Zihan Wang*](https://zihanwang314.github.io/)
-- [Kangrui Wang](https://jameskrw.github.io/)
-- [Qineng Wang](https://qinengwang-aiden.github.io/)
-- [Pingyue Zhang](https://williamzhangsjtu.github.io/)
-- [Manling Li†](https://limanling.github.io)
+## Contributors
 
-*: Project Lead; †: Advising.
-Remaining authors in alphabetical order.
+[**Zihan Wang**\*](https://zihanwang314.github.io/), [**Kangrui Wang**\*](https://jameskrw.github.io/), [**Qineng Wang**\*](https://qinengwang-aiden.github.io/), [**Pingyue Zhang**\*](https://williamzhangsjtu.github.io/), [**Linjie Li**\*](https://scholar.google.com/citations?user=WR875gYAAAAJ&hl=en), [**Zhengyuan Yang**](https://zyang-ur.github.io/), [**Kefan Yu**](https://www.linkedin.com/in/kefan-yu-22723a25b/en/), [**Minh Nhat Nguyen**](https://www.linkedin.com/in/menhguin/?originalSubdomain=sg), [**Monica Lam**](https://suif.stanford.edu/~lam/), [**Yiping Lu**](https://http://2prime.github.io/), [**Kyunghyun Cho**](https://kyunghyuncho.me/), [**Jiajun Wu**](https://jiajunwu.com/), [**Li Fei-Fei**](https://profiles.stanford.edu/fei-fei-li), [**Lijuan Wang**](https://www.microsoft.com/en-us/research/people/lijuanw/), [**Yejin Choi**](https://homes.cs.washington.edu/~yejin/), [**Manling Li**](https://limanling.github.io/)
+
+*:Equal Contribution.
 
 ## Acknowledgements
-We thank [DeepSeek](https://github.com/deepseek-ai/DeepSeek-R1) for providing the DeepSeek-R1 model and ideas. We thank the [veRL](https://github.com/volcengine/verl) team for their infrastructure. We thank the [TinyZero](https://github.com/Jiayi-Pan/TinyZero) team for their discoveries that inspired our early exploration. We thank Yiping Lu, Runxin Xu, Kyunghyun Cho for insightful discussions.
+We thank [DeepSeek](https://github.com/deepseek-ai/DeepSeek-R1) for providing the DeepSeek-R1 model and ideas. We thank the [veRL](https://github.com/volcengine/verl) team for their infrastructure. We thank the [TinyZero](https://github.com/Jiayi-Pan/TinyZero) team for their discoveries that inspired our early exploration. We thank Han Liu, Xinyu Xing, Li Erran Li, Akari Asai, Eiso Kant, Lu Lu, Runxin Xu, Huajian Xin, Zijun Liu, Weiyi Liu, Weimin Wu, Yibo Wen, Jiarui Liu, Lorenzo Xiao, Ishan Mukherjee, Anabella Isaro, Haosen Sun, How-Yeh Wan, Lester Xue, Weiyi Liu for insightful discussions.
 
 ## Citation
 ```md
 @misc{RAGEN,
-  author       = {Zihan Wang and Kangrui Wang and Qineng Wang and Pingyue Zhang and Manling Li},
-  title        = {RAGEN: A General-Purpose Reasoning Agent Training Framework},
+  author       = {Zihan Wang* and Kangrui Wang* and Qineng Wang* and Pingyue Zhang* and Linjie Li* and Zhengyuan Yang and Kefan Yu and Minh Nhat Nguyen and Monica Lam and Yiping Lu and Kyunghyun Cho and Jiajun Wu and Li Fei-Fei and Lijuan Wang and Yejin Choi and Manling Li},
+  title        = {Training Agents by Reinforcing Reasoning},
   year         = {2025},
   organization = {GitHub},
   url          = {https://github.com/ZihanWang314/ragen},
