@@ -41,20 +41,23 @@ The Reasoning-Interaction Chain Optimization (RICO) framework with two interleav
 
 RAGEN introduces a reinforcement learning framework to train reasoning-capable LLM agents that can operate in interactive, stochastic environments. The framework consists of two key components:
 
-### > MDP Formulation
-We formulate agent-environment interactions as Markov Decision Processes (MDPs) where states and actions are token sequences, allowing LLMs to reason over environment dynamics. At time t, state $s_t$ transitions to state $s_{t+1}$ through action $a_t$ following transition function $\mathcal{P}$: $s_{t+1} \sim \mathcal{P}(\cdot|s_t, a_t)$. The policy $\pi_\theta$ generates actions given the trajectory: $a_t \sim \pi_\theta(\cdot|s_t, [s, a]_{0:t-1})$. The objective is to maximize expected cumulative rewards across multiple interaction turns: $J_{\text{Interactive}}(\theta) = \mathbb{E}_{\substack{s_t \sim \mathcal{D} \\ a_t \sim \pi_{\theta}(\cdot|s_t)}}[\sum_{t} r(s_t,a_t)]$.
+### > MDP Formulation 
+We formulate agent-environment interactions as Markov Decision Processes (MDPs) where states and actions are token sequences, allowing LLMs to reason over environment dynamics. At time t, state $s_t$ transitions to the next state through action $a_t$ following a transition function. The policy generates actions given the trajectory history. The objective is to maximize expected cumulative rewards across multiple interaction turns.
 
-### >  Reasoning-Interaction Chain Optimization
+### > Reasoning-Interaction Chain Optimization 
 RICO enables LLMs to jointly optimize reasoning and action strategies over entire trajectories. The algorithm alternates between two phases:
 
-#### Rollout Stage: Reasoning-Interaction Chain Generation
-Given an initial state $s_0$, the LLM generates $N$ trajectories, each with up to $K$ turns. At each step $t$, the model receives the trajectory history $\tau_{1:t-1}$ and generates a reasoning-guided action: $a^T_t = \texttt{<think>...</think><ans>} a_t \texttt{</ans>}$. The environment receives $a_t$ and returns feedback (reward $r_t$ and next state $s_{t+1}$).
+#### Rollout Stage: Reasoning-Interaction Chain Generation 
+Given an initial state, the LLM generates multiple trajectories. At each step, the model receives the trajectory history and generates a reasoning-guided action: `<think>...</think><ans> action </ans>`. The environment receives the action and returns feedback (reward and next state).
 
-#### Update Stage: Multi-turn Trajectory Optimization
-After generating trajectories, we train LLMs to optimize expected rewards. Instead of step-by-step optimization, RICO optimizes entire trajectories: $J_{\text{RICO}}(\theta, R) = \mathbb{E}_{\substack{s_0 \sim \mathcal{D} \\ \tau \sim \pi_{\text{old}}(\cdot|s_0)}}\left[\frac{P_\theta(\tau|s_0)}{P_{\text{old}}(\tau|s_0)}R(\tau)\right]$. This approach enables long-horizon reasoning while maintaining computational efficiency.
+#### Update Stage: Multi-turn Trajectory Optimization 
+After generating trajectories, we train LLMs to optimize expected rewards. Instead of step-by-step optimization, RICO optimizes entire trajectories using importance sampling. This approach enables long-horizon reasoning while maintaining computational efficiency.
 
-### > Reward Normalization Strategies
-We implement three progressive normalization strategies to stabilize training: (1) **ARPO**: $R^{\text{ARPO}}(r_{\text{all}}^{(i)}) = r_{\text{all}}^{(i)}$ preserves raw rewards; (2) **BRPO**: $R^{\text{BRPO}}(r_{\text{all}}^{(i)}) = (r_{\text{all}}^{(i)} - \mu_B)/\sigma_B$ normalizes across batches; and (3) **GRPO**: $R^{\text{GRPO}}(r_{\text{all}}^{(i)}) = (r_{\text{all}}^{(i)} - \mu_{p_i})/\sigma_{p_i}$ normalizes within prompt groups to balance learning across varying task difficulties.
+### > Reward Normalization Strategies 
+We implement three progressive normalization strategies to stabilize training: 
+1. **ARPO**: Preserves raw rewards directly 
+2. **BRPO**: Normalizes rewards across each training batch using batch statistics
+3. **GRPO**: Normalizes within prompt groups to balance learning across varying task difficulties
 
 ## Performance
 
