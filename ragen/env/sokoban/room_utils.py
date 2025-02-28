@@ -152,10 +152,77 @@ def solve_sokoban(env, saved_animation_path):
         
 
 
+
+
+
+def add_random_player_movement(room_state, room_structure, move_probability=0.5, continue_probability=0.5, max_steps=3):
+    """
+    Randomly move the player after reverse_playing to make the level more challenging, also fix the problem that in generated map, the player is always adjacent to the box
+    
+    Parameters:
+        room_state (np.ndarray): Current state of the room
+        room_structure (np.ndarray): Fixed structure of the room
+        move_probability (float): Probability of moving the player at all (0.0-1.0)
+        continue_probability (float): Probability of continuing to move after each step (0.0-1.0)
+        max_steps (int): Maximum number of steps the player can move (1-3)
+    
+    Returns:
+        np.ndarray: Updated room state with randomly moved player
+    """
+    # Check if we should move the player at all
+    if random.random() > move_probability:
+        return room_state
+    
+    # Find player position
+    player_pos = np.where(room_state == 5)
+    player_pos = np.array([player_pos[0][0], player_pos[1][0]])
+    
+    # Keep track of previous positions to avoid moving back
+    previous_positions = [tuple(player_pos)]
+    
+    # Make 1-3 random moves
+    steps_taken = 0
+    while steps_taken < max_steps:
+        # Get all valid moves (can't move into walls or boxes)
+        valid_moves = []
+        for action in range(4):  # 0: up, 1: down, 2: left, 3: right
+            change = CHANGE_COORDINATES[action]
+            next_pos = player_pos + change
+            
+            # Check if next position is valid (empty space or target) and not a previous position
+            if (room_state[next_pos[0], next_pos[1]] in [1, 2] and 
+                tuple(next_pos) not in previous_positions):
+                valid_moves.append((action, next_pos))
+        
+        # If no valid moves, break
+        if not valid_moves:
+            break
+        
+        # Choose a random valid move
+        chosen_action, next_pos = random.choice(valid_moves)
+        # print(f"player_pos: {player_pos}, next_pos: {next_pos}")
+        
+        # Move player
+        room_state[player_pos[0], player_pos[1]] = room_structure[player_pos[0], player_pos[1]]
+        room_state[next_pos[0], next_pos[1]] = 5
+        
+        # Update player position and track previous position
+        player_pos = next_pos
+        previous_positions.append(tuple(player_pos))
+        
+        steps_taken += 1
+        
+        # Decide whether to continue moving
+        if steps_taken >= max_steps or random.random() > continue_probability:
+            break
+    
+    return room_state
+
+
+
 """
 Following code is adapted from the nicely written gym_sokoban repo
 """
-
 
 def generate_room(dim=(13, 13), p_change_directions=0.35, num_steps=25, num_boxes=3, tries=4, second_player=False, search_depth=100):
     """
@@ -200,6 +267,19 @@ def generate_room(dim=(13, 13), p_change_directions=0.35, num_steps=25, num_boxe
 
     if box_displacement_score(box_mapping) == 0:
         raise RuntimeWarning('Generated Model with score == 0')
+
+    # Add random player movement after reverse_playing
+    if box_displacement_score(box_mapping) == 1:
+        move_probability = 0.8
+    else:
+        move_probability = 0.5
+    room_state = add_random_player_movement(
+        room_state, 
+        room_structure,
+        move_probability=move_probability,       # 50% chance the player will move
+        continue_probability=0.5,   # 50% chance to continue moving after each step
+        max_steps=3                 # Maximum of 3 steps
+    )
 
     return room_structure, room_state, box_mapping, action_sequence
 
