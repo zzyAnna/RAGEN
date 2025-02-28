@@ -19,7 +19,7 @@ from ragen.env.sokoban import SokobanEnv
 from ragen.env.sokoban.room_utils import get_shortest_action_path
 import multiprocessing as mp
 from functools import partial
-
+import matplotlib.pyplot as plt
 INSTRUCTION_TEMPLATE = """You are a Sokoban solver.
 
 Sokoban Quick Guide
@@ -141,6 +141,10 @@ def process_seed(seed, env_params):
     observation = env.reset(seed=seed, mode='tiny_rgb_array')
     gt_action_sequence = get_shortest_action_path(env.room_fixed, env.room_state, MAX_DEPTH=100)
     
+    # # save the environment to pdf
+    # plt.imshow(env.render('rgb_array'))
+    # plt.savefig(f'env_{seed}.pdf')
+    
         
     instruction = INSTRUCTION_TEMPLATE.format(observation=observation)
     return seed, (instruction, gt_action_sequence)
@@ -157,7 +161,7 @@ def main():
     parser.add_argument("--bfs_max_nodes", type=int, default=1000, help="Maximum number of nodes to use for BFS (default: 100000).")
     parser.add_argument("--prefix", type=str, default='qwen-instruct', choices=['qwen-instruct', 'base'])
     parser.add_argument("--num_workers", type=int, default=mp.cpu_count(), help="Number of worker processes")
-    parser.add_argument("--num_actions", type=int, default=4, help="Number of actions (default: 4).")
+    parser.add_argument("--max_actions", type=int, default=5, help="Number of actions (default: 5).")
 
     args = parser.parse_args()
     
@@ -176,6 +180,7 @@ def main():
     seeds = range(args.seed, args.seed + args.train_size + args.test_size)
     train_set, test_set = [], []
     action_counter = defaultdict(int)
+    step_counter = defaultdict(int)
 
     # Set up multiprocessing pool
     pool = mp.Pool(processes=args.num_workers)
@@ -191,11 +196,12 @@ def main():
         if result is None:
             continue
         instruction, gt_action_sequence = result
-        if gt_action_sequence is None or len(gt_action_sequence) != args.num_actions:
+        if gt_action_sequence is None or len(gt_action_sequence) > args.max_actions:
             continue
         
         for action in gt_action_sequence:
             action_counter[action] += 1
+        step_counter[len(gt_action_sequence)] += 1
             
         if seed < args.seed + args.train_size:
             train_set.append((seed, instruction))
@@ -203,6 +209,7 @@ def main():
             test_set.append((seed, instruction))
     
     print(action_counter)
+    print(step_counter)
     def _create_instance(idx, instruction):
         prompt_formatted = templates[args.prefix].format(prompt=instruction)
         return {
