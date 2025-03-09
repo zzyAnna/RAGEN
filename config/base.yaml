@@ -46,7 +46,7 @@ optimization:
   critic_lr: 1e-5
   kl_coef: 0.001
   kl_loss_type: low_var_kl
-  adv_estimator: grpo
+  adv_estimator: gae
   gpu_memory_utilization: 0.4
 
 # Logging settings
