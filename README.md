@@ -15,6 +15,8 @@
   <a href="#"><img src="https://img.shields.io/badge/🔍_Post-34A853?style=for-the-badge&logoColor=white" alt="Post"></a>
 </p>
 
+**NOTE: In previous veRL implementation, there is a [KL term issue](https://github.com/volcengine/verl/pull/179/files), which has been fixed in recent versions.**
+
 ## Overview
 
 Reinforcement Learning (RL) with rule-based rewards has shown promise in enhancing reasoning capabilities of large language models (LLMs). However, existing approaches have primarily focused on static, single-turn tasks like math reasoning and coding. Extending these methods to agent scenarios introduces two fundamental challenges:
@@ -154,6 +156,8 @@ download_wandb("RUN_ID") # e.g., 9o465jqj
 We evaluate RAGEN across multiple model sizes and configurations. Below are results from our Sokoban experiments using Qwen-2.5-{0.5B, 3B}-{Instruct, None} and DeepSeek-R1-Distill-Qwen-1.5B.
 
 <img src="./public/loss_curve.png" width="800px" alt="Loss curves for different models" />
+
+**NOTE: The loss shows the reward curve, where the KL term is considered.**
 
 Key observations:
 - Instruct-finetuned models show early advantages but the gap narrows as training progresses
