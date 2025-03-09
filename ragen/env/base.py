@@ -413,10 +413,9 @@ class BaseLanguageBasedEnv(BaseEnv, ABC):
         Returns:
             Formatted observation string
         """
-        observation, reward, done, _ = update_info
         if not action_is_valid:
-            return f"Input is invalid. The observation is: \n{observation}\nreward: {reward}\ndone: {done}\n"
-        return f"After your input, the observation is: \n{observation}\nreward: {reward}\ndone: {done}\n"
+            return f"Action is invalid. You stay in the same position. The observation is: \n{observation}\nreward: {reward}\ndone: {done}\n"
+        return f"After you take this action, the observation is: \n{observation}\nreward: {reward}\ndone: {done}\n"
 
     @classmethod
     def postprocess_predictions(cls, envs: List['BaseLanguageBasedEnv'], predictions: List[Any]) -> Tuple[List[int], List[bool]]:

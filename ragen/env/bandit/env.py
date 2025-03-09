@@ -80,15 +80,6 @@ class BanditEnv(BaseDiscreteActionEnv, gym.Env):
         else:
             raise ValueError(f"Unsupported render mode: {mode}")
 
-    def parse_update_info_to_obs(self, update_info, action_is_valid):
-        observation, reward, done, _ = update_info
-        if not action_is_valid:
-            output_str = f"Invalid action. Please choose a number between {self.ACTION_SPACE.start} and {self.ACTION_SPACE.start + self.ACTION_SPACE.n - 1}.\nThe observation is:\n{observation}\nreward: {reward}\ndone: {done}\n"
-        else:
-            output_str = f"After pulling the arm, the observation is:\n{observation}\nreward: {reward}\ndone: {done}\n"
-        return output_str
-
-
     def extract_action(self, text):
         """Extract action number from text response"""
         
@@ -268,14 +259,7 @@ class TwoArmedBanditEnv(BaseDiscreteActionEnv, gym.Env):
         if mode == 'rgb_array':
             return np.ones((100, 100, 3), dtype=np.uint8) * 255
 
-    def parse_update_info_to_obs(self, update_info, action_is_valid):
-        observation, reward, done, _ = update_info
-        if not action_is_valid:
-            output_str = f"Invalid action. Please choose between {self.low_risk_name} and {self.high_risk_name}.\nThe observation is:\n{observation}\nreward: {reward}\ndone: {done}\n"
-        else:
-            output_str = f"After pulling the arm, the observation is:\n{observation}\nreward: {reward}\ndone: {done}\n"
-        return output_str
-        
+
     def extract_action(self, text):
         """Extract action number or arm names from text response"""
         pattern = f'^\s*(\d+|{self.low_risk_name}|{self.high_risk_name})\s*$'
