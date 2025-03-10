@@ -1,5 +1,25 @@
 # Experiment Commands Reference
 
+## Basic Experiment
+bash train.sh sokoban \
+    model.experiment_name=new_test \
+    training.train_batch_size=4 \
+    training.n_rollout=8 \
+    training.ppo_batch_size=8 \
+    training.micro_batch_size=1 \
+    training.max_turns=5 \
+    optimization.kl_coef=0.001 \
+    optimization.adv_estimator=gae
+
+bash train.sh two_armed_bandit \
+    model.experiment_name=new_test \
+    training.train_batch_size=4 \
+    training.n_rollout=8 \
+    training.ppo_batch_size=8 \
+    training.micro_batch_size=4 \
+    optimization.kl_coef=0.000 \
+    optimization.adv_estimator=gae
+
 ## Common Parameters
 ```bash
 # Base parameters used across experiments.
@@ -72,7 +92,7 @@ bash train.sh sokoban \
 # SFT Training
 bash train.sh sokoban \
     rl_or_sft=sft \
-    sft.output_dir=models/sft/sokoban/Qwen2.5-[0.5B|3B]-Instruct \
+    sft.output_dir=outputs/sft/sokoban/Qwen2.5-[0.5B|3B]-Instruct \
     sft.training.base_model=Qwen/Qwen2.5-[0.5B|3B]-Instruct \
     sft.training.experiment_name=sokoban_[0_5B|3B]_instruct_sft \
     sft.data_generation.train_size=10000 \
@@ -101,7 +121,7 @@ bash train.sh frozenlake \
 # SFT Training
 bash train.sh frozenlake \
     rl_or_sft=sft \
-    sft.output_dir=models/sft/frozenlake/Qwen2.5-[0.5B|3B]-Instruct \
+    sft.output_dir=outputs/sft/frozenlake/Qwen2.5-[0.5B|3B]-Instruct \
     sft.training.base_model=Qwen/Qwen2.5-[0.5B|3B]-Instruct \
     sft.training.experiment_name=frozenlake_[0_5B|3B]_instruct_sft \
     sft.data_generation.train_size=10000 \

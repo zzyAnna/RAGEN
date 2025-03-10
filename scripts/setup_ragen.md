@@ -16,4 +16,11 @@ export CUDA_HOME=$CONDA_PREFIX # /opt/conda/envs/zero
 pip3 install flash-attn --no-build-isolation
 
 pip install -r requirements.txt
+
+git submodule init
+git submodule update
+cd verl
+pip install -e .
+cd ..
+
 ```

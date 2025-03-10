@@ -147,12 +147,6 @@ python -m http.server 8000
 sudo apt-get install fonts-noto-cjk
 ```
 
-4. Download visualization data from wandb:
-```python
-from ragen.utils.wandb import download_wandb
-download_wandb("RUN_ID") # e.g., 9o465jqj
-```
-
 
 ## Performance
 

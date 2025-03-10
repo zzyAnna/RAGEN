@@ -168,7 +168,7 @@ def create_chat_str_for_env(args):
         # images.append(env.render('rgb_array'))
     assert done and reward > 0, f"Environment did not terminate for seed {seed}"
     # ani = plot_animation(images)
-    # ani.save(f'sft/data/animation_{seed}.gif')
+    # ani.save(f'data/sft/animation_{seed}.gif')
     return instances
 
 
@@ -219,7 +219,7 @@ def create_chat_messages_for_env(args):
         # images.append(env.render('rgb_array'))
     assert done, f"Environment did not terminate for seed {seed}"
     # ani = plot_animation(images)
-    # ani.save(f'sft/data/animation_{seed}.gif')
+    # ani.save(f'data/sft/animation_{seed}.gif')
     return instances
 
 
@@ -231,7 +231,7 @@ def main():
     parser.add_argument("--env", type=str, default="frozenlake", help="Environment name (default: 'frozenlake').")
     parser.add_argument("--algo", type=str, default="bfs", choices=["bfs"], help="Algorithm to use (default: 'bfs').")
     parser.add_argument("--seed", type=int, default=100000, help="Seed for random number generation (default: 100000).")
-    parser.add_argument("--output", type=str, default="sft/data/frozenlake", help="Output file to save the trajectories (default: 'sft/data/frozenlake').")
+    parser.add_argument("--output", type=str, default="data/sft/frozenlake", help="Output file to save the trajectories (default: 'data/sft/frozenlake').")
     parser.add_argument("--train_size", type=int, default=1000, help="Number of training trajectories to generate (default: 1000).")
     parser.add_argument("--test_size", type=int, default=100, help="Number of test trajectories to generate (default: 100).")
     parser.add_argument("--bfs_max_depths", type=int, default=100, help="Maximum number of depths for BFS (default: 100).")

@@ -4,6 +4,7 @@ import argparse
 import json
 from typing import Dict, Any
 import time
+
 def deep_update(base_dict: Dict[str, Any], update_dict: Dict[str, Any], noassert_keys=["env", ""]) -> Dict[str, Any]:
     """Recursively update a dictionary."""
     assert isinstance(base_dict, dict) and isinstance(update_dict, dict)
@@ -74,12 +75,11 @@ def get_rl_train_command(config: Dict[str, Any]) -> str:
     env_kwargs_str = " \\\n    ".join([
         f"+env.{key}={value}" if value is not None else f"+env.{key}=null" for key, value in env_kwargs.items()
     ])
-   
     cmd = [
         f"VLLM_ATTENTION_BACKEND={config['system']['vllm_attention_backend']}",
         f"CUDA_VISIBLE_DEVICES={config['system']['cuda_visible_devices']}",
-        "python -m verl.trainer.main_ppo",
-        f"multi_processing={config['system']['multi_processing']}",
+        "python -m ragen.trainer.main_ppo",
+        f"hydra.run.dir={config['system']['hydra_output_subdir']}",
         f"data.train_files={config['env']['data_dir']}/train.parquet",
         f"data.val_files={config['env']['data_dir']}/test.parquet",
         f"data.train_data_num={config['training']['train_data_num'] or 'null'}",
@@ -90,25 +90,30 @@ def get_rl_train_command(config: Dict[str, Any]) -> str:
         f"data.max_response_length={config['training']['max_response_length']}",
         f"data.max_start_length={config['training']['max_start_length']}",
         f"data.max_obs_length={config['training']['max_obs_length']}",
-        "data.shuffle_train_dataloader=True",
+        "data.shuffle=True",
         f"algorithm.adv_estimator={config['optimization']['adv_estimator']}",
         f"actor_rollout_ref.model.path={config['model']['base_model']}",
         f"actor_rollout_ref.model.enable_gradient_checkpointing={str(config['model']['gradient_checkpointing']).lower()}",
         f"actor_rollout_ref.actor.optim.lr={config['optimization']['actor_lr']}",
         f"actor_rollout_ref.actor.use_kl_loss={config['training']['use_kl_loss']}",
         f"actor_rollout_ref.actor.ppo_mini_batch_size={config['training']['ppo_batch_size']}",
-        f"actor_rollout_ref.actor.ppo_micro_batch_size={config['training']['micro_batch_size']}",
-        f"actor_rollout_ref.rollout.log_prob_micro_batch_size={config['training']['micro_batch_size']}",
+        f"actor_rollout_ref.actor.ppo_micro_batch_size={config['training']['micro_batch_size']}", # NOTE: This is deprecated, use ppo_micro_batch_size_per_gpu instead
         f"actor_rollout_ref.rollout.tensor_model_parallel_size={config['training']['rollout_tp_size']}",
         f"actor_rollout_ref.rollout.gpu_memory_utilization={config['optimization']['gpu_memory_utilization']}",
+        f"actor_rollout_ref.actor.ppo_micro_batch_size={config['training']['micro_batch_size']}",
+        f"actor_rollout_ref.rollout.log_prob_micro_batch_size={config['training']['micro_batch_size']}",
         f"actor_rollout_ref.ref.log_prob_micro_batch_size={config['training']['micro_batch_size']}",
-        # f"critic.optim.lr={config['optimization']['critic_lr']}",
-        # f"critic.model.path={config['model']['base_model']}",
-        # f"critic.ppo_micro_batch_size={config['training']['micro_batch_size']}",
-        # f"algorithm.kl_ctrl.kl_coef={config['optimization']['kl_coef']}", # This line is not effective and does not change any training dynamics for now, since "gae" is not implemented in this repo. This will be more useful when use_kl_loss=False is allowed. Specifically, GAE(PPO) needs a trained critic with "kl". Note that we are currently not having a really trained critic so we cannot make this to True.
+        f"critic.ppo_micro_batch_size={config['training']['micro_batch_size']}",
+        # f"actor_rollout_ref.actor.ppo_micro_batch_size_per_gpu={config['training']['micro_batch_size']}",
+        # f"actor_rollout_ref.rollout.log_prob_micro_batch_size_per_gpu={config['training']['micro_batch_size']}",
+        # f"actor_rollout_ref.ref.log_prob_micro_batch_size_per_gpu={config['training']['micro_batch_size']}",
+        # f"critic.ppo_micro_batch_size_per_gpu={config['training']['micro_batch_size']}",
+        f"critic.optim.lr={config['optimization']['critic_lr']}",
+        f"critic.model.path={config['model']['base_model']}",
+        f"algorithm.kl_ctrl.kl_coef={config['optimization']['kl_coef']}",
         f"actor_rollout_ref.actor.kl_loss_coef={config['optimization']['kl_coef']}", # for use_kl_loss=True. ARPO/BRPO/GRPO needs the original model with "low_var_kl"
         f"actor_rollout_ref.actor.kl_loss_type={config['optimization']['kl_loss_type']}",
-        f"algorithm.no_think_rl={config['training']['no_think_rl']}",
+        f"+algorithm.no_think_rl={config['training']['no_think_rl']}",
         f"actor_rollout_ref.rollout.n_agent={config['training']['n_rollout']}",
         f"actor_rollout_ref.rollout.temperature={config['training']['temperature']}",
         f"actor_rollout_ref.actor.state_masking={config['training']['state_masking']}",
@@ -132,12 +137,12 @@ def get_rl_train_command(config: Dict[str, Any]) -> str:
         f"logging.log_image_dir={config['logging']['log_image_dir']}",
         f"logging.log_image_step_size={config['logging']['log_image_step_size']}",
         f"logging.log_n_image_per_batch={config['logging']['log_n_image_per_batch']}",
-        "2>&1 | tee debug.log"
+        "2>&1"
     ]
    
     return " \\\n    ".join(cmd)
 
-def get_sft_train_command(config: Dict[str, Any],config_dir="./sft_configs") -> str:
+def get_sft_train_command(config: Dict[str, Any],config_dir="./outputs/exp_configs/sft") -> str:
     """
     Generate the SFT training command by saving the config to a temporary YAML file
     and using it for the SFT pipeline.

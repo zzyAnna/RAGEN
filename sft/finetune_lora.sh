@@ -24,9 +24,9 @@ fi
 shift 2
 
 torchrun --standalone --nnodes=1 --nproc_per_node=$nproc_per_node \
-     -m verl.trainer.fsdp_sft_trainer \
-    data.train_files=sft/data/${env_type}/train.parquet \
-    data.val_files=sft/data/${env_type}/test.parquet \
+     -m ragen.trainer.fsdp_sft_trainer \
+    data.train_files=data/sft/${env_type}/train.parquet \
+    data.val_files=data/sft/${env_type}/test.parquet \
     data.prompt_key=prompt \
     data.response_key=response \
     data.max_length=2048 \
