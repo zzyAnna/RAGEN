@@ -41,8 +41,13 @@ main() {
     check_conda || exit 1
     
     # Create and activate conda environment
-    print_step "Creating conda environment 'ragen' with Python 3.9..."
-    conda create -n ragen python=3.9 -y
+    # if not exists, create it
+    if ! conda env list | grep -q "ragen"; then
+        print_step "Creating conda environment 'ragen' with Python 3.9..."
+        conda create -n ragen python=3.9 -y
+    else
+        print_step "Conda environment 'ragen' already exists"
+    fi
     
     # Need to source conda for script environment
     eval "$(conda shell.bash hook)"
@@ -52,6 +57,14 @@ main() {
     # print_step "Cloning ragen repository..."
     # git clone git@github.com:ZihanWang314/ragen.git
     # cd ragen
+
+    # Install package in editable mode
+    print_step "setting up verl..."
+    git submodule init
+    git submodule update
+    cd verl
+    pip install -e .
+    cd ..
     
     # Install package in editable mode
     print_step "Installing ragen package..."

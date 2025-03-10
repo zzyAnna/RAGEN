@@ -13,12 +13,11 @@ bash train.sh sokoban \
 
 bash train.sh two_armed_bandit \
     model.experiment_name=new_test \
-    training.train_batch_size=4 \
-    training.n_rollout=8 \
-    training.ppo_batch_size=8 \
-    training.micro_batch_size=4 \
-    optimization.kl_coef=0.000 \
-    optimization.adv_estimator=gae
+    training.train_batch_size=8 \
+    training.n_rollout=16 \
+    training.ppo_batch_size=32 \
+    training.micro_batch_size=16 \
+    optimization.kl_coef=0.000
 
 ## Common Parameters
 ```bash

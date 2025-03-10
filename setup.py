@@ -3,7 +3,7 @@ import os
 import sys
 
 setup(
-    name='ragen,
+    name='ragen',
     version='0.1',
     package_dir={'': '.'},
     packages=find_packages(include=['ragen']),
