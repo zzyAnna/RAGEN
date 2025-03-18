@@ -17,7 +17,7 @@ model:
 # Training parameters
 training:
   train_data_num: null
-  val_data_num: 50
+  val_data_num: 100
   micro_batch_size: 1
   train_batch_size: 8
   val_batch_size: 10

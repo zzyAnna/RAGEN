@@ -915,13 +915,14 @@ class RayPPOTrainer(object):
             is_validation = True,
         )
 
-        envs = [self.val_env.copy() for _ in range(self.config.data.val_batch_size * self.config.actor_rollout_ref.rollout.n_agent)]
+        envs = [self.val_env.copy() for _ in range(self.config.data.val_batch_size)] # do not repeat
+        # envs = [self.val_env.copy() for _ in range(self.config.data.val_batch_size * self.config.actor_rollout_ref.rollout.n_agent)]
         val_global_steps = 1
 
         for batch_dict in self.val_dataloader:
             timing_raw = {}
             test_batch: DataProto = DataProto.from_single_dict(batch_dict)
-            test_batch = test_batch.repeat(repeat_times=self.config.actor_rollout_ref.rollout.n_agent, interleave=True)
+            # test_batch = test_batch.repeat(repeat_times=self.config.actor_rollout_ref.rollout.n_agent, interleave=True)
 
             env_seeds = [i['index'] for i in test_batch.non_tensor_batch['extra_info']]
             print("env_seeds:", env_seeds)

@@ -6,7 +6,7 @@ bash train.sh sokoban \
     training.train_batch_size=4 \
     training.n_rollout=8 \
     training.ppo_batch_size=8 \
-    training.micro_batch_size=1 \
+    training.micro_batch_size=4 \
     training.max_turns=5 \
     optimization.kl_coef=0.001 \
     optimization.adv_estimator=gae
