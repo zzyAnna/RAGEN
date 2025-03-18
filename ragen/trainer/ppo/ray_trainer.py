@@ -99,6 +99,9 @@ def apply_kl_penalty(data: DataProto, kl_ctrl: core_algos.AdaptiveKLController, 
 
     # compute kl between ref_policy and current policy
     if 'ref_log_prob' in data.batch.keys():
+        # use log_probs and old_log_prob by Yiping
+        # kld = core_algos.kl_penalty(data.batch['log_probs'], data.batch['old_log_prob'],
+        #                             kl_penalty=kl_penalty)  # (batch_size, response_length)
         kld = core_algos.kl_penalty(data.batch['old_log_probs'], data.batch['ref_log_prob'],
                                     kl_penalty=kl_penalty)  # (batch_size, response_length)
         kld = kld * response_mask
@@ -160,6 +163,24 @@ def reduce_metrics(metrics: dict):
         metrics[key] = np.mean(val)
     return metrics
 
+def normalize_reward(reward, uid, reward_norm_type):
+    id2score = defaultdict(list)
+    id2mean = {}
+    id2std = {}
+    for r, u in zip(reward, uid):
+        id2score[u].append(r)
+    for u in id2score:
+        if len(id2score[u]) == 1:
+            id2mean[u] = torch.tensor(0.0)
+            id2std[u] = torch.tensor(1.0)
+        elif len(id2score[u]) > 1:
+            id2mean[u] = torch.mean(torch.tensor(id2score[u], dtype=torch.float32))
+            id2std[u] = torch.std(torch.tensor([id2score[u]], dtype=torch.float32))
+        else:
+            raise ValueError(f"no score in prompt index: {u}")
+    normalized_reward = [(r - id2mean[u]) / (id2std[u] + 1e-6) for r, u in zip(reward, uid)] # NOTE: +1e-6, maybe +1!
+    # transform to the same dtype as reward
+    return np.array(normalized_reward, dtype=reward.dtype)
 
 def _compute_response_info(batch):
     response_length = batch.batch['responses'].shape[-1]
@@ -360,7 +381,8 @@ class RayPPOTrainer(object):
 
         self.role_worker_mapping = role_worker_mapping
         self.resource_pool_manager = resource_pool_manager
-        self.use_reference_policy = Role.RefPolicy in role_worker_mapping
+        self.use_reference_policy = Role.RefPolicy in role_worker_mapping and not config.algorithm.no_ref_policy
+        print(f"use_reference_policy: {self.use_reference_policy}")
         self.use_rm = Role.RewardModel in role_worker_mapping
         self.ray_worker_group_cls = ray_worker_group_cls
 
@@ -692,17 +714,21 @@ class RayPPOTrainer(object):
                         output = self.actor_rollout_wg.compute_log_prob(final_gen_batch_output)
                         final_gen_batch_output = final_gen_batch_output.union(output)
                     
-                    if self.config.algorithm.adv_estimator == 'grpo': # NOTE we currently use seed to group, better use prompt (hash) to group
+                    if self.config.algorithm.adv_estimator == 'grpo' or self.config.algorithm.reward_norm_type == 'grpo': # NOTE we currently use seed to group, better use prompt (hash) to group
                         batch.non_tensor_batch['uid'] = np.array([str(i) for i in env_seeds], dtype=object)
-                    elif self.config.algorithm.adv_estimator == 'brpo':
+                    elif self.config.algorithm.adv_estimator == 'brpo' or self.config.algorithm.reward_norm_type == 'brpo':
                         batch.non_tensor_batch['uid'] = np.array(["" for _ in range(len(batch.batch))], dtype=object)
-                    elif self.config.algorithm.adv_estimator == 'arpo':
+                    elif self.config.algorithm.adv_estimator == 'arpo' or self.config.algorithm.reward_norm_type == 'arpo':
                         batch.non_tensor_batch['uid'] = np.array([str(uuid.uuid4()) for _ in range(len(batch.batch))], dtype=object) # No Relative normalization
 
                     # reward
                     batch.non_tensor_batch['reward'] = np.array([0 for _ in range(len(envs))], dtype=object)
                     for idx, env in enumerate(envs):
                         batch.non_tensor_batch['reward'][idx] = env.reward
+                    
+                    # normalize reward
+                    if self.config.algorithm.reward_norm_type is not None:
+                        batch.non_tensor_batch['reward'] = normalize_reward(batch.non_tensor_batch['reward'], batch.non_tensor_batch['uid'], self.config.algorithm.reward_norm_type)
 
                     # metric for two-armed bandit
                     # NOTE here we assume invalid action is 0, low arm is 1, high arm is 2

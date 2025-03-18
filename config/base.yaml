@@ -18,10 +18,10 @@ model:
 training:
   train_data_num: null
   val_data_num: 100
-  micro_batch_size: 1
+  val_batch_size: 100
+  micro_batch_size: 4
   train_batch_size: 8
-  val_batch_size: 10
-  ppo_batch_size: 128
+  ppo_batch_size: 32
   max_start_length: 400
   max_response_length: 400
   max_obs_length: 200
@@ -31,23 +31,26 @@ training:
   total_epochs: 5
   temperature: 0.7
   use_sft: false
-  use_kl_loss: true # this means actor KL Loss
   no_think_rl: false
   state_masking: false
   binary_reward: false
   mask_state: false
   length_penalty: false
   ref_update_steps: null # every ref_update_steps, the reference model will be updated using the latest actor model
-  total_training_steps: null
+  total_training_steps: 200
 
 # Optimization parameters
 optimization:
   actor_lr: 1e-6
   critic_lr: 1e-5
-  kl_coef: 0.001
-  kl_loss_type: low_var_kl
+  use_kl_loss: true # this means actor KL Loss
+  kl_coef: 0.01
+  kl_type: low_var_kl
   adv_estimator: gae
   gpu_memory_utilization: 0.4
+  no_ref_policy: false
+  betas: [0.9,0.95]
+  reward_norm_type: brpo
 
 # Logging settings
 logging:
@@ -63,8 +66,8 @@ trainer:
   val_only: false
   default_hdfs_dir: null
   nnodes: 1
-  save_freq: 100
-  test_freq: 200 # 100
+  save_freq: 200
+  test_freq: 50 # 100
   project_name: "RAGEN"
 
 # SFT settings
