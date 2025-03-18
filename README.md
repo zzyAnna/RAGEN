@@ -68,7 +68,7 @@ We implement three progressive normalization strategies to stabilize training:
 For detailed setup instructions, please check our [documentation](https://ragen-tutorial.readthedocs.io/). Here's a quick start guide:
 
 ```bash
-# Setup environment and download data (7MB)
+# Setup environment and download data (2.7MB)
 bash scripts/setup_ragen.sh
 python scripts/download_data.py
 ```
@@ -77,17 +77,6 @@ If this fails, you can follow the manual setup instructions in `scripts/setup_ra
 
 ## Training Models
 Here's how to train models with RAGEN:
-
-### Create data
-We provide 10k first-round-observation data for both Sokoban and FrozenLake tasks.
-
-```bash
-# Basic data creation
-bash scripts/create_data.sh
-
-# Or for research purposes, create more comprehensive data
-bash scripts/create_data_full.sh
-```
 
 ### Export variables and train
 We provide default configuration in `verl/trainer/config/ppo_trainer.yaml`. To train:

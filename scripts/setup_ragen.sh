@@ -63,7 +63,7 @@ main() {
     git submodule init
     git submodule update
     cd verl
-    pip install -e .
+    pip install -e . --no-dependencies # we put dependencies in RAGEN/requirements.txt
     cd ..
     
     # Install package in editable mode

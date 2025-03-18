@@ -32,26 +32,6 @@ def load_config(env_name: str) -> Dict[str, Any]:
     else:
         raise ValueError(f"Environment config not found: {env_config_path}")
     
-    # Override with environment variables
-    for key, value in os.environ.items():
-        if key.startswith('CONFIG_'):
-            # Remove CONFIG_ prefix and split by double underscore for nested keys
-            key_path = key[7:].lower().split('__')
-            
-            # Convert value to appropriate type
-            if value.lower() in ['true', 'false']:
-                value = value.lower() == 'true'
-            elif value.replace('.', '').isdigit():
-                value = float(value) if '.' in value else int(value)
-                
-            # Navigate to the correct nested dictionary
-            current = config
-            for k in key_path[:-1]:
-                if k not in current:
-                    current[k] = {}
-                current = current[k]
-            current[key_path[-1]] = value
-    
     return config
 
 def get_train_command(config: Dict[str, Any]) -> str:
