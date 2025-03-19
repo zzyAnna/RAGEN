@@ -5,7 +5,6 @@ import os
 from typing import List, Dict, Any, Tuple
 from dataclasses import dataclass
 from .tensor_helper import TensorHelper, TensorConfig
-from ragen.utils import set_seed
 from ragen.utils.plot import (
     save_trajectory_to_output,
     parse_llm_output

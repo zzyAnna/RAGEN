@@ -355,10 +355,7 @@ class RayPPOTrainer(object):
                  resource_pool_manager: ResourcePoolManager,
                  ray_worker_group_cls: RayWorkerGroup = RayWorkerGroup,
                  reward_fn=None,
-                 val_reward_fn=None,
-                 env=None,
-                 val_env=None,
-                 env_class=None):
+                 val_reward_fn=None):
 
         # assert torch.cuda.is_available(), 'cuda must be available on driver'
 
@@ -366,12 +363,12 @@ class RayPPOTrainer(object):
         self.config = config
         self.reward_fn = reward_fn
         self.val_reward_fn = val_reward_fn
-        self.env = env
-        self.val_env = env if val_env is None else val_env
-        self.env_class = env_class
-        
-        if val_env is not None:
-            print("[INFO] val env is different from train env, it means you are evaluating the model's generalization capabilities.")
+
+        self.train_data_num = config.data.train_data_num or config.trainer.total_training_steps * config.data.train_batch_size
+        self.val_data_num = config.data.val_data_num or 100
+     
+        # if val_env_names is not None:
+        #     print("[INFO] val env is different from train env, it means you are evaluating the model's generalization capabilities.")
 
         self.hybrid_engine = config.actor_rollout_ref.hybrid_engine
         assert self.hybrid_engine, 'Currently, only support hybrid engine'
@@ -415,19 +412,18 @@ class RayPPOTrainer(object):
     def _create_dataloader(self):
         from torch.utils.data import DataLoader
         # TODO: we have to make sure the batch size is divisible by the dp size
-        from ragen.utils.dataset.rl_dataset import RLHFDataset, collate_fn
-        self.train_dataset = RLHFDataset(parquet_files=self.config.data.train_files,
-                                         tokenizer=self.tokenizer,
-                                         prompt_key=self.config.data.prompt_key,
-                                         max_prompt_length=self.config.data.max_prompt_length,
-                                         filter_prompts=True,
-                                         return_raw_chat=self.config.data.get('return_raw_chat', False),
-                                         truncation='error')
-        if self.config.data.train_data_num is not None:
-            if self.config.data.train_data_num > len(self.train_dataset.dataframe):
+        from ragen.utils.dataset.agent_dataset import AgentDataset, collate_fn
+        self.train_dataset = AgentDataset(
+            data_num=self.train_data_num,
+            tokenizer=self.tokenizer,
+            return_raw_chat=self.config.data.get('return_raw_chat', False),
+            truncation='error'
+        )
+        if self.train_data_num is not None:
+            if self.train_data_num > len(self.train_dataset.dataframe):
                 print(f"[WARNING] training dataset size is smaller than desired size. Using the dataset as the original size {len(self.train_dataset.dataframe)}")
             else:
-                self.train_dataset.dataframe = self.train_dataset.dataframe.sample(self.config.data.train_data_num, random_state=42)
+                self.train_dataset.dataframe = self.train_dataset.dataframe.sample(self.train_data_num, random_state=42)
         print(f"filtered training dataset size: {len(self.train_dataset.dataframe)}")
 
         self.train_dataloader = DataLoader(dataset=self.train_dataset,
@@ -436,18 +432,17 @@ class RayPPOTrainer(object):
                                            drop_last=True,
                                            collate_fn=collate_fn)
 
-        self.val_dataset = RLHFDataset(parquet_files=self.config.data.val_files,
-                                       tokenizer=self.tokenizer,
-                                       prompt_key=self.config.data.prompt_key,
-                                       max_prompt_length=self.config.data.max_prompt_length,
-                                       filter_prompts=True,
-                                       return_raw_chat=self.config.data.get('return_raw_chat', False),
-                                       truncation='error')
-        if self.config.data.val_data_num is not None:
-            if self.config.data.val_data_num > len(self.val_dataset.dataframe):
+        self.val_dataset = AgentDataset(
+            data_num=self.val_data_num,
+            tokenizer=self.tokenizer,
+            return_raw_chat=self.config.data.get('return_raw_chat', False),
+            truncation='error'
+        )
+        if self.val_data_num is not None:
+            if self.val_data_num > len(self.val_dataset.dataframe):
                 print(f"[WARNING] validation dataset size is smaller than desired size. Using the dataset as the original size {len(self.val_dataset.dataframe)}")
             else:
-                self.val_dataset.dataframe = self.val_dataset.dataframe.sample(self.config.data.val_data_num, random_state=42)
+                self.val_dataset.dataframe = self.val_dataset.dataframe.sample(self.val_data_num, random_state=42)
         print(f"filtered validation dataset size: {len(self.val_dataset.dataframe)}")
 
         self.val_dataloader = DataLoader(dataset=self.val_dataset,
@@ -527,6 +522,7 @@ class RayPPOTrainer(object):
         # NOTE: if you want to use a different resource pool for each role, which can support different parallel size,
         # you should not use `create_colocated_worker_cls`. Instead, directly pass different resource pool to different worker groups.
         # See https://github.com/volcengine/verl/blob/master/examples/ray/tutorial.ipynb for more information.
+        print("Initializing worker groups...")
         all_wg = {}
         self.wg_dicts = []
         for resource_pool, class_dict in self.resource_pool_to_cls.items():
@@ -591,7 +587,7 @@ class RayPPOTrainer(object):
         The light-weight advantage computation is done on the driver process.
         """
 
-        
+        import pdb; pdb.set_trace()
         logger = self.logger
         self.global_steps = 0
         # perform validation before training
@@ -624,11 +620,11 @@ class RayPPOTrainer(object):
         generation_manager = LLMGenerationManager(
             tokenizer=self.tokenizer,
             actor_rollout_wg=self.actor_rollout_wg,
-            env_class=self.env_class,
             config=gen_config,
-            logger = logger,
+            logger=logger,
         )
 
+        
         envs = [self.env.copy() for _ in range(self.config.data.train_batch_size * self.config.actor_rollout_ref.rollout.n_agent)] 
 
 
@@ -935,10 +931,9 @@ class RayPPOTrainer(object):
         generation_manager = LLMGenerationManager(
             tokenizer=self.tokenizer,
             actor_rollout_wg=self.actor_rollout_wg,
-            env_class=self.env_class,
             config=gen_config,
-            logger = self.logger,
-            is_validation = True,
+            logger=self.logger,
+            is_validation=True,
         )
 
         envs = [self.val_env.copy() for _ in range(self.config.data.val_batch_size)] # do not repeat

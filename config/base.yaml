@@ -70,6 +70,15 @@ trainer:
   test_freq: 50 # 100
   project_name: "RAGEN"
 
+env_interface:
+  config:
+    envs_size: null # same as batch size
+    envs_type: ["sokoban", "frozen_lake", "bandit", "countdown"]
+    env_configs:
+      sokoban:
+        dim_x: 6
+        dim_y: 6
+        
 # SFT settings
 sft:
   env_type: "sokoban"  # or "frozenlake"

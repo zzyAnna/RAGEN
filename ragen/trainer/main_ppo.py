@@ -23,12 +23,10 @@ import numpy as np
 import ragen.utils.reward_score.countdown as countdown
 
 from ragen.trainer.ppo.ray_trainer import RayPPOTrainer
-from ragen.utils.env import get_train_val_env
 from ragen.env import (
     SokobanEnv, 
     FrozenLakeEnv, 
     BanditEnv, 
-    TwoArmedBanditEnv, 
     CountdownEnv
 )
 
@@ -36,7 +34,6 @@ ENV_CLASS_MAPPING = {
     'sokoban': SokobanEnv,
     'frozenlake': FrozenLakeEnv,
     'bandit': BanditEnv,
-    'two_armed_bandit': TwoArmedBanditEnv,
     'countdown': CountdownEnv
 }
 
@@ -113,7 +110,6 @@ class RewardManager():
             sequences = torch.cat((valid_prompt_ids, valid_response_ids))
             sequences_str = self.tokenizer.decode(sequences)
 
-            ground_truth = data_item.non_tensor_batch['reward_model']['ground_truth']
 
             # select rm_score
             data_source = data_item.non_tensor_batch['data_source']
@@ -122,16 +118,18 @@ class RewardManager():
             if data_source in ENV_CLASS_MAPPING.keys():
                 if 'reward' not in data_item.non_tensor_batch.keys():
                     # TODO: currently validate is not implemented
+                    ground_truth = data_item.non_tensor_batch['reward_model']['ground_truth']
                     score = compute_score_fn(solution_str=sequences_str, ground_truth=ground_truth)
                     # print("[WARNING] reward is not in data_item.non_tensor_batch.keys(), probably because validate is not implemented")
                 else:
                     score = data_item.non_tensor_batch['reward']
                 score = float(score)
                 # print(f"reward: {score}")
-                if score > 20:
-                    print(f"[REWARD TOO MUCH]. solution: \n{sequences_str}")
+                # if score > 20:
+                    # print(f"[REWARD TOO MUCH]. solution: \n{sequences_str}")
                 # score = compute_score_fn(solution_str=sequences_str, ground_truth=ground_truth)
             else:
+                ground_truth = data_item.non_tensor_batch['reward_model']['ground_truth']
                 score = compute_score_fn(solution_str=sequences_str, ground_truth=ground_truth)
 
             reward_tensor[i, valid_response_length - 1] = score
@@ -243,18 +241,13 @@ def main_task(config):
     val_reward_fn = RewardManager(tokenizer=tokenizer, num_examine=1)
 
     resource_pool_manager = ResourcePoolManager(resource_pool_spec=resource_pool_spec, mapping=mapping)
-
-    train_env, val_env = get_train_val_env(env_class, config)
     trainer = RayPPOTrainer(config=config,
                             tokenizer=tokenizer,
                             role_worker_mapping=role_worker_mapping,
                             resource_pool_manager=resource_pool_manager,
                             ray_worker_group_cls=ray_worker_group_cls,
                             reward_fn=reward_fn,
-                            val_reward_fn=val_reward_fn,
-                            env=train_env,
-                            val_env=val_env,
-                            env_class=env_class)
+                            val_reward_fn=val_reward_fn)
     trainer.init_workers()
     trainer.fit()
 

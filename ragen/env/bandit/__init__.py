@@ -1,2 +1,4 @@
 from .env import BanditEnv
-from .env import TwoArmedBanditEnv
+from .config import BanditEnvConfig
+
+__all__ = ["BanditEnv", "BanditEnvConfig"]

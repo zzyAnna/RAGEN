@@ -55,62 +55,38 @@ def collate_fn(data_list: list[dict]) -> dict:
     return output
 
 
-class RLHFDataset(Dataset):
+class AgentDataset(Dataset):
     """
     We assume the dataset contains a column that contains prompts and other information
     """
 
     def __init__(self,
-                 parquet_files: Union[str, List[str]],
+                 data_num: int,
                  tokenizer: PreTrainedTokenizer,
                  prompt_key='prompt',
-                 max_prompt_length=1024,
-                 filter_prompts=True,
-                 cache_dir='~/.cache/verl/rlhf',
                  chat_template_func=None,
                  return_raw_chat=False,
                  truncation='error'):
-        if not isinstance(parquet_files, (List, ListConfig)):
-            parquet_files = [parquet_files]
-
-        self.parquet_files = parquet_files
-        self.cache_dir = os.path.expanduser(cache_dir)
         self.tokenizer = tokenizer
+        self.data_num = data_num
 
         self.prompt_key = prompt_key
-        self.max_prompt_length = max_prompt_length
-        self.filter_prompts = filter_prompts
 
         self.return_raw_chat = return_raw_chat
         self.chat_template_func = chat_template_func
         self.truncation = truncation
 
-        self._download()
-        self._read_files_and_tokenize()
+        self._init_data()
 
-    def _download(self):
-        from verl.utils.fs import copy_local_path_from_hdfs
-        for i, parquet_file in enumerate(self.parquet_files):
-            self.parquet_files[i] = copy_local_path_from_hdfs(src=parquet_file, cache_dir=self.cache_dir)
-
-    def _read_files_and_tokenize(self):
+    def _init_data(self):
         dataframes = []
-        for parquet_file in self.parquet_files:
-            # read parquet files and cache
-            dataframe = pd.read_parquet(parquet_file)
-            dataframes.append(dataframe)
-        self.dataframe = pd.concat(dataframes)
+        # make an artificial dataframe with the prompt key
+        self.dataframe = pd.DataFrame({self.prompt_key: [[{"content": "You are a helpful assistant.", "role": "system"}] for i in range(self.data_num)]})
+        self.prompt_token_ids = self.tokenizer.apply_chat_template(self.dataframe[self.prompt_key].iloc[0], add_generation_prompt=True)
+        self.prompt_length = len(self.prompt_token_ids)
 
         print(f'original dataset len: {len(self.dataframe)}')
-
-        # filter out too long prompts
-        tokenizer = self.tokenizer
-        prompt_key = self.prompt_key
-        self.dataframe = self.dataframe[self.dataframe.apply(lambda doc: len(
-            tokenizer.apply_chat_template(doc[prompt_key], add_generation_prompt=True)) <= self.max_prompt_length,
-                                                             axis=1)]
-
-        print(f'filter dataset len: {len(self.dataframe)}')
+        print(f'prompt length: {self.prompt_length}')
 
     def __len__(self):
         return len(self.dataframe)
@@ -123,15 +99,14 @@ class RLHFDataset(Dataset):
 
         chat = row_dict.pop(self.prompt_key)
 
-        prompt_with_chat_template = chat[0]['content'] # NOTE: different from verl
+        prompt_with_chat_template = self.tokenizer.apply_chat_template(chat, add_generation_prompt=True, tokenize=False)
 
         input_ids, attention_mask = verl_F.tokenize_and_postprocess_data(prompt=prompt_with_chat_template,
                                                                          tokenizer=self.tokenizer,
-                                                                         max_length=self.max_prompt_length,
+                                                                         max_length=self.prompt_length,
                                                                          pad_token_id=self.tokenizer.pad_token_id,
                                                                          left_pad=True,
                                                                          truncation=self.truncation)
-
         position_ids = compute_position_id_with_mask(attention_mask)
 
         row_dict['input_ids'] = input_ids[0]
@@ -148,10 +123,9 @@ class RLHFDataset(Dataset):
 
         return row_dict
 
-
 if __name__ == "__main__":
     from transformers import AutoTokenizer
     tokenizer = AutoTokenizer.from_pretrained("Qwen/Qwen2.5-0.5B-Instruct")
-    dataset = RLHFDataset(parquet_files=["data/sokoban/train.parquet"], tokenizer=tokenizer)
+    dataset = AgentDataset(data_num=100, tokenizer=tokenizer)
     print(len(dataset))
     print(dataset[0])
