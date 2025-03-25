@@ -100,7 +100,7 @@ class SFTPipeline:
             f"trainer.logger={training_config['logger']}",
             f"trainer.total_epochs={training_config['epochs']}",
             f"trainer.default_hdfs_dir=null", # NOTE hard code here
-            f"trainer.validate_before_training={str(training_config.get('validate_before_training', True)).lower()}",
+            f"+trainer.validate_before_training={str(training_config.get('validate_before_training', True)).lower()}",
             f"model.lora_rank={training_config['lora_rank']}",
             f"model.lora_alpha={training_config['lora_alpha']}",
             f"model.target_modules={training_config['target_modules']}",

@@ -39,7 +39,7 @@ torchrun --standalone --nnodes=1 --nproc_per_node=$nproc_per_node \
     trainer.logger=['console','wandb'] \
     trainer.total_epochs=5 \
     trainer.default_hdfs_dir=null $@ \
-    trainer.validate_before_training=True \
+    +trainer.validate_before_training=True \
     model.lora_rank=64 \
     model.lora_alpha=32 \
     model.target_modules=all-linear \
