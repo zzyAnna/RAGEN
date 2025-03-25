@@ -27,6 +27,25 @@ from verl.utils.fs import copy_local_path_from_hdfs
 from verl.utils.model import compute_position_id_with_mask
 import verl.utils.torch_functional as verl_F
 
+def collate_fn(data_list: list[dict]) -> dict:
+    tensors = defaultdict(list)
+    non_tensors = defaultdict(list)
+
+    for data in data_list:
+        for key, val in data.items():
+            if isinstance(val, torch.Tensor):
+                tensors[key].append(val)
+            else:
+                non_tensors[key].append(val)
+
+    for key, val in tensors.items():
+        tensors[key] = torch.stack(val, dim=0)
+
+    for key, val in non_tensors.items():
+        non_tensors[key] = np.array(val, dtype=object)
+
+    return {**tensors, **non_tensors}
+
 class AgentDataset(Dataset):
     """
     This is a dummy agent dataset that only contains system prompt.

@@ -14,7 +14,7 @@
 """
 Note that we don't combine the main with ray_trainer as ray_trainer is used by other main.
 """
-from verl.trainer.ppo.ray_trainer import RayPPOTrainer
+from ragen.trainer.ppo.ray_trainer import RayPPOTrainer
 
 import ray
 import hydra
@@ -27,9 +27,10 @@ class DummyRewardManager():
     """The reward manager.
     """
 
-    def __init__(self, tokenizer, num_examine) -> None:
+    def __init__(self, tokenizer, num_examine, compute_score=None) -> None:
         self.tokenizer = tokenizer
         self.num_examine = num_examine  # the number of batches of decoded responses to print to the console
+        self.compute_score = compute_score
 
     def __call__(self, data: DataProto):
         """We will expand this function gradually based on the available datasets"""
@@ -61,11 +62,6 @@ class DummyRewardManager():
             # decode
             sequences = torch.cat((valid_prompt_ids, valid_response_ids))
             sequences_str = self.tokenizer.decode(sequences)
-
-
-            # select rm_score
-            data_source = data_item.non_tensor_batch['data_source']
-            compute_score_fn = _select_rm_score_fn(data_source)
 
             score = data_item.non_tensor_batch['reward']
             score = float(score)
@@ -198,18 +194,19 @@ def main_task(config):
         role_worker_mapping[Role.RewardModel] = ray.remote(RewardModelWorker)
         mapping[Role.RewardModel] = global_pool_id
 
-    reward_manager_name = config.reward_model.get("reward_manager", "dummy")
-    print(f'reward_manager_name: {reward_manager_name}')
-    if reward_manager_name == 'dummy':
-        reward_manager_cls = DummyRewardManager
-    elif reward_manager_name == 'naive':
-        from verl.workers.reward_manager import NaiveRewardManager
-        reward_manager_cls = NaiveRewardManager
-    elif reward_manager_name == 'prime':
-        from verl.workers.reward_manager import PrimeRewardManager
-        reward_manager_cls = PrimeRewardManager
-    else:
-        raise NotImplementedError
+    # reward_manager_name = config.reward_model.get("reward_manager", "dummy")
+    # print(f'reward_manager_name: {reward_manager_name}')
+    # if reward_manager_name == 'dummy':
+    print("using dummy reward manager")
+    reward_manager_cls = DummyRewardManager
+    # elif reward_manager_name == 'naive':
+    #     from verl.workers.reward_manager import NaiveRewardManager
+    #     reward_manager_cls = NaiveRewardManager
+    # elif reward_manager_name == 'prime':
+    #     from verl.workers.reward_manager import PrimeRewardManager
+    #     reward_manager_cls = PrimeRewardManager
+    # else:
+    #     raise NotImplementedError
 
     compute_score = get_custom_reward_fn(config)
     reward_fn = reward_manager_cls(tokenizer=tokenizer, num_examine=0, compute_score=compute_score)

@@ -1,5 +1,17 @@
+from typing import List, Union
+
+import pandas as pd
+
+import torch
+from torch.utils.data import Dataset
+from transformers import AutoTokenizer, PreTrainedTokenizer
+
+from verl.utils.fs import copy_to_local
+from verl.utils.model import compute_position_id_with_mask
+from verl.utils import hf_tokenizer
 from verl.utils.dataset.sft_dataset import SFTDataset as VerlSFTDataset
 from ragen.utils import apply_chat_template
+
 
 
 """Borrowed from verl.utils.dataset.sft_dataset.py"""
@@ -45,7 +57,7 @@ class SFTDataset(VerlSFTDataset):
 
         self._download()
         self._read_files_and_tokenize()
-        
+
 
     def __getitem__(self, item):
         tokenizer = self.tokenizer

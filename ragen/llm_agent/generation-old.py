@@ -5,26 +5,35 @@ import os
 from typing import List, Dict, Any, Tuple
 from dataclasses import dataclass
 from .tensor_helper import TensorHelper, TensorConfig
+from ragen.utils.plot import (
+    save_trajectory_to_output,
+    parse_llm_output
+)
 from verl import DataProto
 from verl.utils.tracking import Tracking
 import shutil
 
 @dataclass
-class RolloutConfig:
+class GenerationConfig:
     max_turns: int
     max_start_length: int
     max_prompt_length: int 
     max_response_length: int
     max_obs_length: int
+    logging: dict
+    num_gpus: int
     no_think_rl: bool=False
+    state_masking: bool=False
+    start_state_marker: str="<start-state>"
+    end_state_marker: str="<end-state>"
 
-class AgentRolloutManager:
+class LLMGenerationManager:
     def __init__(
         self,
         tokenizer,
         actor_rollout_wg,
         env_class,
-        config: RolloutConfig,
+        config: GenerationConfig,
         logger: Tracking,
         is_validation: bool = False,
     ):
@@ -94,7 +103,21 @@ class AgentRolloutManager:
             skip_special_tokens=True
         )
 
+        # responses_str = [resp.split('</answer>')[0] + '</answer>' 
+        #             if '</answer>' in resp else resp 
+        #             for resp in responses_str]
         responses_str = self._process_answer_tag(responses_str)
+        
+        if self.config.state_masking:
+            # Escape special characters in markers for regex
+            start_marker = re.escape(self.config.start_state_marker)
+            end_marker = re.escape(self.config.end_state_marker)
+            hack_pattern = f'{start_marker}[\\s\\S]*?{end_marker}'
+            
+            hacked = [resp for resp in responses_str if re.search(hack_pattern, resp, re.DOTALL)]
+            if hacked:
+                print(f"[WARNING] HACKED RESPONSES: {hacked}")
+            responses_str = [re.sub(hack_pattern, '', resp, re.DOTALL) for resp in responses_str]
 
         if self.config.no_think_rl:
             # if no_think_rl is enabled, only keep action in the str
@@ -107,7 +130,22 @@ class AgentRolloutManager:
 
 
     def _process_next_obs(self, next_obs: List[str]) -> torch.Tensor:
-        """Process next observations from environment."""        
+        """Process next observations from environment."""
+        if self.config.state_masking:
+            start_marker = self.config.start_state_marker
+            end_marker = self.config.end_state_marker
+            
+            # Create inner versions by adding 'inner_' prefix
+            inner_start = f"<inner_{start_marker[1:]}"
+            inner_end = f"<inner_{end_marker[1:]}"
+            
+            # Replace any existing markers with inner versions
+            next_obs = [re.sub(re.escape(start_marker), inner_start, obs) for obs in next_obs]
+            next_obs = [re.sub(re.escape(end_marker), inner_end, obs) for obs in next_obs]
+            
+            # Wrap with state markers
+            next_obs = [f"{start_marker}{obs}{end_marker}" for obs in next_obs]
+        
         next_obs_ids = self.tokenizer(
             next_obs, 
             padding='longest',
@@ -207,17 +245,16 @@ class AgentRolloutManager:
         padded_output.batch = trimmed_batch
         return padded_output
     
-
-
-    def run_llm_loop(self, gen_batch,
+    def run_llm_loop(self, gen_batch, envs: List[Any],
+                    initial_input_ids: torch.Tensor,
                     output_dir: str,
                     global_steps: int) -> Tuple[Dict, Dict]:
         """Run main LLM generation loop."""
         # Setup visualization and Initialize states
-        trajectory = []
+        trajectory = self._setup_visualization()
         
-        original_left_side = {'input_ids': }
-        original_right_side = {'responses': }
+        original_left_side = {'input_ids': initial_input_ids[:, -self.config.max_start_length:]}
+        original_right_side = {'responses': initial_input_ids[:, []]}
         
         active_mask = torch.ones(gen_batch.batch['input_ids'].shape[0], dtype=torch.bool)
         active_num_list = [active_mask.sum().item()]
@@ -243,6 +280,9 @@ class AgentRolloutManager:
             responses_ids, responses_str = self._postprocess_responses(gen_output.batch['responses'],envs=envs)
             responses_ids, responses_str = self.tensor_fn._example_level_pad(responses_ids, responses_str, active_mask)
 
+            # Update visualization
+            self._update_trajectory(trajectory, envs, responses_str, active_mask)
+
             # Execute in environment and process observations
             next_obs, dones = self.env_class.execute_predictions(
                 envs, responses_str, responses_ids, self.tokenizer
@@ -265,8 +305,48 @@ class AgentRolloutManager:
             )
         print("ACTIVE_TRAJ_NUM:", active_num_list)
         
+        # Save trajectory and return final output
+        self._save_trajectory(trajectory, output_dir, global_steps)
         return self._compose_final_output(original_left_side, original_right_side, meta_info)
 
+    def _setup_visualization(self) -> List[Dict]:
+        """Setup visualization tracking if enabled."""
+        if not self.config.logging.log_images:
+            return None
+        return [defaultdict(list) for _ in range(self.config.logging.log_n_image_per_batch)]
+
+    def _update_trajectory(self, trajectory: List[Dict], 
+                         envs: List[Any], responses: List[str], active_mask: torch.Tensor):
+        """Update visualization trajectory if enabled."""
+        if not trajectory:
+            return
+        n_visualize = self.config.logging.log_n_image_per_batch
+        for idx, (env, active) in enumerate(zip(envs[:n_visualize], active_mask[:n_visualize])):
+            if active:
+                trajectory[idx]['state'].append(env.render('rgb_array'))
+            
+        for idx, (response, env, active) in enumerate(zip(responses[:n_visualize], 
+                                                envs[:n_visualize],
+                                                active_mask[:n_visualize])):
+            if active:
+                parsed = parse_llm_output(response, strategy="raw")
+                
+                trajectory[idx]['answer'].append(response)
+                trajectory[idx]['parsed_response'].append(parsed)
+
+    def _save_trajectory(self, trajectory: List[Dict], 
+                        output_dir: str, global_steps: int):
+        """Save trajectory visualization if enabled."""
+        if not trajectory:
+            return
+            
+        save_step_size = self.config.logging.log_image_step_size
+        if not global_steps % save_step_size or self.is_validation:
+            os.makedirs(output_dir, exist_ok=True)
+            filenames = save_trajectory_to_output(trajectory, save_dir=output_dir)
+            if 'wandb' in self.logger.logger:
+                for filename in filenames:
+                    self.logger.logger['wandb'].save(filename)
 
 
     def _compose_final_output(self, left_side: Dict,
