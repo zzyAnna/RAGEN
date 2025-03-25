@@ -85,7 +85,7 @@ class SFTPipeline:
             "--standalone",
             "--nnodes=1",
             f"--nproc_per_node={training_config['num_gpus']}",
-            "-m ragen.trainer.fsdp_sft_trainer",
+            "-m verl.trainer.fsdp_sft_trainer",
             f"data.train_files=data/sft/{self.env_type}/train.parquet",
             f"data.val_files=data/sft/{self.env_type}/test.parquet",
             "data.prompt_key=prompt",

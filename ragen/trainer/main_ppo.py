@@ -14,64 +14,16 @@
 """
 Note that we don't combine the main with ray_trainer as ray_trainer is used by other main.
 """
+from verl.trainer.ppo.ray_trainer import RayPPOTrainer
+
+import ray
+import hydra
 
 from verl import DataProto
 import torch
-import re
 import numpy as np
 
-import ragen.utils.reward_score.countdown as countdown
-
-from ragen.trainer.ppo.ray_trainer import RayPPOTrainer
-from ragen.env import (
-    SokobanEnv, 
-    FrozenLakeEnv, 
-    BanditEnv, 
-    CountdownEnv
-)
-
-ENV_CLASS_MAPPING = {
-    'sokoban': SokobanEnv,
-    'frozenlake': FrozenLakeEnv,
-    'bandit': BanditEnv,
-    'countdown': CountdownEnv
-}
-
-def _select_rm_score_fn(data_source):
-    if "countdown" in data_source:
-        return countdown.compute_score
-    elif "sokoban" in data_source or "frozenlake" in data_source or "bandit" in data_source:
-        def judge_fn(*args, **kwargs):
-            solution = kwargs['solution_str']
-            # 1. reward based on the game:
-            # find all patterns like reward: -0.1\n, add them together as reward.
-            # 1. game reward
-            pattern = r'reward: (-?\d+\.\d+)\ndone: (True|False)'
-            matches = re.findall(pattern, solution)
-            reward = sum(float(match[0]) for match in matches)
-            # print(f"reward: {reward}")
-            # 2. format reward, find "action is invalid", add -0.1 to reward
-            pattern = r'Action is invalid. You stay in the same position.'
-            matches = re.findall(pattern, solution)
-            reward -= len(matches) * 1
-            if reward > 15:
-                print(f"[REWARD TOO MUCH]. solution: \n{solution}")
-            return reward
-
-            # # 2. reward based on success:
-            # # if there is done: True, it is 1, otherwise 0.
-            # if "done: True" in solution:
-            #     reward = 1.0
-            # else:
-            #     reward = 0.0
-            # return reward
-
-        return judge_fn
-    else:
-        raise NotImplementedError
-
-
-class RewardManager():
+class DummyRewardManager():
     """The reward manager.
     """
 
@@ -115,23 +67,9 @@ class RewardManager():
             data_source = data_item.non_tensor_batch['data_source']
             compute_score_fn = _select_rm_score_fn(data_source)
 
-            if data_source in ENV_CLASS_MAPPING.keys():
-                if 'reward' not in data_item.non_tensor_batch.keys():
-                    # TODO: currently validate is not implemented
-                    ground_truth = data_item.non_tensor_batch['reward_model']['ground_truth']
-                    score = compute_score_fn(solution_str=sequences_str, ground_truth=ground_truth)
-                    # print("[WARNING] reward is not in data_item.non_tensor_batch.keys(), probably because validate is not implemented")
-                else:
-                    score = data_item.non_tensor_batch['reward']
-                score = float(score)
-                # print(f"reward: {score}")
-                # if score > 20:
-                    # print(f"[REWARD TOO MUCH]. solution: \n{sequences_str}")
-                # score = compute_score_fn(solution_str=sequences_str, ground_truth=ground_truth)
-            else:
-                ground_truth = data_item.non_tensor_batch['reward_model']['ground_truth']
-                score = compute_score_fn(solution_str=sequences_str, ground_truth=ground_truth)
-
+            score = data_item.non_tensor_batch['reward']
+            score = float(score)
+ 
             reward_tensor[i, valid_response_length - 1] = score
             all_scores.append(score)
 
@@ -151,13 +89,41 @@ class RewardManager():
 
         return reward_tensor
 
+def get_custom_reward_fn(config):
+    import importlib.util, os
 
-import ray
-import hydra
+    reward_fn_config = config.get("custom_reward_function") or {}
+    file_path = reward_fn_config.get("path")
+    if not file_path:
+        return None
+
+    if not os.path.exists(file_path):
+        raise FileNotFoundError(f"Reward function file '{file_path}' not found.")
+
+    spec = importlib.util.spec_from_file_location("custom_module", file_path)
+    module = importlib.util.module_from_spec(spec)
+    try:
+        spec.loader.exec_module(module)
+    except Exception as e:
+        raise RuntimeError(f"Error loading module from '{file_path}': {e}")
+
+    function_name = reward_fn_config.get("name")
+
+    if not hasattr(module, function_name):
+        raise AttributeError(f"Reward function '{function_name}' not found in '{file_path}'.")
+
+    print(f"using customized reward function '{function_name}' from '{file_path}'")
+
+    return getattr(module, function_name)
 
 
 @hydra.main(config_path='config', config_name='ppo_trainer', version_base=None)
 def main(config):
+    run_ppo(config)
+
+
+def run_ppo(config) -> None:
+
     if not ray.is_initialized():
         # this is for local ray cluster
         ray.init(runtime_env={'env_vars': {'TOKENIZERS_PARALLELISM': 'true', 'NCCL_DEBUG': 'WARN'}})
@@ -165,25 +131,22 @@ def main(config):
     ray.get(main_task.remote(config))
 
 
-@ray.remote
+@ray.remote(num_cpus=1)  # please make sure main_task is not scheduled on head
 def main_task(config):
-    from verl.utils.fs import copy_local_path_from_hdfs
-    from transformers import AutoTokenizer
-
+    from verl.utils.fs import copy_to_local
     # print initial config
     from pprint import pprint
     from omegaconf import OmegaConf
     pprint(OmegaConf.to_container(config, resolve=True))  # resolve=True will eval symbol values
     OmegaConf.resolve(config)
 
-    env_class = ENV_CLASS_MAPPING[config.env.name]
-
     # download the checkpoint from hdfs
-    local_path = copy_local_path_from_hdfs(config.actor_rollout_ref.model.path)
+    local_path = copy_to_local(config.actor_rollout_ref.model.path)
 
     # instantiate tokenizer
-    from verl.utils import hf_tokenizer
+    from verl.utils import hf_tokenizer, hf_processor
     tokenizer = hf_tokenizer(local_path)
+    processor = hf_processor(local_path, use_fast=True)  # used for multimodal LLM, could be none
 
     # define worker classes
     if config.actor_rollout_ref.actor.strategy == 'fsdp':
@@ -201,7 +164,7 @@ def main_task(config):
     else:
         raise NotImplementedError
 
-    from ragen.trainer.ppo.ray_trainer import ResourcePoolManager, Role
+    from verl.trainer.ppo.ray_trainer import ResourcePoolManager, Role
 
     role_worker_mapping = {
         Role.ActorRollout: ray.remote(ActorRolloutRefWorker),
@@ -235,14 +198,30 @@ def main_task(config):
         role_worker_mapping[Role.RewardModel] = ray.remote(RewardModelWorker)
         mapping[Role.RewardModel] = global_pool_id
 
-    reward_fn = RewardManager(tokenizer=tokenizer, num_examine=0)
+    reward_manager_name = config.reward_model.get("reward_manager", "dummy")
+    print(f'reward_manager_name: {reward_manager_name}')
+    if reward_manager_name == 'dummy':
+        reward_manager_cls = DummyRewardManager
+    elif reward_manager_name == 'naive':
+        from verl.workers.reward_manager import NaiveRewardManager
+        reward_manager_cls = NaiveRewardManager
+    elif reward_manager_name == 'prime':
+        from verl.workers.reward_manager import PrimeRewardManager
+        reward_manager_cls = PrimeRewardManager
+    else:
+        raise NotImplementedError
+
+    compute_score = get_custom_reward_fn(config)
+    reward_fn = reward_manager_cls(tokenizer=tokenizer, num_examine=0, compute_score=compute_score)
 
     # Note that we always use function-based RM for validation
-    val_reward_fn = RewardManager(tokenizer=tokenizer, num_examine=1)
+    val_reward_fn = reward_manager_cls(tokenizer=tokenizer, num_examine=1, compute_score=compute_score)
 
     resource_pool_manager = ResourcePoolManager(resource_pool_spec=resource_pool_spec, mapping=mapping)
+
     trainer = RayPPOTrainer(config=config,
                             tokenizer=tokenizer,
+                            processor=processor,
                             role_worker_mapping=role_worker_mapping,
                             resource_pool_manager=resource_pool_manager,
                             ray_worker_group_cls=ray_worker_group_cls,
