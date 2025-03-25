@@ -27,37 +27,10 @@ from verl.utils.fs import copy_local_path_from_hdfs
 from verl.utils.model import compute_position_id_with_mask
 import verl.utils.torch_functional as verl_F
 
-
-def collate_fn(data_list: list[dict]) -> dict:
-    tensors = {}
-    non_tensors = {}
-
-    for data in data_list:
-        for key, val in data.items():
-            if isinstance(val, torch.Tensor):
-                if key not in tensors:
-                    tensors[key] = []
-                tensors[key].append(val)
-            else:
-                if key not in non_tensors:
-                    non_tensors[key] = []
-                non_tensors[key].append(val)
-
-    for key, val in tensors.items():
-        tensors[key] = torch.stack(val, dim=0)
-
-    for key, val in non_tensors.items():
-        non_tensors[key] = np.array(val, dtype=object)
-
-    output = {}
-    output.update(tensors)
-    output.update(non_tensors)
-    return output
-
-
 class AgentDataset(Dataset):
     """
-    We assume the dataset contains a column that contains prompts and other information
+    This is a dummy agent dataset that only contains system prompt.
+    This is adopted to make the code compatible with the original verl code.
     """
 
     def __init__(self,

@@ -23,11 +23,9 @@ from dataclasses import dataclass, field
 from enum import Enum
 from pprint import pprint
 from typing import Type, Dict
+from copy import deepcopy
 
-import re
-import json
-from collections import defaultdict
-
+import ray
 import numpy as np
 from codetiming import Timer
 from omegaconf import OmegaConf, open_dict
@@ -38,9 +36,15 @@ from verl.single_controller.ray import RayResourcePool, RayWorkerGroup, RayClass
 from verl.single_controller.ray.base import create_colocated_worker_cls
 from verl.trainer.ppo import core_algos
 from verl.utils.seqlen_balancing import get_seqlen_balanced_partitions, log_seqlen_unbalance
-
+from verl.utils.checkpoint.checkpoint_manager import find_latest_ckpt_path
+from verl.utils.dataset.rl_dataset import RLHFDataset, collate_fn
+from verl.utils.tracking import ValidationGenerationsLogger
+from torch.utils.data import RandomSampler, SequentialSampler
+from torchdata.stateful_dataloader import StatefulDataLoader
 
 import re
+import json
+from collections import defaultdict
 from ragen.llm_agent.generation import LLMGenerationManager, GenerationConfig
 
 WorkerType = Type[Worker]
@@ -57,6 +61,19 @@ class Role(Enum):
     RefPolicy = 4
     RewardModel = 5
     ActorRolloutRef = 6
+
+
+class AdvantageEstimator(str, Enum):
+    """
+    Using an enumeration class to avoid spelling errors in adv_estimator
+    """
+    GAE = 'gae'
+    GRPO = 'grpo'
+    REINFORCE_PLUS_PLUS = 'reinforce_plus_plus'
+    REMAX = 'remax'
+    RLOO = 'rloo'
+    ARPO = 'arpo'
+    BRPO = 'brpo'
 
 
 @dataclass
@@ -79,6 +96,8 @@ class ResourcePoolManager:
                                             max_colocate_count=1,
                                             name_prefix=resource_pool_name)
             self.resource_pool_dict[resource_pool_name] = resource_pool
+
+        self._check_resource_available()
 
     def get_resource_pool(self, role: Role) -> RayResourcePool:
         """Get the resource pool of the worker_cls"""
@@ -112,7 +131,7 @@ def apply_kl_penalty(data: DataProto, kl_ctrl: core_algos.AdaptiveKLController, 
 
     token_level_rewards = token_level_scores - beta * kld
 
-    current_kl = masked_mean(kld, mask=response_mask, axis=-1)  # averagen over sequence
+    current_kl = masked_mean(kld, mask=response_mask, axis=-1)  # average over sequence
     current_kl = torch.mean(current_kl, dim=0).item()
 
     # according to https://github.com/huggingface/trl/blob/951ca1841f29114b969b57b26c7d3e80a39f75a0/trl/trainer/ppo_trainer.py#L837
@@ -127,7 +146,7 @@ def apply_kl_penalty(data: DataProto, kl_ctrl: core_algos.AdaptiveKLController, 
 def compute_advantage(data: DataProto, adv_estimator, gamma=1.0, lam=1.0, num_repeat=1):
     # prepare response group
     # TODO: add other ways to estimate advantages
-    if adv_estimator == 'gae':
+    if adv_estimator == AdvantageEstimator.GAE:
         values = data.batch['values']
         responses = data.batch['responses']
         response_length = responses.size(-1)
@@ -141,7 +160,7 @@ def compute_advantage(data: DataProto, adv_estimator, gamma=1.0, lam=1.0, num_re
                                                                       lam=lam)
         data.batch['advantages'] = advantages
         data.batch['returns'] = returns
-    elif adv_estimator in ['grpo', 'brpo', 'arpo']:
+    elif adv_estimator in [AdvantageEstimator.GRPO, AdvantageEstimator.BRPO, AdvantageEstimator.ARPO]:
         token_level_rewards = data.batch['token_level_rewards']
         index = data.non_tensor_batch['uid']
         responses = data.batch['responses']
@@ -149,6 +168,44 @@ def compute_advantage(data: DataProto, adv_estimator, gamma=1.0, lam=1.0, num_re
         attention_mask = data.batch['attention_mask']
         response_mask = attention_mask[:, -response_length:]
         advantages, returns = core_algos.compute_grpo_outcome_advantage(token_level_rewards=token_level_rewards,
+                                                                        eos_mask=response_mask,
+                                                                        index=index)
+        data.batch['advantages'] = advantages
+        data.batch['returns'] = returns
+    elif adv_estimator == AdvantageEstimator.REINFORCE_PLUS_PLUS:
+        token_level_rewards = data.batch['token_level_rewards']
+        responses = data.batch['responses']
+        response_length = responses.size(-1)
+        attention_mask = data.batch['attention_mask']
+        response_mask = attention_mask[:, -response_length:]
+        advantages, returns = core_algos.compute_reinforce_plus_plus_outcome_advantage(
+            token_level_rewards=token_level_rewards, eos_mask=response_mask, gamma=gamma)
+        data.batch['advantages'] = advantages
+        data.batch['returns'] = returns
+    elif adv_estimator == AdvantageEstimator.REMAX:
+        token_level_rewards = data.batch['token_level_rewards']
+        index = data.non_tensor_batch['uid']
+        responses = data.batch['responses']
+        response_length = responses.size(-1)
+        attention_mask = data.batch['attention_mask']
+        response_mask = attention_mask[:, -response_length:]
+
+        reward_baselines = data.batch['reward_baselines']
+
+        advantages, returns = core_algos.compute_remax_outcome_advantage(token_level_rewards=token_level_rewards,
+                                                                         reward_baselines=reward_baselines,
+                                                                         eos_mask=response_mask)
+
+        data.batch['advantages'] = advantages
+        data.batch['returns'] = returns
+    elif adv_estimator == AdvantageEstimator.RLOO:
+        token_level_rewards = data.batch['token_level_rewards']
+        index = data.non_tensor_batch['uid']
+        responses = data.batch['responses']
+        response_length = responses.size(-1)
+        attention_mask = data.batch['attention_mask']
+        response_mask = attention_mask[:, -response_length:]
+        advantages, returns = core_algos.compute_rloo_outcome_advantage(token_level_rewards=token_level_rewards,
                                                                         eos_mask=response_mask,
                                                                         index=index)
         data.batch['advantages'] = advantages
@@ -334,6 +391,19 @@ def compute_timing_metrics(batch, timing_raw):
     }
 
 
+def compute_throughout_metrics(batch, timing_raw, n_gpus):
+    total_num_tokens = sum(batch.meta_info['global_token_num'])
+    time = timing_raw["step"]
+    # estimated_flops, promised_flops = flops_function.estimate_flops(num_tokens, time)
+    # f'Actual TFLOPs/s/GPU​': estimated_flops/(n_gpus),
+    # f'Theoretical TFLOPs/s/GPU​': promised_flops,
+    return {
+        f'total_num_tokens': total_num_tokens,
+        f'time_per_step': time,
+        f'Tokens/Sec/GPU': total_num_tokens / (time * n_gpus),
+    }
+
+
 @contextmanager
 def _timer(name: str, timing_raw: Dict[str, float]):
     with Timer(name=name, logger=None) as timer:
@@ -354,22 +424,20 @@ class RayPPOTrainer(object):
                  role_worker_mapping: dict[Role, WorkerType],
                  resource_pool_manager: ResourcePoolManager,
                  ray_worker_group_cls: RayWorkerGroup = RayWorkerGroup,
+                 processor=None,
                  reward_fn=None,
                  val_reward_fn=None):
 
         # assert torch.cuda.is_available(), 'cuda must be available on driver'
 
         self.tokenizer = tokenizer
+        self.processor = processor
         self.config = config
         self.reward_fn = reward_fn
         self.val_reward_fn = val_reward_fn
 
         self.train_data_num = config.data.train_data_num or config.trainer.total_training_steps * config.data.train_batch_size
         self.val_data_num = config.data.val_data_num or 100
-     
-        # if val_env_names is not None:
-        #     print("[INFO] val env is different from train env, it means you are evaluating the model's generalization capabilities.")
-
         self.hybrid_engine = config.actor_rollout_ref.hybrid_engine
         assert self.hybrid_engine, 'Currently, only support hybrid engine'
 
@@ -382,8 +450,7 @@ class RayPPOTrainer(object):
         print(f"use_reference_policy: {self.use_reference_policy}")
         self.use_rm = Role.RewardModel in role_worker_mapping
         self.ray_worker_group_cls = ray_worker_group_cls
-
-        self.val_num = 0
+        self.validation_generations_logger = ValidationGenerationsLogger()
 
         # define KL control
         if self.use_reference_policy:
@@ -399,6 +466,17 @@ class RayPPOTrainer(object):
         else:
             self.kl_ctrl = core_algos.FixedKLController(kl_coef=0.)
 
+        if self.config.algorithm.adv_estimator == AdvantageEstimator.GAE:
+            self.use_critic = True
+        elif self.config.algorithm.adv_estimator in [
+                AdvantageEstimator.GRPO, AdvantageEstimator.REINFORCE_PLUS_PLUS, AdvantageEstimator.REMAX,
+                AdvantageEstimator.RLOO
+        ]:
+            self.use_critic = False
+        else:
+            raise NotImplementedError
+
+        self._validate_config()
         self._create_dataloader()
         self._init_logger()
     
@@ -408,6 +486,90 @@ class RayPPOTrainer(object):
                           experiment_name=self.config.trainer.experiment_name,
                           default_backend=self.config.trainer.logger,
                           config=OmegaConf.to_container(self.config, resolve=True))
+
+    def _validate_config(self):
+        config = self.config
+        # number of GPUs total
+        n_gpus = config.trainer.n_gpus_per_node * config.trainer.nnodes
+
+        # 1. Check total batch size for data correctness
+        real_train_batch_size = config.data.train_batch_size * config.actor_rollout_ref.rollout.n
+        assert real_train_batch_size % n_gpus == 0, \
+            f"real_train_batch_size ({real_train_batch_size}) must be divisible by total n_gpus ({n_gpus})."
+
+        # A helper function to check "micro_batch_size" vs "micro_batch_size_per_gpu"
+        # We throw an error if the user sets both. The new convention is "..._micro_batch_size_per_gpu".
+        def check_mutually_exclusive(mbs, mbs_per_gpu, name: str):
+            if mbs is None and mbs_per_gpu is None:
+                raise ValueError(f"[{name}] Please set at least one of '{name}.micro_batch_size' or "
+                                 f"'{name}.micro_batch_size_per_gpu'.")
+
+            if mbs is not None and mbs_per_gpu is not None:
+                raise ValueError(f"[{name}] You have set both '{name}.micro_batch_size' AND "
+                                 f"'{name}.micro_batch_size_per_gpu'. Please remove '{name}.micro_batch_size' "
+                                 f"because only '*_micro_batch_size_per_gpu' is supported (the former is deprecated).")
+
+        if not config.actor_rollout_ref.actor.use_dynamic_bsz:
+            # actor: ppo_micro_batch_size vs. ppo_micro_batch_size_per_gpu
+            check_mutually_exclusive(config.actor_rollout_ref.actor.ppo_micro_batch_size,
+                                     config.actor_rollout_ref.actor.ppo_micro_batch_size_per_gpu,
+                                     "actor_rollout_ref.actor")
+
+            # reference: log_prob_micro_batch_size vs. log_prob_micro_batch_size_per_gpu
+            check_mutually_exclusive(config.actor_rollout_ref.ref.log_prob_micro_batch_size,
+                                     config.actor_rollout_ref.ref.log_prob_micro_batch_size_per_gpu,
+                                     "actor_rollout_ref.ref")
+
+            #  The rollout section also has log_prob_micro_batch_size vs. log_prob_micro_batch_size_per_gpu
+            check_mutually_exclusive(config.actor_rollout_ref.rollout.log_prob_micro_batch_size,
+                                     config.actor_rollout_ref.rollout.log_prob_micro_batch_size_per_gpu,
+                                     "actor_rollout_ref.rollout")
+
+        if self.use_critic and not config.critic.use_dynamic_bsz:
+            # Check for critic micro-batch size conflicts
+            check_mutually_exclusive(config.critic.ppo_micro_batch_size, config.critic.ppo_micro_batch_size_per_gpu,
+                                     "critic")
+
+        # Check for reward model micro-batch size conflicts
+        if config.reward_model.enable and not config.reward_model.use_dynamic_bsz:
+            check_mutually_exclusive(config.reward_model.micro_batch_size, config.reward_model.micro_batch_size_per_gpu,
+                                     "reward_model")
+
+        # Actor
+        # if NOT dynamic_bsz, we must ensure:
+        #    ppo_mini_batch_size is divisible by ppo_micro_batch_size
+        #    ppo_micro_batch_size * sequence_parallel_size >= n_gpus
+        if not config.actor_rollout_ref.actor.use_dynamic_bsz:
+            sp_size = config.actor_rollout_ref.actor.get('ulysses_sequence_parallel_size', 1)
+            if config.actor_rollout_ref.actor.ppo_micro_batch_size is not None:
+                assert config.actor_rollout_ref.actor.ppo_mini_batch_size % config.actor_rollout_ref.actor.ppo_micro_batch_size == 0
+                assert config.actor_rollout_ref.actor.ppo_micro_batch_size * sp_size >= n_gpus
+
+        # critic
+        if self.use_critic and not config.critic.use_dynamic_bsz:
+            sp_size = config.critic.get('ulysses_sequence_parallel_size', 1)
+            if config.critic.ppo_micro_batch_size is not None:
+                assert config.critic.ppo_mini_batch_size % config.critic.ppo_micro_batch_size == 0
+                assert config.critic.ppo_micro_batch_size * sp_size >= n_gpus
+
+        # Check if use_remove_padding is enabled when using sequence parallelism for fsdp
+        if config.actor_rollout_ref.actor.strategy == 'fsdp':
+            if config.actor_rollout_ref.actor.get('ulysses_sequence_parallel_size', 1) > 1 or \
+                    config.actor_rollout_ref.ref.get('ulysses_sequence_parallel_size', 1) > 1:
+                assert config.actor_rollout_ref.model.use_remove_padding, \
+                    "When using sequence parallelism for actor/ref policy, you must enable `use_remove_padding`."
+
+        if self.use_critic and config.critic.strategy == 'fsdp':
+            if config.critic.get('ulysses_sequence_parallel_size', 1) > 1:
+                assert config.critic.model.use_remove_padding, \
+                    "When using sequence parallelism for critic, you must enable `use_remove_padding`."
+
+        if config.data.get('val_batch_size', None) is not None:
+            print(
+                f"WARNING: val_batch_size is deprecated. Validation datasets are sent to inference engines as a whole batch, which will schedule the memory themselves."
+            )
+
+        print("[validate_config] All configuration checks passed successfully!")
 
     def _create_dataloader(self):
         from torch.utils.data import DataLoader
@@ -471,6 +633,30 @@ class RayPPOTrainer(object):
             self.config.actor_rollout_ref.actor.optim.total_training_steps = total_training_steps
             self.config.critic.optim.total_training_steps = total_training_steps
 
+    def _maybe_log_val_generations(self, inputs, outputs, scores):
+        """Log a table of validation samples to the configured logger (wandb or swanlab)"""
+
+        generations_to_log = self.config.trainer.val_generations_to_log_to_wandb
+
+        if generations_to_log == 0:
+            return
+
+        import numpy as np
+
+        # Create tuples of (input, output, score) and sort by input text
+        samples = list(zip(inputs, outputs, scores))
+        samples.sort(key=lambda x: x[0])  # Sort by input text
+
+        # Use fixed random seed for deterministic shuffling
+        rng = np.random.RandomState(42)
+        rng.shuffle(samples)
+
+        # Take first N samples after shuffling
+        samples = samples[:generations_to_log]
+
+        # Log to each configured logger
+        self.validation_generations_logger.log(self.config.trainer.logger, samples, self.global_steps)
+
     def init_workers(self):
         """Init resource pool and worker group"""
         self.resource_pool_manager.create_resource_pool()
@@ -488,20 +674,10 @@ class RayPPOTrainer(object):
             raise NotImplementedError
 
         # create critic
-        if self.config.algorithm.adv_estimator == 'gae':
-            # raise NotImplementedError("GAE requires a trained critic network which is not implemented in our repo. Consider changing config.optimization.adv_estimator with grpo/brpo/arpo.")
-        
-            ## original code here
-            print("[DEBUG] GAE is used")
+        if self.use_critic:
             resource_pool = self.resource_pool_manager.get_resource_pool(Role.Critic)
             critic_cls = RayClassWithInitArgs(cls=self.role_worker_mapping[Role.Critic], config=self.config.critic)
             self.resource_pool_to_cls[resource_pool]['critic'] = critic_cls
-            self.use_critic = True
-            
-        elif self.config.algorithm.adv_estimator in ['grpo', 'brpo', 'arpo']:
-            self.use_critic = False   # use a first-step reference model instead, and use the "low_var_kl" instead
-        else:
-            raise NotImplementedError
 
         # create reference policy if needed
         if self.use_reference_policy:
@@ -557,17 +733,83 @@ class RayPPOTrainer(object):
         self.actor_rollout_wg.save_checkpoint(actor_local_path, actor_remote_path)
 
         if self.use_critic:
-            critic_local_path = os.path.join(self.config.trainer.default_local_dir, 'critic',
-                                             f'global_step_{self.global_steps}')
+            critic_local_path = os.path.join(local_global_step_folder, 'critic')
             critic_remote_path = None if self.config.trainer.default_hdfs_dir is None else os.path.join(
-                self.config.trainer.default_hdfs_dir, 'critic')
-            self.critic_wg.save_checkpoint(critic_local_path, critic_remote_path)
+                self.config.trainer.default_hdfs_dir, f'global_step_{self.global_steps}', 'critic')
+            self.critic_wg.save_checkpoint(critic_local_path,
+                                           critic_remote_path,
+                                           self.global_steps,
+                                           remove_previous_ckpt=self.config.trainer.remove_previous_ckpt_in_save)
+
+        # save dataloader
+        dataloader_local_path = os.path.join(local_global_step_folder, 'data.pt')
+        dataloader_state_dict = self.train_dataloader.state_dict()
+        torch.save(dataloader_state_dict, dataloader_local_path)
+
+        # latest checkpointed iteration tracker (for atomic usage)
+        local_latest_checkpointed_iteration = os.path.join(self.config.trainer.default_local_dir,
+                                                           'latest_checkpointed_iteration.txt')
+        with open(local_latest_checkpointed_iteration, 'w') as f:
+            f.write(str(self.global_steps))
+
+    def _load_checkpoint(self):
+        if self.config.trainer.resume_mode == 'disable':
+            return 0
+
+        # load from hdfs
+        if self.config.trainer.default_hdfs_dir is not None:
+            raise NotImplementedError('load from hdfs is not implemented yet')
+        else:
+            checkpoint_folder = self.config.trainer.default_local_dir  # TODO: check path
+            if not os.path.isabs(checkpoint_folder):
+                working_dir = os.getcwd()
+                checkpoint_folder = os.path.join(working_dir, checkpoint_folder)
+            global_step_folder = find_latest_ckpt_path(checkpoint_folder)  # None if no latest
+
+        # find global_step_folder
+        if self.config.trainer.resume_mode == 'auto':
+            if global_step_folder is None:
+                print('Training from scratch')
+                return 0
+        else:
+            if not (self.config.trainer.resume_from_path and global_step_folder is not None):
+                assert isinstance(self.config.trainer.resume_mode, str), "resume ckpt must be str type"
+                assert 'global_step_' in self.config.trainer.resume_mode, "resume ckpt must specify the global_steps"
+                global_step_folder = self.config.trainer.resume_mode
+                if not os.path.isabs(global_step_folder):
+                    working_dir = os.getcwd()
+                    global_step_folder = os.path.join(working_dir, global_step_folder)
+        print(f'Load from checkpoint folder: {global_step_folder}')
+        # set global step
+        self.global_steps = int(global_step_folder.split('global_step_')[-1])
+
+        print(f'Setting global step to {self.global_steps}')
+        print(f'Resuming from {global_step_folder}')
+
+        actor_path = os.path.join(global_step_folder, 'actor')
+        critic_path = os.path.join(global_step_folder, 'critic')
+        # load actor
+        self.actor_rollout_wg.load_checkpoint(actor_path,
+                                              del_local_after_load=self.config.trainer.del_local_ckpt_after_load)
+        # load critic
+        if self.use_critic:
+            self.critic_wg.load_checkpoint(critic_path,
+                                           del_local_after_load=self.config.trainer.del_local_ckpt_after_load)
+
+        # load dataloader,
+        # TODO: from remote not implemented yet
+        dataloader_local_path = os.path.join(global_step_folder, 'data.pt')
+        if os.path.exists(dataloader_local_path):
+            dataloader_state_dict = torch.load(dataloader_local_path)
+            self.train_dataloader.load_state_dict(dataloader_state_dict)
+        else:
+            print(f"Warning: No dataloader state found at {dataloader_local_path}, will start from scratch")
 
     def _balance_batch(self, batch: DataProto, metrics, logging_prefix='global_seqlen'):
         """Reorder the data on single controller such that each dp rank gets similar total tokens"""
         attention_mask = batch.batch['attention_mask']
         batch_size = attention_mask.shape[0]
-        global_seqlen_lst = attention_mask.view(batch_size, -1).sum(-1).tolist()  # (train_batch_size,)
+        global_seqlen_lst = batch.batch['attention_mask'].view(batch_size, -1).sum(-1).tolist()  # (train_batch_size,)
         world_size = self.actor_rollout_wg.world_size
         global_partition_lst = get_seqlen_balanced_partitions(global_seqlen_lst,
                                                               k_partitions=world_size,
@@ -577,7 +819,7 @@ class RayPPOTrainer(object):
         batch.reorder(global_idx)
         global_balance_stats = log_seqlen_unbalance(seqlen_list=global_seqlen_lst,
                                                     partitions=global_partition_lst,
-                                                    prefix=logging_prefix) 
+                                                    prefix=logging_prefix)
         metrics.update(global_balance_stats)
     
     def fit(self):
@@ -590,16 +832,22 @@ class RayPPOTrainer(object):
         import pdb; pdb.set_trace()
         logger = self.logger
         self.global_steps = 0
+
+        # load checkpoint before doing anything
+        self._load_checkpoint()
+
         # perform validation before training
         # currently, we only support validation using the reward_function.
         if self.val_reward_fn is not None and self.config.trainer.get('val_before_train', True):
             val_metrics = self._validate()
+            pprint(f'Initial validation metrics: {val_metrics}')
+            logger.log(data=val_metrics, step=self.global_steps)
             if self.config.trainer.get('val_only', False):
                 return
 
         # we start from step 1
         self.global_steps += 1
-
+        last_val_metrics = None
 
 
         # Agent config preparation
@@ -1038,7 +1286,7 @@ class RayPPOTrainer(object):
             global_metrics['validate_metric/n_high_arm'] = int(np.sum(batch_action == 2))
             global_metrics['validate_metric/n_invalid'] = int(np.sum(batch_action == 0))
         print("global_metrics", global_metrics)
-        self.logger.log(data=global_metrics, step=self.val_num)
+        self.logger.log(data=global_metrics, step=global_steps)
         return global_metrics
     
     

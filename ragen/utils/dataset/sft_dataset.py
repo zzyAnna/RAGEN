@@ -1,39 +1,10 @@
-# Copyright 2024 Bytedance Ltd. and/or its affiliates
-#
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
-#
-#     http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
-"""
-SFT dataset
-- We assume user pass a single parquet file.
-- We load all the data into the memory.
-Each parquet file contains
-"""
-
-from typing import List, Union
-
-import pandas as pd
-
-import torch
-from torch.utils.data import Dataset
-from transformers import AutoTokenizer, PreTrainedTokenizer
-
-from verl.utils.fs import copy_local_path_from_hdfs
-from verl.utils.model import compute_position_id_with_mask
-from verl.utils import hf_tokenizer
-
+from verl.utils.dataset.sft_dataset import SFTDataset as VerlSFTDataset
 from ragen.utils import apply_chat_template
-import numpy as np
 
-class SFTDataset(Dataset):
+
+"""Borrowed from verl.utils.dataset.sft_dataset.py"""
+
+class SFTDataset(VerlSFTDataset):
     """
     This is an in-memory SFTDataset
     """
@@ -74,47 +45,7 @@ class SFTDataset(Dataset):
 
         self._download()
         self._read_files_and_tokenize()
-
-    def _download(self):
-        for i, parquet_file in enumerate(self.parquet_files):
-            self.parquet_files[i] = copy_local_path_from_hdfs(parquet_file, verbose=True)
-
-    def _read_files_and_tokenize(self):
-
-        def series_to_item(ls):
-            import pandas, numpy
-            while isinstance(ls, (pandas.core.series.Series, numpy.ndarray)) and len(ls) == 1:
-                ls = ls[0]
-            return ls
-
-        dataframes = []
-        for parquet_file in self.parquet_files:
-            # read parquet files and cache
-            dataframe = pd.read_parquet(parquet_file)
-            dataframes.append(dataframe)
-        self.dataframe = pd.concat(dataframes)
-        self.prompts = self.dataframe[self.prompt_key]
-        for key in self.prompt_dict_keys:
-            # type(x): pandas.core.series.Series
-            # type(x[0]): numpy.ndarray
-            # type(x[0][0]): dict
-            try:
-                self.prompts = self.prompts.apply(lambda x: series_to_item(x)[key], axis=1)
-            except Exception:
-                print(f'self.prompts={self.prompts}')
-                raise
-        self.prompts = self.prompts.tolist()
-        self.responses = self.dataframe[self.response_key]
-        for key in self.response_dict_keys:
-            try:
-                self.responses = self.responses.apply(lambda x: series_to_item(x)[key], axis=1)
-            except Exception:
-                print(f'self.responses={self.responses}')
-                raise
-        self.responses = self.responses.tolist()
-
-    def __len__(self):
-        return len(self.prompts)
+        
 
     def __getitem__(self, item):
         tokenizer = self.tokenizer
