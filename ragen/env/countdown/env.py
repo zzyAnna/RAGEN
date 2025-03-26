@@ -3,7 +3,7 @@ from ragen.env.base import BaseLanguageBasedEnv
 import datasets
 import re
 import itertools
-from ragen.env.countdown.config import CountdownEnvConfig
+from .config import CountdownEnvConfig
 
 
 def check_format(equation, nums):
@@ -81,4 +81,4 @@ if __name__ == "__main__":
         _, reward, _, _ = env.step(solution)
         print(f"{obs}\nSolution: {solution}, Reward: {reward}")
     
-    test("data/countdown/countdown_train.parquet")
+    test("data/countdown/train.parquet")
