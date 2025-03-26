@@ -108,7 +108,10 @@ main() {
     # Install remaining requirements
     print_step "Installing additional requirements..."
     pip install -r requirements.txt
-    
+
+    print_step "Downloading data..."
+    python scripts/download_data.py
+
     echo -e "${GREEN}Installation completed successfully!${NC}"
     echo "To activate the environment, run: conda activate ragen"
 }
