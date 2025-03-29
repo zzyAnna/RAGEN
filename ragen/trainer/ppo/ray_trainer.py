@@ -59,71 +59,71 @@ class RayPPOTrainer(VerlRayPPOTrainer):
         super().__init__(config, tokenizer, role_worker_mapping, resource_pool_manager, ray_worker_group_cls, processor, reward_fn, val_reward_fn)
         self._init_rollout_manager()
         
-    def _create_dataset(self):
-        train_data_num = self.config.data.train_data_num or self.config.trainer.total_training_steps * self.config.data.train_batch_size
-        val_data_num = self.config.data.val_data_num or 100
-        from ragen.utils.dataset.agent_dataset import AgentDataset, collate_fn
+    # def _create_dataset(self):
+    #     train_data_num = self.config.data.train_data_num or self.config.trainer.total_training_steps * self.config.data.train_batch_size
+    #     val_data_num = self.config.data.val_data_num or 100
+    #     from ragen.utils.dataset.agent_dataset import AgentDataset, collate_fn
         
-        def create_and_sample_dataset(data_num, dataset_type):
-            dataset = AgentDataset(
-                data_num=data_num,
-                tokenizer=self.tokenizer,
-                return_raw_chat=self.config.data.get('return_raw_chat', False),
-                truncation='error'
-            )
+    #     def create_and_sample_dataset(data_num, dataset_type):
+    #         dataset = AgentDataset(
+    #             data_num=data_num,
+    #             tokenizer=self.tokenizer,
+    #             return_raw_chat=self.config.data.get('return_raw_chat', False),
+    #             truncation='error'
+    #         )
             
-            if data_num is not None:
-                if data_num > len(dataset.dataframe):
-                    print(f"[WARNING] {dataset_type} dataset size is smaller than desired size. Using the dataset as the original size {len(dataset.dataframe)}")
-                else:
-                    dataset.dataframe = dataset.dataframe.sample(data_num, random_state=42)
+    #         if data_num is not None:
+    #             if data_num > len(dataset.dataframe):
+    #                 print(f"[WARNING] {dataset_type} dataset size is smaller than desired size. Using the dataset as the original size {len(dataset.dataframe)}")
+    #             else:
+    #                 dataset.dataframe = dataset.dataframe.sample(data_num, random_state=42)
                     
-            print(f"filtered {dataset_type} dataset size: {len(dataset.dataframe)}")
-            return dataset
+    #         print(f"filtered {dataset_type} dataset size: {len(dataset.dataframe)}")
+    #         return dataset
         
-        self.train_dataset = create_and_sample_dataset(train_data_num, "training")
-        self.val_dataset = create_and_sample_dataset(val_data_num, "validation")
+    #     self.train_dataset = create_and_sample_dataset(train_data_num, "training")
+    #     self.val_dataset = create_and_sample_dataset(val_data_num, "validation")
 
     def _create_dataloader(self):
         # TODO: we have to make sure the batch size is divisible by the dp size
-        self._create_dataset()
-        # use sampler for better ckpt resume
-        if self.config.data.shuffle:
-            train_dataloader_generator = torch.Generator()
-            train_dataloader_generator.manual_seed(self.config.data.get('seed', 1))
-            sampler = RandomSampler(data_source=self.train_dataset, generator=train_dataloader_generator)
-        else:
-            sampler = SequentialSampler(data_source=self.train_dataset)
+        # self._create_dataset()
+        # # use sampler for better ckpt resume
+        # if self.config.data.shuffle:
+        #     train_dataloader_generator = torch.Generator()
+        #     train_dataloader_generator.manual_seed(self.config.data.get('seed', 1))
+        #     sampler = RandomSampler(data_source=self.train_dataset, generator=train_dataloader_generator)
+        # else:
+        #     sampler = SequentialSampler(data_source=self.train_dataset)
 
-        self.train_dataloader = StatefulDataLoader(dataset=self.train_dataset,
-                                                   batch_size=self.config.data.train_batch_size,
-                                                   num_workers=8,
-                                                   drop_last=True,
-                                                   collate_fn=collate_fn,
-                                                   sampler=sampler)
+        # self.train_dataloader = StatefulDataLoader(dataset=self.train_dataset,
+        #                                            batch_size=self.config.data.train_batch_size,
+        #                                            num_workers=8,
+        #                                            drop_last=True,
+        #                                            collate_fn=collate_fn,
+        #                                            sampler=sampler)
 
-        self.val_dataloader = StatefulDataLoader(
-            dataset=self.val_dataset,
-            # Validation datasets are sent to inference engines as a whole batch,
-            # which will schedule the memory themselves.
-            batch_size=len(self.val_dataset),
-            num_workers=8,
-            shuffle=False,
-            drop_last=False,
-            collate_fn=collate_fn)
+        # self.val_dataloader = StatefulDataLoader(
+        #     dataset=self.val_dataset,
+        #     # Validation datasets are sent to inference engines as a whole batch,
+        #     # which will schedule the memory themselves.
+        #     batch_size=len(self.val_dataset),
+        #     num_workers=8,
+        #     shuffle=False,
+        #     drop_last=False,
+        #     collate_fn=collate_fn)
 
-        assert len(self.train_dataloader) >= 1
-        assert len(
-            self.val_dataloader
-        ) == 1, "Validation dataloader must have a single batch, which inference engines will schedule the memory themselves."
+        # assert len(self.train_dataloader) >= 1
+        # assert len(
+        #     self.val_dataloader
+        # ) == 1, "Validation dataloader must have a single batch, which inference engines will schedule the memory themselves."
 
-        print(f'Size of train dataloader: {len(self.train_dataloader)}')
+        # print(f'Size of train dataloader: {len(self.train_dataloader)}')
 
         # inject total_training_steps to actor/critic optim_config. This is hacky.
-        total_training_steps = len(self.train_dataloader) * self.config.trainer.total_epochs
+        # total_training_steps = len(self.train_dataloader) * self.config.trainer.total_epochs
 
-        if self.config.trainer.total_training_steps is not None:
-            total_training_steps = self.config.trainer.total_training_steps
+        assert self.config.trainer.total_training_steps is not None, "must determine total training steps"
+        total_training_steps = self.config.trainer.total_training_steps
 
         self.total_training_steps = total_training_steps
         print(f'Total training steps: {self.total_training_steps}')
