@@ -204,8 +204,15 @@ logging:
 env_interface:
   config:
     envs_size: null # same as batch size
-    envs_type: ["sokoban", "frozen_lake", "bandit", "countdown"]
+    envs_name: ["sokoban", "frozen_lake", "bandit", "countdown"]
     env_configs:
       sokoban:
-        dim_x: 6
-        dim_y: 6
+        type: sokoban
+        env_args:
+          dim_x: 6
+          dim_y: 6
+      frozen_lake:
+        type: frozen_lake
+      bandit:
+        type: bandit
+
