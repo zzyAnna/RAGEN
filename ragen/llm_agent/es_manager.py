@@ -1,3 +1,8 @@
+"""
+This is the environment state manager for the LLM agent.
+author: Pingyue Zhang
+date: 2025-03-30
+"""
 from dataclasses import dataclass
 from typing import Dict, List, Optional, Any
 import PIL.Image
@@ -136,9 +141,6 @@ class EnvStateManager:
             valid_actions = parsed_llm_response
         
         return valid_actions
-
-
-
 
 
     def reset(

@@ -1,3 +1,8 @@
+"""
+This is the environment for the ALFRED dataset.
+author: Qineng Wang
+date: 2025-03-30
+"""
 import random
 import textworld
 import textworld.gym
