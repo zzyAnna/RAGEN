@@ -34,32 +34,26 @@ class EnvStateManager:
         self.group_size = config.es_manager.train.group_size
         self._init_envs()
 
-    def _init_env_from_config(self, env_config: Dict):
+    def _init_env_from_config(self, config):
         """Initialize the environments from config"""
-        env_type = env_config["env_type"]
-        env_config_dict = env_config["env_config"]
-        env_config = REGISTERED_ENV_CONFIGS[env_type](**env_config_dict)
+        env_type = config.env_type
+        env_config = REGISTERED_ENV_CONFIGS[env_type](**config.env_config)
         env = REGISTERED_ENVS[env_type](env_config)
         return env
 
     def _init_env_list(self, config):
         """Initialize the environment list
         tags: ["SimpleSokoban", "HarderSokoban"]
-        n_groups: [1, 2]
+        n_groups: [1, 1]
         group_size: 16
-
         env_list = [
             {"tag": "SimpleSokoban", "group_idx": 0, "env_id": 0, "env": env, "env_config": env_config, "status": EnvStatus()}
-            {"tag": "SimpleSokoban", "group_idx": 0, "env_id": 1, ...}
             ...
             {"tag": "SimpleSokoban", "group_idx": 0, "env_id": 15 (group_size - 1), ...}
             {"tag": "HarderSokoban", "group_idx": 1, "env_id": 16, ...}
             ...
-            {"tag": "HarderSokoban", "group_idx": 1, "env_id": 31, ...}
-            {"tag": "HarderSokoban", "group_idx": 2, "env_id": 32, ...}
         ]
         """
-
         group_idx, env_idx = 0, 0
         env_list = []
         for tag, n_group in zip(config.env_configs.tags, config.env_configs.n_groups):
@@ -76,30 +70,15 @@ class EnvStateManager:
                         'status': EnvStatus()
                     }
                     env_list.append(env_entry)
-            group_idx += 1
+                    env_idx += 1
+                group_idx += 1
         return env_list
 
     def _init_envs(self):
-        """Initialize the environments from config
-        config (config -> agent_proxy -> envs): 
-            envs -> train -> env_groups (number of groups, e.g. 8)
-            envs -> train -> group_size (number of envs in each group, all envs are the same, e.g. 16)
-            envs -> train -> env_configs:
-                tags (List[str]): tags for the envs, e.g. ["bandit", "countdown"]
-                n_groups (List[int]): number of groups for each tag (sum = env_groups)
-            envs -> val
-
-        config (config -> custom_envs): 
-            custom_envs -> SimpleSokoban -> Env_type (str): "sokoban"
-            custom_envs -> SimpleSokoban -> env_config (dict): used for initilizing the env
-            custom_envs -> SimpleSokoban -> Env_instruction (str): initial instructions for the env
-            custom_envs -> SimpleFrozenLake ...
-        """
+        """Initialize the environments from config"""
 
         train_env_config = self.config.es_manager.train
-        val_env_config = self.config.es_manager.val
-        if not val_env_config:
-            val_env_config = train_env_config
+        val_env_config = self.config.es_manager.val if self.config.es_manager.val else train_env_config
         
         # Verify that the sum of n_groups equals env_groups
         assert sum(train_env_config.env_configs.n_groups) == self.env_groups, f"Sum of n_groups must equal env_groups. Got sum({train_env_config.env_configs.n_groups}) != {self.env_groups}"
@@ -108,15 +87,8 @@ class EnvStateManager:
         self.val_envs = self._init_env_list(val_env_config)
         self.rollout_cache = [] # cache for rollout logs for each env
 
-    def _update_history(
-            self,
-            history: List[Dict],
-            next_state,
-            last_step_info: Optional[Dict] = None,
-        ):
-        """
-        Entry for an environment rollout history
-        """
+    def _update_history(self, history: List[Dict], next_state, last_step_info: Optional[Dict] = None):
+        """Entry for an environment rollout history"""
         if last_step_info is not None:
             assert len(history), "History should not be empty"
             history[-1].update(last_step_info)
@@ -145,70 +117,33 @@ class EnvStateManager:
         
         return valid_actions
 
+    def reset(self, val: bool = False, seed: Optional[int] = None):
+        """Reset the environments and get initial observation"""
 
-    def reset(
-            self,
-            val: bool = False,
-            seed = None
-        ):
-        """Reset the environments and get initial observation
-
-        Args:
-            val (bool): whether to reset the validation environments
-            seed (List[int] | int): seeds for the environments
-
-        Returns:
-            rollout_cache (List[Dict]): cache for rollout logs for each env
-                each entry: {env_id: int, history: List[Dict]}
-        """
         envs = self.val_envs if val else self.train_envs
-        rollout_cache = [{"env_id": entry['env_id'], "history": []} for entry in envs]
 
-
-        def _expand_seed(seed):
-            if isinstance(seed, list):
-                assert len(seed) == self.env_groups, "Seed list length must equal env_groups"
-                # expand seed to group_size
-                seeds = []
-                for _seed in seed:
-                    seeds.extend([_seed] * self.group_size)
-                return seeds
-            elif isinstance(seed, int):
-                seeds = []
-                for _ in range(self.env_groups):
-                    seeds.extend([seed] * self.group_size)
-                    seed += 1
-                return seeds
-            else:
-                raise ValueError(f"Invalid seed type: {type(seed)}")
+        def _expand_seed(seed: int):
+            seeds = [[seed + i] * self.group_size for i in range(self.env_groups)] # [[seed, ..., seed], [seed+1, ..., seed+1], ...]
+            return sum(seeds, [])
+        seed = random.randint(0, 1000000) if seed is None else seed # get a random seed
         seeds = _expand_seed(seed)
 
-
-        for env_id, env in enumerate(envs):
-            env['env'].reset(seed=seeds[env_id])
-            obs = env['env'].render()
-            self._update_history(rollout_cache[env_id]['history'], obs)
-            env['status'] = EnvStatus(seed=seeds[env_id])
+        rollout_cache = [{"env_id": entry['env_id'], "history": []} for entry in envs]
+        for idx, env in enumerate(envs):
+            env['env'].reset(seed=seeds[idx])
+            self._update_history(rollout_cache[idx]['history'], next_state=env['env'].render(), last_step_info=None)
+            env['status'] = EnvStatus(seed=seeds[idx])
 
         self.rollout_cache = rollout_cache
         return rollout_cache
 
-    def step(
-            self,
-            all_env_inputs: List[Dict],
-            val: bool = False,
-        ):
+    def step(self, all_env_inputs: List[Dict], val: bool = False):
         """Step the environments
-
-        Args:
-            all_env_inputs (List[Dict]): inputs for all environments
-                each entry: {env_id: int, llm_response: str, actions: List[str]}
-                NOTE: should use env_id as index for existing some already done envs
-            val (bool): whether to step the validation environments
-
-        Returns:
-            env_outputs (List[Dict]): outputs for not done environments
-                each (rollout_cache) entry: {env_id: int, history: List[Dict]}
+        all_env_inputs: List[Dict]
+            {env_id: int, llm_response: str, actions: List[str]}
+            NOTE: should use env_id as index for existing some already done envs
+        env_outputs: List[Dict]
+            {env_id: int, history: List[Dict]}
         """
         env_outputs = []
 
@@ -254,12 +189,7 @@ class EnvStateManager:
         return env_outputs
 
     def render_final_output(self, val: bool = False):
-        """Get the final output for all environment
-
-        Returns:
-            final_output (List[Dict]): outputs for not done environments
-                each entry: {env_id: int, history: List[Dict], group_idx: int}
-        """
+        """Get the final output for all environment"""
         envs = self.val_envs if val else self.train_envs
         final_output = []
         for cache_entry in self.rollout_cache:
