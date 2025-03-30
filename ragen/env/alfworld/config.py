@@ -7,7 +7,6 @@ class AlfredEnvConfig(BaseEnvConfig):
     """configuration for text world AlfredEnv"""
     config_file: str = "./ragen/env/alfworld/alfworld_config.yaml"
     action_lookup: Dict[int, str] = field(default_factory=lambda: {
-        0: "None",
         1: "look",
         2: "inventory",
         3: "go to <receptacle>",

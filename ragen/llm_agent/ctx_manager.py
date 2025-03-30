@@ -13,6 +13,8 @@ from verl.utils.dataset.rl_dataset import collate_fn
 from transformers import AutoTokenizer
 import hydra
 from ragen.utils import register_resolvers
+from ragen.env import REGISTERED_ENV_CONFIGS
+from dataclasses import asdict
 register_resolvers()
 
 
@@ -59,8 +61,19 @@ class ContextManager:
         self.prefix_lookup = {"val": {}, "train": {}}
         prefixes = {}
         for env_tag, env_config in self.config.custom_envs.items():
-            env_instruction = env_config.get("env_instruction", "")
+            env_config_new = asdict(REGISTERED_ENV_CONFIGS[env_config.env_type]())
+            for k,v in env_config.items():
+                env_config_new[k] = v
+            env_instruction = env_config_new.get("env_instruction", "")
+            if env_config_new.get("grid_vocab",False):
+                grid_vocab_str = "\nIn the grid, the meaning of each symbol is as follows:\n" + ", ".join([f"{k}: {v}" for k, v in env_config_new["grid_vocab"].items()])
+                env_instruction += grid_vocab_str
+            if env_config_new.get("action_lookup",False):
+                action_lookup_str = "\nThe available action list is:\n" + ", ".join([f"{v}" for k, v in env_config_new["action_lookup"].items()])
+                env_instruction += action_lookup_str
             prefixes[env_tag] = env_instruction
+        
+        breakpoint()
 
         # Training
         for split in ["train", "val"]:
@@ -86,7 +99,7 @@ class ContextManager:
         think_content = match.group(1)
         action_content = match.group(2)
         if special_token_list is None:
-            special_token_list=["<think>","</think>","<answer>","</answer>","|<im_start>|","|<im_end>|"]
+            special_token_list=["<think>","</think>","<answer>","</answer>","<|im_start|>|","<|im_end|>"]
         for special_token in special_token_list:
             action_content = action_content.replace(special_token, "").strip()
             think_content = think_content.replace(special_token, "").strip()
@@ -172,12 +185,12 @@ class ContextManager:
 
 
 
-@hydra.main(version_base=None, config_path="../../config", config_name="base")
+@hydra.main(version_base = None, config_path = "../../config", config_name = "base")
 def main(config):
     import json
     tokenizer = AutoTokenizer.from_pretrained(config.actor_rollout_ref.model.path)
     ctx_manager = ContextManager(config=config, tokenizer=tokenizer)
-
+    print("ctx_manager prefix", ctx_manager.prefix_lookup)
     batch_list = [
         {
             "env_ids": 0,
@@ -188,7 +201,7 @@ def main(config):
             "chat_response": "<think> 456. </think><answer> love ; you </answer><think> mlll nb </think><answer> lxxx ; you </answer>",
         }
     ]
-    ctx_manager.action_sep_lookup={
+    ctx_manager.action_sep_lookup = {
         0: "|",
         1: ";"
     }
@@ -224,6 +237,6 @@ def main(config):
     env_prompt = ctx_manager.get_lm_inputs(env_outputs, is_final_turn=False)
     print(env_prompt)
 
-if __name__=="__main__":
+if __name__ == "__main__":
     main()
     
