@@ -40,7 +40,7 @@ class CountdownEnv(BaseLanguageBasedEnv, gym.Env):
         self.data = self._get_data_from_parquet(self.config.train_path)
         self.index = None
         self.render_cache = None
-
+        
     def _get_data_from_parquet(self, path):
         df = datasets.load_dataset("parquet", data_files=path)['train'].select(range(self.config.max_instances))
         df = df.filter(lambda x: has_solution(x['nums'], x['target']))
@@ -74,6 +74,12 @@ class CountdownEnv(BaseLanguageBasedEnv, gym.Env):
             return self.config.format_score
         else:
             return self.config.score
+    
+    def render(self, mode='text'):
+        return self.render_cache
+
+    def close(self):
+        pass
 
 if __name__ == "__main__":
     def test(path, seed=43):

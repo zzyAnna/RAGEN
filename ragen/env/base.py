@@ -47,6 +47,10 @@ class BaseEnv(ABC):
         """Compute reward for the action."""
         pass
 
+    def close(self):
+        """Close the environment."""
+        pass
+
 
 class BaseDiscreteActionEnv(BaseEnv, ABC):
     """

@@ -35,6 +35,9 @@ class BanditEnv(BaseDiscreteActionEnv, gym.Env):
             return self.config.hi_arm_hiscore
         return self.config.hi_arm_loscore
 
+    def render(self, mode='text'):
+        return self.render_cache
+
     def reset(self, mode=None, seed=None):
         gym.Env.reset(self, seed=seed)
         self._randomize_arms()
