@@ -7,15 +7,11 @@ from ragen.env.base import BaseDiscreteActionEnv
 from ragen.env.sokoban.config import SokobanEnvConfig
 from ragen.utils import all_seed
 
-
-
 class SokobanEnv(BaseDiscreteActionEnv, GymSokobanEnv):
     def __init__(self, config=None, **kwargs):
         self.config = config or SokobanEnvConfig()
         self.GRID_LOOKUP = self.config.grid_lookup
         self.ACTION_LOOKUP = self.config.action_lookup
-        self.INVALID_ACTION = self.config.invalid_act
-        self.PENALTY_FOR_INVALID = self.config.invalid_act_score
         self.search_depth = self.config.search_depth
         self.ACTION_SPACE = gym.spaces.discrete.Discrete(4, start=1)
 
@@ -45,14 +41,11 @@ class SokobanEnv(BaseDiscreteActionEnv, GymSokobanEnv):
             return self.reset(next_seed)
         
     def step(self, action: int):
-        if action == self.INVALID_ACTION:
-            next_obs, reward, done, info = self.render(), self.PENALTY_FOR_INVALID, False, {"action_is_effective": False, "action_is_valid": False, "success": False}
-        else:
-            previous_pos = self.player_position
-            _, reward, done, _ = GymSokobanEnv.step(self, action)
-            next_obs = self.render()
-            action_effective = not np.array_equal(previous_pos, self.player_position)
-            info = {"action_is_effective": action_effective, "action_is_valid": True, "success": done}
+        previous_pos = self.player_position
+        _, reward, done, _ = GymSokobanEnv.step(self, action)
+        next_obs = self.render()
+        action_effective = not np.array_equal(previous_pos, self.player_position)
+        info = {"action_is_effective": action_effective, "action_is_valid": True, "success": done}
             
         return next_obs, reward, done, info
 
@@ -66,7 +59,7 @@ class SokobanEnv(BaseDiscreteActionEnv, GymSokobanEnv):
             raise ValueError(f"Invalid mode: {mode}")
     
     def get_all_actions(self):
-        return list([k for k in self.ACTION_LOOKUP.keys() if k != self.INVALID_ACTION])
+        return list([k for k in self.ACTION_LOOKUP.keys()])
 
 if __name__ == '__main__':
     import matplotlib.pyplot as plt
@@ -78,7 +71,7 @@ if __name__ == '__main__':
         if keyboard == 'q':
             break
         action = int(keyboard)
-        action = action if action in env.ACTION_LOOKUP else env.INVALID_ACTION
+        assert action in env.ACTION_LOOKUP, f"Invalid action: {action}"
         obs, reward, done, info = env.step(action)
         print(obs, reward, done, info)
     np_img = env.get_image('rgb_array')

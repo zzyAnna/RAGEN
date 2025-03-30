@@ -31,15 +31,14 @@ from torchdata.stateful_dataloader import StatefulDataLoader
 
 WorkerType = Type[Worker]
 
-from verl.trainer.ppo.ray_trainer import Role, AdvantageEstimator, ResourcePoolManager, apply_kl_penalty, compute_advantage, reduce_metrics, _compute_response_info, compute_data_metrics, compute_timing_metrics, compute_throughout_metrics, _timer
+from verl.trainer.ppo.ray_trainer import Role, AdvantageEstimator, ResourcePoolManager, apply_kl_penalty, compute_advantage, compute_response_mask, _timer
 from verl.trainer.ppo.ray_trainer import RayPPOTrainer as VerlRayPPOTrainer
 
 import torch
 from verl.utils.torch_functional import masked_mean
 
-from ragen.llm_agent.generation import RolloutConfig, AgentRolloutManager
 
-class RayPPOTrainer(VerlRayPPOTrainer):
+class RayAgentTrainer(VerlRayPPOTrainer):
     """
     Note that this trainer runs on the driver process on a single CPU/GPU node.
     """
@@ -57,71 +56,9 @@ class RayPPOTrainer(VerlRayPPOTrainer):
                  val_reward_fn=None):
 
         super().__init__(config, tokenizer, role_worker_mapping, resource_pool_manager, ray_worker_group_cls, processor, reward_fn, val_reward_fn)
-        self._init_rollout_manager()
+        self._init_agent_proxy()
         
-    # def _create_dataset(self):
-    #     train_data_num = self.config.data.train_data_num or self.config.trainer.total_training_steps * self.config.data.train_batch_size
-    #     val_data_num = self.config.data.val_data_num or 100
-    #     from ragen.utils.dataset.agent_dataset import AgentDataset, collate_fn
-        
-    #     def create_and_sample_dataset(data_num, dataset_type):
-    #         dataset = AgentDataset(
-    #             data_num=data_num,
-    #             tokenizer=self.tokenizer,
-    #             return_raw_chat=self.config.data.get('return_raw_chat', False),
-    #             truncation='error'
-    #         )
-            
-    #         if data_num is not None:
-    #             if data_num > len(dataset.dataframe):
-    #                 print(f"[WARNING] {dataset_type} dataset size is smaller than desired size. Using the dataset as the original size {len(dataset.dataframe)}")
-    #             else:
-    #                 dataset.dataframe = dataset.dataframe.sample(data_num, random_state=42)
-                    
-    #         print(f"filtered {dataset_type} dataset size: {len(dataset.dataframe)}")
-    #         return dataset
-        
-    #     self.train_dataset = create_and_sample_dataset(train_data_num, "training")
-    #     self.val_dataset = create_and_sample_dataset(val_data_num, "validation")
-
     def _create_dataloader(self):
-        # TODO: we have to make sure the batch size is divisible by the dp size
-        # self._create_dataset()
-        # # use sampler for better ckpt resume
-        # if self.config.data.shuffle:
-        #     train_dataloader_generator = torch.Generator()
-        #     train_dataloader_generator.manual_seed(self.config.data.get('seed', 1))
-        #     sampler = RandomSampler(data_source=self.train_dataset, generator=train_dataloader_generator)
-        # else:
-        #     sampler = SequentialSampler(data_source=self.train_dataset)
-
-        # self.train_dataloader = StatefulDataLoader(dataset=self.train_dataset,
-        #                                            batch_size=self.config.data.train_batch_size,
-        #                                            num_workers=8,
-        #                                            drop_last=True,
-        #                                            collate_fn=collate_fn,
-        #                                            sampler=sampler)
-
-        # self.val_dataloader = StatefulDataLoader(
-        #     dataset=self.val_dataset,
-        #     # Validation datasets are sent to inference engines as a whole batch,
-        #     # which will schedule the memory themselves.
-        #     batch_size=len(self.val_dataset),
-        #     num_workers=8,
-        #     shuffle=False,
-        #     drop_last=False,
-        #     collate_fn=collate_fn)
-
-        # assert len(self.train_dataloader) >= 1
-        # assert len(
-        #     self.val_dataloader
-        # ) == 1, "Validation dataloader must have a single batch, which inference engines will schedule the memory themselves."
-
-        # print(f'Size of train dataloader: {len(self.train_dataloader)}')
-
-        # inject total_training_steps to actor/critic optim_config. This is hacky.
-        # total_training_steps = len(self.train_dataloader) * self.config.trainer.total_epochs
-
         assert self.config.trainer.total_training_steps is not None, "must determine total training steps"
         total_training_steps = self.config.trainer.total_training_steps
 
@@ -133,29 +70,13 @@ class RayPPOTrainer(VerlRayPPOTrainer):
             self.config.actor_rollout_ref.actor.optim.total_training_steps = total_training_steps
             self.config.critic.optim.total_training_steps = total_training_steps
 
-    def _init_rollout_manager(self):
-        rollout_config = RolloutConfig(
-            max_turns=self.config.max_turns,
-            max_start_length=self.config.data.max_start_length,
-            max_prompt_length=self.config.data.max_prompt_length,
-            max_response_length=self.config.data.max_response_length,
-            max_obs_length=self.config.data.max_obs_length,
-            no_think_rl=self.config.algorithm.no_think_rl,
-        )
-
-        self.generation_manager = AgentRolloutManager(
+    def _init_agent_proxy(self):
+        self.agent_proxy = LLMAgentProxy(
             tokenizer=self.tokenizer,
             actor_rollout_wg=self.actor_rollout_wg,
-            config=rollout_config,
+            config=self.config,
             logger=logger
         )
-
-
-    def _generate_rollout(self, batch):
-        all_outputs = self.generation_manager.run_llm_loop(batch)
-        self.save_trajectory(all_outputs)
-        return all_outputs
-
 
     def _validate(self):
         reward_tensor_lst = []
@@ -169,37 +90,43 @@ class RayPPOTrainer(VerlRayPPOTrainer):
         for test_data in self.val_dataloader:
             test_batch = DataProto.from_single_dict(test_data)
 
-            # we only do validation on rule-based rm
-            if self.config.reward_model.enable and test_batch[0].non_tensor_batch['reward_model']['style'] == 'model':
-                return {}
+            # repeat test batch
+            test_batch = test_batch.repeat(repeat_times=self.config.actor_rollout_ref.rollout.val_kwargs.n,
+                                           interleave=True)
+
 
             # Store original inputs
-            input_ids = test_batch.batch['input_ids']
-            input_texts = [self.tokenizer.decode(ids, skip_special_tokens=True) for ids in input_ids]
+            input_texts = ["test" for _ in range(len(self.config.agent_proxy.val.env_groups * self.config.agent_proxy.rollout_n))]
             sample_inputs.extend(input_texts)
 
             if 'multi_modal_inputs' in test_batch.non_tensor_batch.keys():
                 test_gen_batch = test_batch.pop(
-                    batch_keys=['input_ids', 'attention_mask', 'position_ids'],
-                    non_tensor_batch_keys=['raw_prompt_ids', 'multi_modal_data', 'multi_modal_inputs'],
+                    batch_keys=[],
+                    non_tensor_batch_keys=[],
+                    # batch_keys=['input_ids', 'attention_mask', 'position_ids'],
+                    # non_tensor_batch_keys=['raw_prompt_ids', 'multi_modal_data', 'multi_modal_inputs'],
                 )
             else:
                 test_gen_batch = test_batch.pop(
-                    batch_keys=['input_ids', 'attention_mask', 'position_ids'],
-                    non_tensor_batch_keys=[], # NOTE: different from verl
+                    batch_keys=[],
+                    non_tensor_batch_keys=[],
+                    # batch_keys=['input_ids', 'attention_mask', 'position_ids'],
+                    # non_tensor_batch_keys=['raw_prompt_ids'],
                 )
 
             test_gen_batch.meta_info = {
                 'eos_token_id': self.tokenizer.eos_token_id,
                 'pad_token_id': self.tokenizer.pad_token_id,
                 'recompute_log_prob': False,
-                'do_sample': False,
+                'do_sample': self.config.actor_rollout_ref.rollout.val_kwargs.do_sample,
                 'validate': True,
             }
+            print(f'test_gen_batch meta info: {test_gen_batch.meta_info}')
 
             # pad to be divisible by dp_size
             test_gen_batch_padded, pad_size = pad_dataproto_to_divisor(test_gen_batch, self.actor_rollout_wg.world_size)
-            test_output_gen_batch_padded = self._generate_rollout(test_gen_batch_padded)
+            test_output_gen_batch_padded = self.agent_proxy.rollout(test_gen_batch_padded)
+
             # unpad
             test_output_gen_batch = unpad_dataproto(test_output_gen_batch_padded, pad_size=pad_size)
             print('validation generation end')
@@ -268,6 +195,9 @@ class RayPPOTrainer(VerlRayPPOTrainer):
             if self.config.trainer.get('val_only', False):
                 return
 
+        # add tqdm
+        progress_bar = tqdm(total=self.total_training_steps, initial=self.global_steps, desc="Training Progress")
+
         # we start from step 1
         self.global_steps += 1
         last_val_metrics = None
@@ -296,13 +226,13 @@ class RayPPOTrainer(VerlRayPPOTrainer):
                 with _timer('step', timing_raw):
                     # generate a batch
                     with _timer('gen', timing_raw):
-                        gen_batch_output = self._generate_rollout(gen_batch)
+                        gen_batch_output = self.agent_proxy.rollout(gen_batch)
 
                     if self.config.algorithm.adv_estimator == AdvantageEstimator.REMAX:
                         with _timer('gen_max', timing_raw):
                             gen_baseline_batch = deepcopy(gen_batch)
                             gen_baseline_batch.meta_info['do_sample'] = False
-                            gen_baseline_output = self._generate_rollout(gen_baseline_batch)
+                            gen_baseline_output = self.agent_proxy.rollout(gen_baseline_batch)
 
                             batch = batch.union(gen_baseline_output)
                             reward_baseline_tensor = self.reward_fn(batch)
@@ -320,10 +250,12 @@ class RayPPOTrainer(VerlRayPPOTrainer):
                     batch = batch.repeat(repeat_times=self.config.actor_rollout_ref.rollout.n, interleave=True)
                     batch = batch.union(gen_batch_output)
 
+                    batch.batch['response_mask'] = compute_response_mask(batch)
                     # balance the number of valid tokens on each dp rank.
                     # Note that this breaks the order of data inside the batch.
                     # Please take care when you implement group based adv computation such as GRPO and rloo
-                    self._balance_batch(batch, metrics=metrics)
+                    if self.config.trainer.balance_batch:
+                        self._balance_batch(batch, metrics=metrics)
 
                     # compute global_valid tokens
                     batch.meta_info['global_token_num'] = torch.sum(batch.batch['attention_mask'], dim=-1).tolist()
@@ -406,10 +338,8 @@ class RayPPOTrainer(VerlRayPPOTrainer):
                 # collect metrics
                 metrics.update(compute_data_metrics(batch=batch, use_critic=self.use_critic))
                 metrics.update(compute_timing_metrics(batch=batch, timing_raw=timing_raw))
-
-                config = self.config
-                n_gpus = config.trainer.n_gpus_per_node * config.trainer.nnodes
-                # Implement actual tflpo and theoretical tflpo
+                # TODO: implement actual tflpo and theoretical tflpo
+                n_gpus = self.resource_pool_manager.get_n_gpus()
                 metrics.update(compute_throughout_metrics(batch=batch, timing_raw=timing_raw, n_gpus=n_gpus))
 
                 # TODO: make a canonical logger that supports various backend
@@ -417,6 +347,8 @@ class RayPPOTrainer(VerlRayPPOTrainer):
 
                 if is_last_step:
                     pprint(f'Final validation metrics: {last_val_metrics}')
+                    progress_bar.close()
                     return
 
+                progress_bar.update(1)
                 self.global_steps += 1

@@ -6,15 +6,12 @@ from .utils import generate_random_map
 from ragen.utils import all_seed
 from ragen.env.base import BaseDiscreteActionEnv
 
-
 class FrozenLakeEnv(BaseDiscreteActionEnv, GymFrozenLakeEnv):
     def __init__(self, config: FrozenLakeEnvConfig = FrozenLakeEnvConfig()):
         # Using mappings directly from config
         self.config = config
         self.GRID_LOOKUP = config.grid_lookup
         self.ACTION_LOOKUP = config.action_lookup
-        self.INVALID_ACTION = config.invalid_act
-        self.PENALTY_FOR_INVALID = config.invalid_act_score
         self.ACTION_SPACE = gym.spaces.discrete.Discrete(4, start=1)
 
         self.action_map = config.action_map
@@ -44,13 +41,10 @@ class FrozenLakeEnv(BaseDiscreteActionEnv, GymFrozenLakeEnv):
             return self.reset(next_seed)
     
     def step(self, action: int):
-        if action == self.INVALID_ACTION:
-            next_obs, reward, done, info = self.render(), self.PENALTY_FOR_INVALID, False, {"action_is_effective": False, "action_is_valid": False, "success": False}
-        else:
-            prev_pos = int(self.s)
-            _, reward, done, _, _ = GymFrozenLakeEnv.step(self, self.action_map[action])
-            next_obs = self.render()
-            info = {"action_is_effective": prev_pos != int(self.s), "action_is_valid": True, "success": self.desc[self.player_pos] == b"G"}
+        prev_pos = int(self.s)
+        _, reward, done, _, _ = GymFrozenLakeEnv.step(self, self.action_map[action])
+        next_obs = self.render()
+        info = {"action_is_effective": prev_pos != int(self.s), "action_is_valid": True, "success": self.desc[self.player_pos] == b"G"}
 
         return next_obs, reward, done, info
      
@@ -71,7 +65,7 @@ class FrozenLakeEnv(BaseDiscreteActionEnv, GymFrozenLakeEnv):
             raise ValueError(f"Invalid mode: {mode}")
     
     def get_all_actions(self):
-        return list([k for k in self.ACTION_LOOKUP.keys() if k != self.INVALID_ACTION])
+        return list([k for k in self.ACTION_LOOKUP.keys()])
 
     @property
     def player_pos(self):
@@ -88,7 +82,7 @@ if __name__ == "__main__":
         if keyboard == 'q':
             break
         action = int(keyboard)
-        action = action if action in env.ACTION_LOOKUP else env.INVALID_ACTION
+        assert action in env.ACTION_LOOKUP, f"Invalid action: {action}"
         obs, reward, done, info = env.step(action)
         print(obs, reward, done, info)
     np_img = env.render('rgb_array')

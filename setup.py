@@ -8,7 +8,7 @@ setup(
     package_dir={'': '.'},
     packages=find_packages(include=['ragen']),
     author='RAGEN Team',
-    author_email='zihanwang.ai@gmail.com',
+    author_email='',
     acknowledgements='',
     description='',
     install_requires=[], 

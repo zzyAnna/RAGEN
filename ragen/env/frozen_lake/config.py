@@ -17,9 +17,5 @@ class FrozenLakeEnvConfig:
     ) # b'' string is used for vectorization in numpy
     # P: Player; F: Frozen; H: Hole; G: Goal
     grid_lookup: Dict[int, str] = field(default_factory=lambda: {0:"P", 1:"_", 2:"O", 3:"G", 4:"X", 5:"√"})
-    # P: Player; _: Frozen; O: Hole; G: Goal; X: Player in hole; √: Player on goal
+    grid_vocab: Dict[str, str] = field(default_factory=lambda: {"P": "player", "_": "empty", "O": "hole", "G": "goal", "X": "player in hole", "√": "player on goal"})
     action_lookup: Dict[int, str] = field(default_factory=lambda: {0:"None", 1:"Left", 2:"Down", 3:"Right", 4:"Up"})
-    
-    # Invalid action config
-    invalid_act: int = 0
-    invalid_act_score: float = -0.1

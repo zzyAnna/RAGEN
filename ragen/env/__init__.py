@@ -1,24 +1,23 @@
-from .frozen_lake.env import FrozenLakeEnv
-from .frozen_lake.config import FrozenLakeEnvConfig
-from .sokoban.env import SokobanEnv
-from .sokoban.config import SokobanEnvConfig
-from .bandit.env import BanditEnv
-from .bandit.config import BanditEnvConfig
-from .countdown.env import CountdownEnv
-from .countdown.config import CountdownEnvConfig
-from .base import BaseEnv
-from .base import BaseEnvConfig
+from ragen.env.bandit.config import BanditEnvConfig
+from ragen.env.bandit.env import BanditEnv
+from ragen.env.countdown.config import CountdownEnvConfig
+from ragen.env.countdown.env import CountdownEnv
+from ragen.env.sokoban.config import SokobanEnvConfig
+from ragen.env.sokoban.env import SokobanEnv
+from ragen.env.frozen_lake.config import FrozenLakeEnvConfig
+from ragen.env.frozen_lake.env import FrozenLakeEnv
 
-ENV_REGISTRY = {
-    "frozen_lake": FrozenLakeEnv,
-    "sokoban": SokobanEnv,
-    "bandit": BanditEnv,
-    "countdown": CountdownEnv,
+
+REGISTERED_ENVS = {
+    'bandit': BanditEnv,
+    'countdown': CountdownEnv,
+    'sokoban': SokobanEnv,
+    'frozen_lake': FrozenLakeEnv,
 }
 
-ENV_CONFIG_REGISTRY = {
-    "frozen_lake": FrozenLakeEnvConfig,
-    "sokoban": SokobanEnvConfig,
-    "bandit": BanditEnvConfig,
-    "countdown": CountdownEnvConfig,
+REGISTERED_ENV_CONFIGS = {
+    'bandit': BanditEnvConfig,
+    'countdown': CountdownEnvConfig,
+    'sokoban': SokobanEnvConfig,
+    'frozen_lake': FrozenLakeEnvConfig,
 }
