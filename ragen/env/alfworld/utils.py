@@ -4,7 +4,7 @@ import yaml
 from typing import List
 
 def load_config(config_file: str, params: List[str] = []):
-    assert os.path.exists(config_file), "Invalid config file"
+    assert os.path.exists(config_file), f"Invalid config file: {config_file}"
     with open(config_file) as reader:
         config = yaml.safe_load(reader)
     # Parse overriden params.

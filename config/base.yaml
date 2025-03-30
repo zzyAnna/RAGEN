@@ -4,12 +4,28 @@ defaults:
 actor_rollout_ref:
   model:
     path: Qwen/Qwen2.5-0.5B-Instruct
+  actor:
+    ppo_mini_batch_size: 32
+    micro_batch_size_per_gpu: 1
+    ppo_micro_batch_size_per_gpu: 1
+  ref:
+    log_prob_micro_batch_size_per_gpu: 1
+  rollout:
+    log_prob_micro_batch_size_per_gpu: 1
+
+critic:
+  ppo_micro_batch_size_per_gpu: 1
 
 data:
-  train_batch_size: 8
-  rollout_n: 16
+  train_batch_size: 128
+  val_batch_size: 128
+  env_groups: 8
+  rollout_n: ${data.train_batch_size} / ${data.env_groups} # different from "n", because this rollout_n determines the number of envs in the same group
 
-
+trainer:
+  total_training_steps: 200
+  validation_steps: 1 # validation instances = validation_steps * val_batch_size
+  val_before_train: True
 
 logging:
   log_images: True
@@ -22,27 +38,28 @@ agent_proxy:
   max_turn: 5
   rollout_n: ${data.rollout_n}
   action_sep: " || "
-  es_manager:
-    train:
-      env_groups: ${data.train_batch_size} 
-      # under the same group, the env config and env seed are ensured to be equal
-      group_size: ${agent_proxy.rollout_n}
-      env_configs:
-        Tags: ["SimpleSokoban", "HarderSokoban"]
-        n_groups: [6, 2] # If not set, all env names divide nums equally. Under the same group, the env config and env seed (prompt) are equal in each generation
-    val:
-      env_groups: ${data.train_batch_size}
-      group_size: ${agent_proxy.rollout_n}
-      env_configs:
-        Tags: ["SimpleSokoban"]
-        n_groups: [8] # If not set, all env names divide nums equally. Under the same group, the env config and env seed (prompt) are equal in each generation
 
-  ctx_manager:
-    generation: # go to vllm
-      gen_config:
-        top_p: 1
-        temperature: 1
-        kwargs: null
+es_manager:
+  train:
+    env_groups: ${data.env_groups} 
+    # under the same group, the env config and env seed are ensured to be equal
+    group_size: ${agent_proxy.rollout_n}
+    env_configs:
+      Tags: ["SimpleSokoban", "HarderSokoban"]
+      n_groups: [6, 2] # If not set, all env names divide nums equally. Under the same group, the env config and env seed (prompt) are equal in each generation
+  val:
+    env_groups: ${data.train_batch_size}
+    group_size: ${agent_proxy.rollout_n}
+    env_configs:
+      Tags: ["SimpleSokoban"]
+      n_groups: [8] # If not set, all env names divide nums equally. Under the same group, the env config and env seed (prompt) are equal in each generation
+
+ctx_manager:
+  generation: # go to vllm
+    gen_config:
+      top_p: 1
+      temperature: 1
+      kwargs: null
 
 custom_envs:
   Simplesokoban:
