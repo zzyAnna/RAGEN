@@ -3,12 +3,14 @@ This is the environment state manager for the LLM agent.
 author: Pingyue Zhang
 date: 2025-03-30
 """
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Dict, List, Optional, Any
 import PIL.Image
 import hydra
 
 from ragen.env import REGISTERED_ENVS, REGISTERED_ENV_CONFIGS
+from ragen.utils import register_resolvers
+register_resolvers()
 
 @dataclass
 class EnvStatus:
@@ -16,6 +18,7 @@ class EnvStatus:
     truncated: bool = False # done but not success
     terminated: bool = False # done and success
     cur_step: int = 0 # current action step (single action)
+    rewards: List[float] = field(default_factory=list) # rewards for each turn
     seed: Optional[int] = None # what seed is used to reset this environment
 
 
@@ -28,7 +31,7 @@ class EnvStateManager:
     def __init__(self, config):
         self.config = config
         self.env_groups = int(config.es_manager.train.env_groups)
-        self.group_size = int(eval(config.es_manager.train.group_size)) # TODO: change rollout_n in base.yaml 
+        self.group_size = config.es_manager.train.group_size
         self._init_envs()
 
     def _init_env_from_config(self, env_config: Dict):
@@ -41,7 +44,7 @@ class EnvStateManager:
 
     def _init_env_list(self, config):
         """Initialize the environment list
-        Tags: ["SimpleSokoban", "HarderSokoban"]
+        tags: ["SimpleSokoban", "HarderSokoban"]
         n_groups: [1, 2]
         group_size: 16
 
@@ -59,7 +62,7 @@ class EnvStateManager:
 
         group_idx, env_idx = 0, 0
         env_list = []
-        for tag, n_group in zip(config.env_configs.Tags, config.env_configs.n_groups):
+        for tag, n_group in zip(config.env_configs.tags, config.env_configs.n_groups):
             for _ in range(n_group):
                 for _ in range(self.group_size):
                     env_config = self.config.custom_envs[tag]
@@ -82,7 +85,7 @@ class EnvStateManager:
             envs -> train -> env_groups (number of groups, e.g. 8)
             envs -> train -> group_size (number of envs in each group, all envs are the same, e.g. 16)
             envs -> train -> env_configs:
-                Tags (List[str]): tags for the envs, e.g. ["bandit", "countdown"]
+                tags (List[str]): tags for the envs, e.g. ["bandit", "countdown"]
                 n_groups (List[int]): number of groups for each tag (sum = env_groups)
             envs -> val
 
@@ -99,7 +102,7 @@ class EnvStateManager:
             val_env_config = train_env_config
         
         # Verify that the sum of n_groups equals env_groups
-        assert sum(train_env_config.env_configs.n_groups) == self.env_groups, "Sum of n_groups must equal env_groups"
+        assert sum(train_env_config.env_configs.n_groups) == self.env_groups, f"Sum of n_groups must equal env_groups. Got sum({train_env_config.env_configs.n_groups}) != {self.env_groups}"
 
         self.train_envs = self._init_env_list(train_env_config)
         self.val_envs = self._init_env_list(val_env_config)

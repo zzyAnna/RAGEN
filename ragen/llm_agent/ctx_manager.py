@@ -11,6 +11,9 @@ import re
 from verl import DataProto
 from verl.utils.dataset.rl_dataset import collate_fn
 from transformers import AutoTokenizer
+import hydra
+from ragen.utils import register_resolvers
+register_resolvers()
 
 
 def get_loss_mask(input_ids: torch.Tensor, tokenizer: AutoTokenizer):
@@ -49,7 +52,7 @@ class ContextManager:
         self.config = config
         self.tokenizer = tokenizer
         self.processor = processor
-        self._init_action_sep_lookup()
+        self.action_sep = self.config.agent_proxy.action_sep
         self._init_prefix_lookup()
     
     def _init_prefix_lookup(self):
@@ -59,27 +62,23 @@ class ContextManager:
             env_instruction = env_config.get("env_instruction", "")
             prefixes[env_tag] = env_instruction
 
-        train_env_configs = self.config.es_manager.train.env_configs
-        tags, n_groups = train_env_configs.tags, train_env_configs.n_groups
-        for tag, n_group in zip(tags, n_groups):
-            env_instruction = prefixes[tag]
-            for i in range(n_group):
-                self.prefix_lookup["train"][f"{tag}_{i}"] = env_instruction
+        # Training
+        for split in ["train", "val"]:
+            tags = self.config.es_manager[split].env_configs.tags
+            n_groups = self.config.es_manager[split].env_configs.n_groups
+            group_size = self.config.es_manager[split].group_size
 
+            cur_group = 0
+            for env_tag, n_group in zip(tags, n_groups):
+                env_instruction = prefixes[env_tag]
+                start_idx = cur_group
+                end_idx = cur_group + n_group * group_size
+                for i in range(start_idx, end_idx):
+                    self.prefix_lookup[split][i] = env_instruction
+                cur_group += n_group
 
-        val_env_configs = self.config.es_manager.val.env_configs
-
-        for env_tag, env_config in train_env_configs.items():
-            env_instruction = prefixes[env_tag]
-            self.prefix_lookup["train"][env_tag] = env_instruction
-
-
-    
-    def _init_action_sep_lookup(self):
-        self.action_sep_lookup = {i: self.config.agent_proxy.action_sep for i in range(self.config.agent_proxy.rollout_n)}
-        pass
         
-    def _parse_response(self, response: str, action_sep='|',special_token_list=None) -> List:
+    def _parse_response(self, response: str, action_sep=' || ',special_token_list=None) -> List:
         pattern = r'<think>(.*?)</think><answer>(.*?)</answer>'
         match = re.search(pattern, response, re.DOTALL)
         if not match:
@@ -142,7 +141,8 @@ class ContextManager:
             "input_ids": input_ids,
             "attention_mask": attention_mask,
             "position_ids": position_ids,
-            "responses": input_ids.clone()
+            "responses": input_ids.clone(),
+            "loss_mask": loss_mask
         }
 
         return llm_inputs
@@ -155,7 +155,7 @@ class ContextManager:
         env_ids = lm_outputs.non_tensor_batch['env_ids']
         env_inputs = []
         for env_id, reponse in zip(env_ids, responses):
-            llm_response, actions = self._parse_response(reponse, action_sep=self.action_sep_lookup[env_id])
+            llm_response, actions = self._parse_response(reponse, action_sep=self.action_sep)
             env_inputs.append({
                 "env_id": env_id,
                 "llm_raw_response": reponse,
@@ -171,11 +171,13 @@ class ContextManager:
     
 
 
-if __name__=="__main__":
-    tokenizer=AutoTokenizer.from_pretrained("Qwen/Qwen2.5-0.5B-Instruct")
-    import json
 
-    ctx_manager = ContextManager(config=None, tokenizer=tokenizer)
+@hydra.main(version_base=None, config_path="../../config", config_name="base")
+def main(config):
+    import json
+    tokenizer = AutoTokenizer.from_pretrained(config.actor_rollout_ref.model.path)
+    ctx_manager = ContextManager(config=config, tokenizer=tokenizer)
+
     batch_list = [
         {
             "env_ids": 0,
@@ -191,7 +193,7 @@ if __name__=="__main__":
         1: ";"
     }
     for item in batch_list:
-        item["responses"]=tokenizer.encode(item["chat_response"], return_tensors="pt",max_length=512, truncation=True,padding="max_length")[0]
+        item["responses"] = tokenizer.encode(item["chat_response"], return_tensors="pt",max_length=512, truncation=True,padding="max_length")[0]
     batch_dict = collate_fn(batch_list)
     batch = DataProto.from_single_dict(batch_dict)
     env_inputs = ctx_manager.get_env_inputs(batch)
@@ -220,5 +222,8 @@ if __name__=="__main__":
     prefix_lookup = {1: "Initial prompt", 2: "Initial prompt 2"}
     tokenizer = AutoTokenizer.from_pretrained("Qwen/Qwen2.5-0.5B-Instruct")
     env_prompt = ctx_manager.get_lm_inputs(env_outputs, is_final_turn=False)
+    print(env_prompt)
+
+if __name__=="__main__":
+    main()
     
-    print(json.dumps(env_prompt, indent=4))

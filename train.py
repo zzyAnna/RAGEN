@@ -11,6 +11,8 @@ import os
 from verl import DataProto
 import torch
 import numpy as np
+from ragen.utils import register_resolvers
+register_resolvers()
 
 class DummyRewardManager():
     """The reward manager.
@@ -133,6 +135,7 @@ class TaskRunner:
         # print initial config
         from pprint import pprint
         from omegaconf import OmegaConf
+        OmegaConf.register_new_resolver("eval", eval)
         pprint(OmegaConf.to_container(config, resolve=True))  # resolve=True will eval symbol values
         OmegaConf.resolve(config)
 

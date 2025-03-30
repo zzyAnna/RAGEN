@@ -1,7 +1,7 @@
 import random
 import numpy as np
 from contextlib import contextmanager
-
+from omegaconf import OmegaConf
 @contextmanager
 def all_seed(seed):
     random_state = random.getstate()
@@ -14,3 +14,10 @@ def all_seed(seed):
     finally:
         random.setstate(random_state)
         np.random.set_state(np_random_state)
+
+def register_resolvers():
+    try:
+        OmegaConf.register_new_resolver("mul", lambda x, y: x * y)
+        OmegaConf.register_new_resolver("int_div", lambda x, y: int(float(x) / float(y)))
+    except:
+        pass # already registered

@@ -20,7 +20,7 @@ data:
   train_batch_size: 4 # 128
   val_batch_size: 4 # 128
   env_groups: 2 # 8
-  rollout_n: ${data.train_batch_size} / ${data.env_groups} # different from "n", because this rollout_n determines the number of envs in the same group
+  rollout_n: ${int_div:${data.train_batch_size}, ${data.env_groups}} # NOTE: need to check. equals batch_size / env_groups, different from "n", because this rollout_n determines the number of envs in the same group
 
 trainer:
   total_training_steps: 200
@@ -41,19 +41,20 @@ agent_proxy:
 
 es_manager:
   format_penalty: -1.0
+  group_size: ${agent_proxy.rollout_n}
   train:
     env_groups: ${data.env_groups} 
     # under the same group, the env config and env seed are ensured to be equal
-    group_size: ${agent_proxy.rollout_n}
+    group_size: ${es_manager.group_size}
     env_configs:
       tags: ["SimpleSokoban", "HarderSokoban"]
-      n_groups: [6, 2] # If not set, all env names divide nums equally. Under the same group, the env config and env seed (prompt) are equal in each generation
+      n_groups: [1, 1] # If not set, all env names divide nums equally. Under the same group, the env config and env seed (prompt) are equal in each generation
   val:
     env_groups: ${data.env_groups}
-    group_size: ${agent_proxy.rollout_n}
+    group_size: ${es_manager.group_size}
     env_configs:
       tags: ["SimpleSokoban"]
-      n_groups: [8] # If not set, all env names divide nums equally. Under the same group, the env config and env seed (prompt) are equal in each generation
+      n_groups: [2] # If not set, all env names divide nums equally. Under the same group, the env config and env seed (prompt) are equal in each generation
 
 ctx_manager:
   generation: # go to vllm
