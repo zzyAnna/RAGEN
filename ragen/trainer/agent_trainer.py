@@ -92,29 +92,23 @@ class RayAgentTrainer(VerlRayPPOTrainer):
         sample_scores = []
 
         for step in range(self.config.trainer.validation_steps):
-            test_data = {}
-            test_batch = DataProto.from_single_dict(test_data)
-
             # Store original inputs
             input_texts = ["" for _ in range(len(self.config.agent_proxy.val.env_groups * self.config.agent_proxy.rollout_n))]
             sample_inputs.extend(input_texts)
-            test_gen_batch = test_batch.pop(
-                batch_keys=[],
-                non_tensor_batch_keys=[],
-            )
             
-            test_gen_batch.meta_info = {
+            meta_info = {
                 'eos_token_id': self.tokenizer.eos_token_id,
                 'pad_token_id': self.tokenizer.pad_token_id,
                 'recompute_log_prob': False,
                 'do_sample': self.config.actor_rollout_ref.rollout.val_kwargs.do_sample,
                 'validate': True,
             }
+            test_gen_batch = DataProto(batch=None, non_tensor_batch=None, meta_info=meta_info)
             print(f'test_gen_batch meta info: {test_gen_batch.meta_info}')
 
             # pad to be divisible by dp_size
-            test_gen_batch_padded, pad_size = pad_dataproto_to_divisor(test_gen_batch, self.actor_rollout_wg.world_size)
-            test_output_gen_batch_padded = self.agent_proxy.rollout(test_gen_batch_padded)
+            # test_gen_batch_padded, pad_size = pad_dataproto_to_divisor(test_gen_batch, self.actor_rollout_wg.world_size)
+            test_output_gen_batch_padded = self.agent_proxy.rollout(test_gen_batch)
 
             # unpad
             test_output_gen_batch = unpad_dataproto(test_output_gen_batch_padded, pad_size=pad_size)
@@ -191,24 +185,11 @@ class RayAgentTrainer(VerlRayPPOTrainer):
         self.global_steps += 1
         last_val_metrics = None
 
-        for seed in self.train_seeds:
+        for step in range(self.total_training_steps):
             metrics = {}
             timing_raw = {}
 
-            batch: DataProto = DataProto.from_single_dict(batch_dict)
-
-            # pop those keys for generation
-            if 'multi_modal_inputs' in batch.non_tensor_batch.keys():
-                gen_batch = batch.pop(
-                    batch_keys=['input_ids', 'attention_mask', 'position_ids'],
-                    non_tensor_batch_keys=['raw_prompt_ids', 'multi_modal_data', 'multi_modal_inputs'],
-                )
-            else:
-                gen_batch = batch.pop(
-                    batch_keys=['input_ids', 'attention_mask', 'position_ids'],
-                    non_tensor_batch_keys=['raw_prompt_ids'],
-                )
-
+            batch: DataProto = DataProto()
             is_last_step = self.global_steps >= self.total_training_steps
 
             with _timer('step', timing_raw):

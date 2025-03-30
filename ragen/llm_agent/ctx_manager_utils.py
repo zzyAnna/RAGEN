@@ -3,34 +3,59 @@ import numpy as np
 from typing import List, Dict, Any, Optional, Union
 from dataclasses import dataclass
 import PIL
+from PIL import Image
 import torch
 
 @torch.no_grad()
-def env_output_to_prompt(env_outputs: Dict,init_id_to_prompt: Dict, tokenizer,is_final_prompt: bool) -> str:
-    env_prompt=[]
+def env_output_to_prompt(env_outputs: Dict, init_prompt_lookup: Dict, tokenizer, is_final_prompt: bool):
+    """
+    env_outputs - example be like:
+    [
+		{"env_id": xxx, "history": [
+			{"state": "###\n#x_#", "actions": ["xx", "yy"], "reward": xxx}
+			{"state", "###\n#x_#"}
+        ]
+    ]
+    init_prompt_lookup - from env_id to initial prompt
+
+    """
+    env_prompt = []
     for env_output in env_outputs:
-        chat = []
-        images = []
-        chat.append({"role": "system", "content": init_id_to_prompt[env_output["env_id"]]})
+        chat_prompt = []
+        chat_response = []
+        prompt_images = []
+        response_images = []
+        chat_prompt.append({"role": "system", "content": init_prompt_lookup[env_output["env_id"]]})
+        
         for idx, turn_history in env_output["history"]:
             if "llm_response" in turn_history:
-                chat.append({"role": "assistant", "content": turn_history["llm_response"]})
-            if idx==len(env_output["history"])-1 and is_final_prompt:
-                continue
-            cur_text= f"Turn {idx}\n"
+                chat_response.append({"role": "assistant", "content": turn_history["llm_response"]})
+            if idx == len(env_output["history"])-1 and is_final_prompt:
+                break
+            raw_prompt= f"Turn {idx}\n"
             if "reward" in turn_history:
-                cur_text+= f"Reward:\n{turn_history['reward']}\n"
+                raw_prompt += f"Reward:\n{turn_history['reward']}\n"
             if "state" in turn_history:
-                cur_text+= f"State:\n{turn_history['state']}\n"
-            chat.append({"role": "user", "content": cur_text})
-            if "images" in turn_history:
-                images.extend(turn_history["images"])
+                raw_prompt += f"State:\n{turn_history['state']}\n"
+            if idx == 0: # initial state is for prompt
+                chat_prompt.append({"role": "user", "content": raw_prompt})
+                if "images" in turn_history:
+                    prompt_images.extend(turn_history["images"])
+            else:
+                chat_response.append({"role": "user", "content": raw_prompt})
+                if "images" in turn_history:
+                    response_images.extend(turn_history["images"])
+            
            
-        prompt_text = tokenizer.apply_chat_template(chat, add_generation_prompt=(not is_final_prompt), tokenize=False)
+        chat_prompt = tokenizer.apply_chat_template(chat_prompt, add_generation_prompt=(not is_final_prompt), tokenize=False)
+        chat_response = tokenizer.apply_chat_template(chat_response, add_generation_prompt=(not is_final_prompt), tokenize=False)
         env_prompt.append({
+            "chat_prompt": chat_prompt,
+            "chat_response": chat_response,
+            "prompt_images": prompt_images,
+            "response_images": response_images,
             "env_id": env_output["env_id"],
-            "chat_text": prompt_text,
-            "images": images
+            "raw_prompt": raw_prompt,
         })
     return env_prompt
 
@@ -40,9 +65,9 @@ def handle_multi_modal_data(
         processor,
         raw_prompt: str, 
         row_dict: Dict,
-        image_data: List[PIL.Image.Image],
+        image_data: List[Image.Image],
         do_embedding: bool = True,
-    ) -> str:
+    ) -> Dict:
     """
     vllm: do_embedding=False -> processd_prompt: <|vision_start|><|image_pad|><|vision_end|>
     actor: do_embedding=True -> processd_prompt: <|vision_start|><|placeholder|>...<|placeholder|><|vision_end|>
@@ -72,3 +97,20 @@ def handle_multi_modal_data(
         'row_dict': row_dict,
         'image_grid_thw': image_grid_thw
     }
+    
+    
+if __name__ == "__main__":
+    # Example usage
+    env_outputs = [
+        {
+            "env_id": 1,
+            "history": [
+                {"llm_response": "Response 1", "reward": 0.5, "state": "State 1 <image>", "images": [Image.new('RGB', (100, 100))]},
+                {"llm_response": "Response 2", "reward": 0.8, "state": "State 2 <image>", "images": [Image.new('RGB', (100, 100))]}
+            ]
+        }
+    ]
+    
+    init_id_to_prompt = {1: "Initial prompt"}
+    from transformers import PreTrainedTokenizer, ProcessorMixin
+    

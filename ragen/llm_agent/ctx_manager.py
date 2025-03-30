@@ -14,12 +14,12 @@ class ContextManager:
 
     def __init__(self, 
                  config,
-                 actor_rollout_wg,
                  tokenizer,
                  processor = None,
                  ):
         """
         Initialize the ContextManager.
+        Processor is used to process the image data.
         
         Args:
             config: Configuration for the ContextManager.
@@ -27,26 +27,25 @@ class ContextManager:
         """
         self.config = config
         self.tokenizer = tokenizer
-        self.actor_rollout_wg=actor_rollout_wg
         self.processor = processor
-        self.id_to_prompt = {}
-        self._init_id_to_prompt()
+        self._init_prefix_lookup()
     
-    def _init_id_to_prompt(self):
+    def _init_prefix_lookup(self):
         """Initialize the mapping from environment IDs to specific prompts."""
+        self.prefix_lookup={}
         pass
         
         
     
     def get_lm_inputs(self, env_outputs: List[Dict]) -> Dict:
-        env_prompt=env_output_to_prompt(env_outputs, self.id_to_prompt, self.tokenizer, is_final_prompt=False)
+        env_prompt = env_output_to_prompt(env_outputs, self.id_to_prompt, self.tokenizer, is_final_prompt=False)
         for item in env_prompt:
+            prompt_raw_dict = {}
             if item["images"]:
-                handle_multi_modal_data(self.processor,raw_prompt: str, 
-                row_dict: Dict,
-                image_data: List[PIL.Image.Image],
-                do_embedding: bool = True,
-            ) -> str:
+                returned_dict = handle_multi_modal_data(processor=self.processor,raw_prompt=item["raw_prompt"], row_dict=raw_dict, image_data=item["images"], do_embedding=False)
+                raw_dict = returned_dict['raw_dict']
+                image_grid_thw = returned_dict['image_grid_thw']
+                item["raw_prompt"] = image_grid_thw
 
     def get_env_inputs(self, lm_outputs: Dict) -> List[Dict]:
         pass
