@@ -39,6 +39,7 @@ class CountdownEnv(BaseLanguageBasedEnv, gym.Env):
         self.config = config if config is not None else CountdownEnvConfig()
         self.data = self._get_data_from_parquet(self.config.train_path)
         self.index = None
+        self.render_cache = None
 
     def _get_data_from_parquet(self, path):
         df = datasets.load_dataset("parquet", data_files=path)['train'].select(range(self.config.max_instances))
@@ -49,12 +50,19 @@ class CountdownEnv(BaseLanguageBasedEnv, gym.Env):
         gym.Env.reset(self, seed=seed)
         self.index = seed % len(self.data)
         data = self.data[self.index]
-        return f"Target: {data['target']}, nums: {data['nums']}"
+        self.render_cache = f"Target: {data['target']}, nums: {data['nums']}"
+        return self.render_cache
 
     def step(self, action):
         reward = self.compute_reward(action, self.data[self.index])
         next_obs, done, info = f"Your answer get {reward} points.", True, {"action_is_effective": reward > 0, "action_is_valid": True, "success": reward == self.config.score}
+        self.render_cache = next_obs
         return next_obs, reward, done, info
+    
+    def render(self, mode='text'):
+        return self.render_cache
+    
+    
 
     def compute_reward(self, action, ground_truth):
         """Score the countdown task solution."""

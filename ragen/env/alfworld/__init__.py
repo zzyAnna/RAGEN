@@ -2,7 +2,7 @@
 Not fully implemented
 """
 
-from .env import AlfredEnv
+from .env import AlfredTXTEnv
 from .config import AlfredEnvConfig
 
-__all__ = ["AlfredEnv", "AlfredEnvConfig"]
+__all__ = ["AlfredTXTEnv", "AlfredEnvConfig"]

@@ -17,9 +17,9 @@ critic:
   ppo_micro_batch_size_per_gpu: 1
 
 data:
-  train_batch_size: 128
-  val_batch_size: 128
-  env_groups: 8
+  train_batch_size: 4 # 128
+  val_batch_size: 4 # 128
+  env_groups: 2 # 8
   rollout_n: ${data.train_batch_size} / ${data.env_groups} # different from "n", because this rollout_n determines the number of envs in the same group
 
 trainer:
@@ -40,13 +40,14 @@ agent_proxy:
   action_sep: " || "
 
 es_manager:
+  format_penalty: -1.0
   train:
     env_groups: ${data.env_groups} 
     # under the same group, the env config and env seed are ensured to be equal
     group_size: ${agent_proxy.rollout_n}
     env_configs:
       Tags: ["SimpleSokoban", "HarderSokoban"]
-      n_groups: [6, 2] # If not set, all env names divide nums equally. Under the same group, the env config and env seed (prompt) are equal in each generation
+      n_groups: [1, 1] # [6, 2] # If not set, all env names divide nums equally. Under the same group, the env config and env seed (prompt) are equal in each generation
   val:
     env_groups: ${data.train_batch_size}
     group_size: ${agent_proxy.rollout_n}
@@ -62,21 +63,33 @@ ctx_manager:
       kwargs: null
 
 custom_envs:
-  Simplesokoban:
+  SimpleSokoban:
     env_type: sokoban
-    env_instruction: "You are a helpful assistant that can solve the Simple Sokoban puzzle."
+    str_to_action_lookup:
+      up: 1
+      down: 2
+      left: 3
+      right: 4
+    env_instruction: "You are solving the Simple Sokoban puzzle."
     env_config: # keys should be a subset of SokobanConfig
       dim_x: 6
       dim_y: 6
-      kwargs: {}
+      num_boxes: 1
+      max_steps: 100
 
-  Hardersokoban:
-    n_group: 2
+  HarderSokoban:
     env_type: sokoban
-    env_instruction: "You are a helpful assistant that can solve the Harder Sokoban puzzle."
+    str_to_action_lookup:
+      up: 1
+      down: 2
+      left: 3
+      right: 4
+    env_instruction: "You are solving the Harder Sokoban puzzle."
     env_config:
       dim_x: 10
       dim_y: 10
+      num_boxes: 2
+      max_steps: 100
 
 
 

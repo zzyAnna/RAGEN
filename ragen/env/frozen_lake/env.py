@@ -71,6 +71,9 @@ class FrozenLakeEnv(BaseDiscreteActionEnv, GymFrozenLakeEnv):
     def player_pos(self):
         return (self.s // self.ncol, self.s % self.ncol) # (row, col)
 
+    def close(self):
+        self.render_cache = None
+        super(FrozenLakeEnv, self).close()
 
 if __name__ == "__main__":
     import matplotlib.pyplot as plt

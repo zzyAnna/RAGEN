@@ -22,7 +22,7 @@ class SokobanEnv(BaseDiscreteActionEnv, GymSokobanEnv):
             max_steps=self.config.max_steps,
             num_boxes=self.config.num_boxes,
             **kwargs
-        )        
+        )
 
     def reset(self, seed=None):
         try:
@@ -60,6 +60,10 @@ class SokobanEnv(BaseDiscreteActionEnv, GymSokobanEnv):
     
     def get_all_actions(self):
         return list([k for k in self.ACTION_LOOKUP.keys()])
+    
+    def close(self):
+        self.render_cache = None
+        super(SokobanEnv, self).close()
 
 if __name__ == '__main__':
     import matplotlib.pyplot as plt

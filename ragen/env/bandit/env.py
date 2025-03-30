@@ -10,6 +10,7 @@ class BanditEnv(BaseDiscreteActionEnv, gym.Env):
         self.ACTION_SPACE = gym.spaces.discrete.Discrete(2, start=self.config.action_space_start)
         self.lo_arm_name = self.config.lo_arm_name
         self.hi_arm_name = self.config.hi_arm_name
+        self.render_cache = None
         
     def _randomize_arms(self):
         start = self.config.action_space_start
@@ -41,13 +42,15 @@ class BanditEnv(BaseDiscreteActionEnv, gym.Env):
         pos2 = pos1 + 1
         machine1 = self.ARM_IDX_TO_NAME[pos1]
         machine2 = self.ARM_IDX_TO_NAME[pos2]
-        return f"Machines: {machine1}({pos1}), {machine2}({pos2}). Choose: {self.get_all_actions()}"
+        self.render_cache = f"Machines: {machine1}({pos1}), {machine2}({pos2}). Choose: {self.get_all_actions()}"
+        return self.render_cache
 
     def step(self, action: int):
         assert action in self.ACTION_LOOKUP, f"Invalid action: {action}"
         reward = self.compute_reward(action)
         arm_name = self.ARM_IDX_TO_NAME[action]
         next_obs = f"{arm_name}: {reward} points"
+        self.render_cache = next_obs
         done, info = True, {"action_is_effective": True, "action_is_valid": True, "success": arm_name == self.hi_arm_name}
         return next_obs, reward, done, info
     
@@ -61,6 +64,11 @@ class BanditEnv(BaseDiscreteActionEnv, gym.Env):
     def get_all_actions(self):
         return [self.ACTION_SPACE.start, self.ACTION_SPACE.start + 1]
 
+    def render(self, mode='text'):
+        return self.render_cache
+
+    def close(self):
+        self.render_cache = None
 
 if __name__ == "__main__":
     def run_simulation(env, n_episodes=1000, action=1, start_seed=500):

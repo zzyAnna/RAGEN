@@ -147,15 +147,15 @@ class TaskRunner:
         # define worker classes
         if config.actor_rollout_ref.actor.strategy == 'fsdp':
             assert config.actor_rollout_ref.actor.strategy == config.critic.strategy
-            from verl.workers.fsdp_workers import ActorRolloutRefWorker, CriticWorker
+            from ragen.workers.fsdp_workers import ActorRolloutRefWorker, CriticWorker
             from verl.single_controller.ray import RayWorkerGroup
             ray_worker_group_cls = RayWorkerGroup
 
-        elif config.actor_rollout_ref.actor.strategy == 'megatron':
-            assert config.actor_rollout_ref.actor.strategy == config.critic.strategy
-            from verl.workers.megatron_workers import ActorRolloutRefWorker, CriticWorker
-            from verl.single_controller.ray.megatron import NVMegatronRayWorkerGroup
-            ray_worker_group_cls = NVMegatronRayWorkerGroup
+        # elif config.actor_rollout_ref.actor.strategy == 'megatron':
+        #     assert config.actor_rollout_ref.actor.strategy == config.critic.strategy
+        #     from verl.workers.megatron_workers import ActorRolloutRefWorker, CriticWorker
+        #     from verl.single_controller.ray.megatron import NVMegatronRayWorkerGroup
+        #     ray_worker_group_cls = NVMegatronRayWorkerGroup
 
         else:
             raise NotImplementedError
