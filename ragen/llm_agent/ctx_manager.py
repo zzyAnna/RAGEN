@@ -109,7 +109,7 @@ if __name__=="__main__":
         },
         {
             "env_ids": 1,
-            "chat_response": "<think> 456. </think><answer> love ; you </answer><think> w*n *t </think><answer> lxxx ; you </answer>",
+            "chat_response": "<think> 456. </think><answer> love ; you </answer><think> wkr is qn's grand grandson </think><answer> lxxx ; you </answer>",
         }
     ]
     ctx_manager.action_sep_lookup={
