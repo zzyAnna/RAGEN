@@ -5,16 +5,19 @@ actor_rollout_ref:
   model:
     path: Qwen/Qwen2.5-0.5B-Instruct
   actor:
-    ppo_mini_batch_size: 32
+    ppo_mini_batch_size: 2
     micro_batch_size_per_gpu: 1
     ppo_micro_batch_size_per_gpu: 1
   ref:
     log_prob_micro_batch_size_per_gpu: 1
   rollout:
     log_prob_micro_batch_size_per_gpu: 1
+    tensor_model_parallel_size: 1
 
 critic:
   ppo_micro_batch_size_per_gpu: 1
+  model:
+    path: ${actor_rollout_ref.model.path}
 
 data:
   train_batch_size: 4 # 128
@@ -26,6 +29,8 @@ trainer:
   total_training_steps: 200
   validation_steps: 1 # validation instances = validation_steps * val_batch_size
   val_before_train: True
+  n_gpus_per_node: 1
+  logger: [ 'console' ]
 
 logging:
   log_images: True

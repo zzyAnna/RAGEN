@@ -58,7 +58,7 @@ class RayAgentTrainer(VerlRayPPOTrainer):
                  val_reward_fn=None):
 
         super().__init__(config, tokenizer, role_worker_mapping, resource_pool_manager, ray_worker_group_cls, processor, reward_fn, val_reward_fn)
-        self._init_agent_proxy()
+        
         
     def _create_dataloader(self):
         assert self.config.trainer.total_training_steps is not None, "must determine total training steps"
@@ -75,7 +75,7 @@ class RayAgentTrainer(VerlRayPPOTrainer):
         # self.train_seeds = [seed for seed in range(0, self.config.trainer.total_training_steps * 1000, 1000)]
         # self.val_seeds = [seed for seed in range(val_start, val_start + self.config.trainer.validation_steps)]
 
-    def _init_agent_proxy(self):
+    def init_agent_proxy(self):
         self.agent_proxy = LLMAgentProxy(
             config=self.config,
             actor_rollout_wg=self.actor_rollout_wg,
@@ -93,7 +93,7 @@ class RayAgentTrainer(VerlRayPPOTrainer):
 
         for step in range(self.config.trainer.validation_steps):
             # Store original inputs
-            input_texts = ["" for _ in range(len(self.config.agent_proxy.val.env_groups * self.config.agent_proxy.rollout_n))]
+            input_texts = ["" for _ in range(self.config.es_manager.val.env_groups * self.config.es_manager.val.group_size)]
             sample_inputs.extend(input_texts)
             
             meta_info = {
@@ -108,6 +108,7 @@ class RayAgentTrainer(VerlRayPPOTrainer):
 
             # pad to be divisible by dp_size
             # test_gen_batch_padded, pad_size = pad_dataproto_to_divisor(test_gen_batch, self.actor_rollout_wg.world_size)
+            breakpoint()
             test_output_gen_batch_padded = self.agent_proxy.rollout(test_gen_batch)
 
             # unpad

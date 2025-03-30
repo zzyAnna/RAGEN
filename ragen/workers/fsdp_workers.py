@@ -1,5 +1,6 @@
 """
 This file basically adapts the implementation of the ActorRolloutRefWorker of verl.workers.fsdp_workers.py
+NOTE: Currently not used
 """
 import logging
 import os
