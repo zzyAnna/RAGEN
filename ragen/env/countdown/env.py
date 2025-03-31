@@ -40,13 +40,15 @@ class CountdownEnv(BaseLanguageBasedEnv, gym.Env):
         self.data = self._get_data_from_parquet(self.config.train_path)
         self.index = None
         self.render_cache = None
+        self.render_mode = self.config.render_mode
+        assert self.render_mode == 'text'
         
     def _get_data_from_parquet(self, path):
         df = datasets.load_dataset("parquet", data_files=path)['train'].select(range(self.config.max_instances))
         df = df.filter(lambda x: has_solution(x['nums'], x['target']))
         return df
 
-    def reset(self, seed=None, mode='text'):
+    def reset(self, seed=None):
         gym.Env.reset(self, seed=seed)
         self.index = seed % len(self.data)
         data = self.data[self.index]
@@ -59,7 +61,7 @@ class CountdownEnv(BaseLanguageBasedEnv, gym.Env):
         self.render_cache = next_obs
         return next_obs, reward, done, info
     
-    def render(self, mode='text'):
+    def render(self):
         return self.render_cache
     
     
@@ -74,9 +76,6 @@ class CountdownEnv(BaseLanguageBasedEnv, gym.Env):
             return self.config.format_score
         else:
             return self.config.score
-    
-    def render(self, mode='text'):
-        return self.render_cache
 
     def close(self):
         pass

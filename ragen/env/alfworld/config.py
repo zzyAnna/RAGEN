@@ -23,3 +23,4 @@ class AlfredEnvConfig(BaseEnvConfig):
     })
     format_score: float = 0.1
     score: float = 1.0
+    render_mode: str = "text"

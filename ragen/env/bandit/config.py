@@ -10,4 +10,5 @@ class BanditEnvConfig:
     hi_arm_loscore: float = 0.1
     hi_arm_hiscore: float = 1.0
     hi_arm_hiscore_prob: float = 0.25
+    render_mode: str = "text"
     action_lookup: Dict[int, str] = None # defined in env.py

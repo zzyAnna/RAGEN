@@ -26,6 +26,8 @@ class AlfredTXTEnv(BaseLanguageBasedEnv):
         self.alfred_env = self.raw_env.init_env(batch_size=1)
         self.current_game_file = None
         self.render_cache = None
+        self.render_mode = self.config.render_mode
+        assert self.render_mode == 'text'
     
     def reset(self, seed=None):
         """
@@ -112,7 +114,7 @@ class AlfredTXTEnv(BaseLanguageBasedEnv):
         
         return self.render_cache, reward, done, info
     
-    def render(self, mode='text'):
+    def render(self):
         return self.render_cache
     
     def close(self):

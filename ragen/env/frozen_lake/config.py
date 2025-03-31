@@ -9,6 +9,7 @@ class FrozenLakeEnvConfig:
     p: float = 0.8
     is_slippery: bool = True
     map_seed: Optional[int] = None
+    render_mode: str = "text"
         
     # Mappings
     action_map: Dict[int, int] = field(default_factory=lambda: {1: 0, 2: 1, 3: 2, 4: 3})

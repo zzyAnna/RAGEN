@@ -11,6 +11,8 @@ class BanditEnv(BaseDiscreteActionEnv, gym.Env):
         self.lo_arm_name = self.config.lo_arm_name
         self.hi_arm_name = self.config.hi_arm_name
         self.render_cache = None
+        self.render_mode = self.config.render_mode
+        assert self.render_mode == 'text'
         
     def _randomize_arms(self):
         start = self.config.action_space_start
@@ -35,10 +37,10 @@ class BanditEnv(BaseDiscreteActionEnv, gym.Env):
             return self.config.hi_arm_hiscore
         return self.config.hi_arm_loscore
 
-    def render(self, mode='text'):
+    def render(self):
         return self.render_cache
 
-    def reset(self, mode=None, seed=None):
+    def reset(self, seed=None):
         gym.Env.reset(self, seed=seed)
         self._randomize_arms()
         pos1 = self.config.action_space_start
@@ -67,7 +69,7 @@ class BanditEnv(BaseDiscreteActionEnv, gym.Env):
     def get_all_actions(self):
         return [self.ACTION_SPACE.start, self.ACTION_SPACE.start + 1]
 
-    def render(self, mode='text'):
+    def render(self):
         return self.render_cache
 
     def close(self):

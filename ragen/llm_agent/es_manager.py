@@ -4,9 +4,11 @@ author: Pingyue Zhang
 date: 2025-03-30
 """
 from dataclasses import dataclass, field
-from typing import Dict, List, Optional, Any
+from typing import Dict, List, Optional, Any, Union
 import PIL.Image
 import hydra
+import random
+import numpy as np
 
 from ragen.env import REGISTERED_ENVS, REGISTERED_ENV_CONFIGS
 from ragen.utils import register_resolvers
@@ -47,10 +49,10 @@ class EnvStateManager:
         n_groups: [1, 1]
         group_size: 16
         env_list = [
-            {"tag": "SimpleSokoban", "group_idx": 0, "env_id": 0, "env": env, "env_config": env_config, "status": EnvStatus()}
+            {"tag": "SimpleSokoban", "group_id": 0, "env_id": 0, "env": env, "env_config": env_config, "status": EnvStatus()}
             ...
-            {"tag": "SimpleSokoban", "group_idx": 0, "env_id": 15 (group_size - 1), ...}
-            {"tag": "HarderSokoban", "group_idx": 1, "env_id": 16, ...}
+            {"tag": "SimpleSokoban", "group_id": 0, "env_id": 15 (group_size - 1), ...}
+            {"tag": "HarderSokoban", "group_id": 1, "env_id": 16, ...}
             ...
         ]
         """
@@ -63,7 +65,7 @@ class EnvStateManager:
                     env = self._init_env_from_config(env_config)
                     env_entry = {
                         'tag': tag,
-                        'group_idx': group_idx,
+                        'group_id': group_idx,
                         'env_id': env_idx,
                         'env': env,
                         'env_config': env_config,
@@ -116,6 +118,15 @@ class EnvStateManager:
             valid_actions = parsed_llm_response
         
         return valid_actions
+    
+    def _handle_mm_state(self, state: Union[str, np.ndarray]):
+        """Handle the state from the environment
+        """
+        if isinstance(state, np.ndarray):
+            assert state.ndim == 3 and state.shape[2] == 3, f"State must be a 3D numpy array with shape (H, W, 3). Got shape: {state.shape}"
+            return PIL.Image.fromarray(state, mode='RGB')
+        else:
+            return state
 
     def reset(self, val: bool = False, seed: Optional[int] = None):
         """Reset the environments and get initial observation"""
@@ -128,7 +139,7 @@ class EnvStateManager:
         seed = random.randint(0, 1000000) if seed is None else seed # get a random seed
         seeds = _expand_seed(seed)
 
-        rollout_cache = [{"env_id": entry['env_id'], "history": []} for entry in envs]
+        rollout_cache = [{"env_id": entry['env_id'], "history": [], "group_id": entry['group_id']} for entry in envs]
         for idx, env in enumerate(envs):
             env['env'].reset(seed=seeds[idx])
             self._update_history(rollout_cache[idx]['history'], next_state=env['env'].render(), last_step_info=None)
@@ -166,7 +177,7 @@ class EnvStateManager:
                 if done:
                     turn_done = True
                     break
-            obs = env.render()
+            obs = self._handle_mm_state(env.render())
             env_entry['status'].rewards.append(acc_reward) # NOTE use turn-wise acc_reward
             env_entry['status'].cur_step += len(executed_actions)
             if turn_done:
@@ -190,16 +201,7 @@ class EnvStateManager:
 
     def render_final_output(self, val: bool = False):
         """Get the final output for all environment"""
-        envs = self.val_envs if val else self.train_envs
-        final_output = []
-        for cache_entry in self.rollout_cache:
-            env_id = cache_entry['env_id']
-            final_output.append({
-                'env_id': env_id,
-                'history': cache_entry['history'],
-                'group_idx': envs[env_id]['group_idx'],
-            })
-        return final_output
+        return self.rollout_cache
 
         
     def render(self, val: bool = False):
@@ -217,7 +219,7 @@ class EnvStateManager:
 
 
 
-@hydra.main(version_base=None, config_path="../../config", config_name="base")
+@hydra.main(version_base=None, config_path="../../config", config_name="base_debug")
 def main(config):
     """
     Unit test for EnvStateManager
@@ -225,6 +227,10 @@ def main(config):
     es_manager = EnvStateManager(config)
     print("Initializing environments...")
     es_manager.reset(seed=123)
+
+    renders = es_manager.render(val=False)
+    for i, render in enumerate(renders[:4]):  # Show first 2 environments
+        print(f"Environment {i}:\n{render}\n")
     
     print("\nRunning step for training environments...")
     all_env_inputs = [
@@ -245,9 +251,30 @@ def main(config):
     print(f"Active environments after step: {len(env_outputs)}")
     print(f"env_outputs[:2]: {env_outputs[:2]}")
     
-    print("\nRendering training environments...")
     renders = es_manager.render(val=False)
-    for i, render in enumerate(renders[:2]):  # Show first 2 environments
+    for i, render in enumerate(renders[:4]):  # Show first 2 environments
+        print(f"Environment {i}:\n{render}\n")
+
+    all_env_inputs = [
+        {
+            "env_id": 0,
+            "llm_raw_response": "Go left, go up",
+            "llm_response": "Go left, go up",
+            "actions": ["left", "up"]
+        },
+        {
+            "env_id": 3,
+            "llm_raw_response": "Go up, go up",
+            "llm_response": "Go up, go up",
+            "actions": ["up", "up", "up", "up", "up"]
+        }
+    ]
+    env_outputs = es_manager.step(all_env_inputs, val=False)
+    print(f"Active environments after step: {len(env_outputs)}")
+    print(f"env_outputs[:2]: {env_outputs[:2]}")
+    
+    renders = es_manager.render(val=False)
+    for i, render in enumerate(renders[:4]):  # Show first 2 environments
         print(f"Environment {i}:\n{render}\n")
     
     print("\nRendering final output...")

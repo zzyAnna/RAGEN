@@ -82,6 +82,22 @@ custom_envs:
       dim_y: 6
       num_boxes: 1
       max_steps: 100
+      render_mode: "text"
+
+  SimpleSokobanVisual:
+    env_type: sokoban
+    str_to_action_lookup:
+      up: 1
+      down: 2
+      left: 3
+      right: 4
+    env_instruction: "You are solving the Simple Sokoban puzzle."
+    env_config: # keys should be a subset of SokobanConfig
+      dim_x: 6
+      dim_y: 6
+      num_boxes: 1
+      max_steps: 100
+      render_mode: "rgb_array"
 
   HarderSokoban:
     env_type: sokoban
@@ -96,7 +112,7 @@ custom_envs:
       dim_y: 10
       num_boxes: 2
       max_steps: 100
-
+      render_mode: "text"
 
 
 

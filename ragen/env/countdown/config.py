@@ -6,4 +6,4 @@ from dataclasses import dataclass
 class CountdownEnvConfig:
     train_path: str = "data/countdown/train.parquet"
     max_instances: int = 20000
-    
+    render_mode: str = "text"

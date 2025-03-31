@@ -12,6 +12,7 @@ class SokobanEnvConfig:
     action_lookup: Optional[Dict[int, str]] = field(default_factory=lambda: {1:"Up", 2:"Down", 3:"Left", 4:"Right"})
     dim_x: Optional[int] = None
     dim_y: Optional[int] = None
+    render_mode: str = "text"
 
     def __post_init__(self):
         if self.dim_x is not None and self.dim_y is not None:

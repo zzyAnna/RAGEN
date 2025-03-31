@@ -13,7 +13,7 @@ class FrozenLakeEnv(BaseDiscreteActionEnv, GymFrozenLakeEnv):
         self.GRID_LOOKUP = config.grid_lookup
         self.ACTION_LOOKUP = config.action_lookup
         self.ACTION_SPACE = gym.spaces.discrete.Discrete(4, start=1)
-
+        self.render_mode = config.render_mode
         self.action_map = config.action_map
         self.MAP_LOOKUP = config.map_lookup
         random_map = generate_random_map(size=config.size, p=config.p, seed=config.map_seed)
@@ -21,21 +21,17 @@ class FrozenLakeEnv(BaseDiscreteActionEnv, GymFrozenLakeEnv):
         GymFrozenLakeEnv.__init__(
             self,
             desc=random_map,
-            is_slippery=config.is_slippery
+            is_slippery=config.is_slippery,
+            render_mode=config.render_mode
         )
 
     def reset(self, seed=None):
         try:
             with all_seed(seed):
-                config = FrozenLakeEnvConfig(
-                    size=self.config.size,
-                    p=self.config.p,
-                    is_slippery=self.config.is_slippery,
-                    map_seed=seed
-                )
-                self.__init__(config)   
+                self.config.map_seed = seed
+                self.__init__(self.config)   
                 GymFrozenLakeEnv.reset(self, seed=seed)
-                return self.render(mode="text")
+                return self.render()
         except (RuntimeError, RuntimeWarning) as e:
             next_seed = abs(hash(str(seed))) % (2 ** 32) if seed is not None else None
             return self.reset(next_seed)
@@ -48,8 +44,8 @@ class FrozenLakeEnv(BaseDiscreteActionEnv, GymFrozenLakeEnv):
 
         return next_obs, reward, done, info
      
-    def render(self, mode='text'):
-        if mode == 'text':
+    def render(self):
+        if self.render_mode == 'text':
             room = self.desc.copy()
             # replace the position of start 'S' with 'F', mark the position of the player as 'p'.
             room = np.where(room == b'S', b'F', room)
@@ -59,13 +55,19 @@ class FrozenLakeEnv(BaseDiscreteActionEnv, GymFrozenLakeEnv):
             room[self.player_pos] = 4 if self.desc[self.player_pos] == b'H' else 5 if self.desc[self.player_pos] == b'G' else 0
 
             return '\n'.join(''.join(self.GRID_LOOKUP.get(cell, "?") for cell in row) for row in room)
-        elif mode == 'rgb_array':
+        elif self.render_mode == 'rgb_array':
             return self._render_gui('rgb_array')
         else:
-            raise ValueError(f"Invalid mode: {mode}")
+            raise ValueError(f"Invalid mode: {self.render_mode}")
     
     def get_all_actions(self):
         return list([k for k in self.ACTION_LOOKUP.keys()])
+    
+    def success(self):
+        """
+        Check if the agent has reached the goal (G) or hole (H)
+        """
+        return self.desc[self.player_pos] in b"G"
 
     @property
     def player_pos(self):
