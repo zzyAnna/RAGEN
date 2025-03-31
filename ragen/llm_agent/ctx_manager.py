@@ -72,8 +72,6 @@ class ContextManager:
                 action_lookup_str = "\nThe available action list is:\n" + ", ".join([f"{v}" for k, v in env_config_new["action_lookup"].items()])
                 env_instruction += action_lookup_str
             prefixes[env_tag] = env_instruction
-        
-        breakpoint()
 
         # Training
         for split in ["train", "val"]:
@@ -108,7 +106,7 @@ class ContextManager:
         return llm_response, actions
         
     
-    def get_lm_inputs(self, env_outputs: List[Dict], is_final_turn: bool, val: bool = False) -> Dict:
+    def get_lm_inputs(self, env_outputs: List[Dict], is_final_turn: bool, val: bool = False) -> DataProto:
         """
         env_outputs - please see below example
         [
@@ -157,6 +155,9 @@ class ContextManager:
             "responses": input_ids.clone(),
             "loss_mask": loss_mask
         }
+        llm_inputs.non_tensor_batch = {
+            "env_ids": [env_output["env_id"] for env_output in env_outputs],
+        }
 
         return llm_inputs
 
@@ -177,9 +178,12 @@ class ContextManager:
             })
         return env_inputs
 
-    def formulate_rollouts(self, env_outputs: List[Dict]) -> Dict:
-        #env_prompt=env_output_to_prompt(env_outputs, self.id_to_prompt, self.tokenizer, is_final_prompt=True)
-        pass
+    def formulate_rollouts(self, env_outputs: List[Dict],val:bool=False) -> DataProto:
+        llm_inputs= self.get_lm_inputs(env_outputs, is_final_turn=True, val=val)
+        llm_inputs.non_tensor_batch.update({
+            "index": [env_output["group_id"] for env_output in env_outputs],
+        })
+        return llm_inputs
 
     
 
@@ -221,14 +225,16 @@ def main(config):
                 {"state": "###\n#x_#<image>", "llm_response": "Response 1", "reward": 0.5},
                 {"state": "###\n#x_#<image>", "llm_response": "Response 2", "reward": 0.8},
                 {"state": "###\n#x_#<image>"}
-            ]
+            ],
+            "group_id": 0
         },
         {
             "env_id": 2,
             "history": [
                 {"state": "###\n#x_#<image>", "llm_response": "Response 3", "reward": 0.3},
                 {"state": "###\n#x_#<image>"}
-            ]
+            ],
+            "group_id": 1
         }
     ]
     
@@ -236,6 +242,8 @@ def main(config):
     tokenizer = AutoTokenizer.from_pretrained("Qwen/Qwen2.5-0.5B-Instruct")
     env_prompt = ctx_manager.get_lm_inputs(env_outputs, is_final_turn=False)
     print(env_prompt)
+    formulate_rollouts_rst= ctx_manager.formulate_rollouts(env_outputs)
+    print(formulate_rollouts_rst)
 
 if __name__ == "__main__":
     main()
