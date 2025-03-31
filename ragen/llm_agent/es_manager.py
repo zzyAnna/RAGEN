@@ -109,7 +109,7 @@ class EnvStateManager:
         """Parse the LLM response for the environment
         """
         valid_actions = []
-        action_lookup = env_entry['env_config'].str_to_action_lookup
+        action_lookup = env_entry['env_config'].get('str_to_action_lookup', None)
         if action_lookup is not None:
             for action in parsed_llm_response:
                 if action in action_lookup:
@@ -119,14 +119,21 @@ class EnvStateManager:
         
         return valid_actions
     
-    def _handle_mm_state(self, state: Union[str, np.ndarray]):
+    def _handle_mm_state(self, state: Union[str, np.ndarray, list[np.ndarray]]):
         """Handle the state from the environment
         """
         if isinstance(state, np.ndarray):
-            assert state.ndim == 3 and state.shape[2] == 3, f"State must be a 3D numpy array with shape (H, W, 3). Got shape: {state.shape}"
-            return PIL.Image.fromarray(state, mode='RGB')
+            state = [state]
         else:
             return state
+        
+        results = []
+        for _state in state:
+            assert _state.ndim == 3 and _state.shape[2] == 3, f"State must be a 3D numpy array with shape (H, W, 3). Got shape: {_state.shape}"
+            results.append(PIL.Image.fromarray(_state, mode='RGB'))
+        return results
+
+
 
     def reset(self, val: bool = False, seed: Optional[int] = None):
         """Reset the environments and get initial observation"""
@@ -142,7 +149,8 @@ class EnvStateManager:
         rollout_cache = [{"env_id": entry['env_id'], "history": [], "group_id": entry['group_id']} for entry in envs]
         for idx, env in enumerate(envs):
             env['env'].reset(seed=seeds[idx])
-            self._update_history(rollout_cache[idx]['history'], next_state=env['env'].render(), last_step_info=None)
+            next_state = self._handle_mm_state(env['env'].render())
+            self._update_history(rollout_cache[idx]['history'], next_state=next_state, last_step_info=None)
             env['status'] = EnvStatus(seed=seeds[idx])
 
         self.rollout_cache = rollout_cache
@@ -219,7 +227,7 @@ class EnvStateManager:
 
 
 
-@hydra.main(version_base=None, config_path="../../config", config_name="base_debug")
+@hydra.main(version_base=None, config_path="../../config", config_name="base")
 def main(config):
     """
     Unit test for EnvStateManager

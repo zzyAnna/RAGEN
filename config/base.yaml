@@ -52,7 +52,7 @@ es_manager:
     # under the same group, the env config and env seed are ensured to be equal
     group_size: ${es_manager.group_size}
     env_configs:
-      tags: ["SimpleSokoban", "HarderSokoban"]
+      tags: ["SimpleSokoban", "SimpleSokobanVisual"]
       n_groups: [1, 1] # If not set, all env names divide nums equally. Under the same group, the env config and env seed (prompt) are equal in each generation
   val:
     env_groups: ${data.env_groups}
@@ -97,7 +97,7 @@ custom_envs:
       dim_y: 6
       num_boxes: 1
       max_steps: 100
-      render_mode: "rgb_array"
+      render_mode: "text"
 
   HarderSokoban:
     env_type: sokoban
