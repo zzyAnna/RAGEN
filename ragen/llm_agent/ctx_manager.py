@@ -157,6 +157,7 @@ class ContextManager:
         }
         llm_inputs.non_tensor_batch = {
             "env_ids": [env_output["env_id"] for env_output in env_outputs],
+            "index": [env_output["group_id"] for env_output in env_outputs],
         }
 
         return llm_inputs
@@ -180,9 +181,6 @@ class ContextManager:
 
     def formulate_rollouts(self, env_outputs: List[Dict],val:bool=False) -> DataProto:
         llm_inputs= self.get_lm_inputs(env_outputs, is_final_turn=True, val=val)
-        llm_inputs.non_tensor_batch.update({
-            "index": [env_output["group_id"] for env_output in env_outputs],
-        })
         return llm_inputs
 
     
