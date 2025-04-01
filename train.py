@@ -13,6 +13,17 @@ import torch
 import numpy as np
 from ragen.utils import register_resolvers
 register_resolvers()
+import sys
+
+def get_config_name():
+    import argparse
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--config_name", type=str, default="base")
+    args, unknown = parser.parse_known_args()
+    sys.argv = [sys.argv[0]] + unknown  # Hydra 解析剩下的参数
+    return args.config_name
+
+config_name = get_config_name()
 
 class DummyRewardManager():
     """The reward manager.
@@ -104,7 +115,7 @@ def get_custom_reward_fn(config):
     return getattr(module, function_name)
 
 
-@hydra.main(version_base=None, config_path="config", config_name="base")
+@hydra.main(version_base=None, config_path="config", config_name=config_name)
 def main(config):
     run_ppo(config)
 
@@ -135,10 +146,6 @@ class TaskRunner:
         from verl.utils.fs import copy_to_local
         # print initial config
         from pprint import pprint
-        from omegaconf import OmegaConf
-        OmegaConf.register_new_resolver("eval", eval)
-        pprint(OmegaConf.to_container(config, resolve=True))  # resolve=True will eval symbol values
-        OmegaConf.resolve(config)
 
         # download the checkpoint from hdfs
         local_path = copy_to_local(config.actor_rollout_ref.model.path)

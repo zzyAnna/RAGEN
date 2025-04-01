@@ -1,1 +1,1 @@
-# python train.py
+python train.py --config_name a100_base

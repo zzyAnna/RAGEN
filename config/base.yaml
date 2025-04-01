@@ -5,9 +5,12 @@ actor_rollout_ref:
   model:
     path: Qwen/Qwen2.5-0.5B-Instruct
   actor:
-    ppo_mini_batch_size: 2
+    ppo_mini_batch_size: 32
     micro_batch_size_per_gpu: 1
     ppo_micro_batch_size_per_gpu: 1
+    use_kl_loss: True
+    kl_loss_coef: 0.01
+    kl_loss_type: mse
   ref:
     log_prob_micro_batch_size_per_gpu: 1
   rollout:
@@ -45,6 +48,8 @@ trainer:
   validation_steps: 2 # validation instances = validation_steps * val_batch_size
   val_before_train: True
   n_gpus_per_node: 1
+  test_freq: 10
+  val_generations_to_log_to_wandb: 20
   logger: [ 'console', 'wandb' ]
 
 agent_proxy:
@@ -53,6 +58,7 @@ agent_proxy:
   action_sep: "||"
   max_actions: 3 # how many actions can be output at most in a single turn
   use_turn_scores: False # important to GAE when applying token-level rewards to token-level advantages. If False, will take the sum of scores as the reward for the last turn.
+  score_normalization: "batch_mean"
 
 es_manager:
   format_penalty: -1.0

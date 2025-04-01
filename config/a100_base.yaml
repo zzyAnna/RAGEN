@@ -1,0 +1,32 @@
+defaults:
+  - base # this is a symbolic link to the verl/verl/trainer/config/ppo_trainer.yaml file
+
+actor_rollout_ref:
+  actor:
+    ppo_mini_batch_size: 32
+    micro_batch_size_per_gpu: 32
+    ppo_micro_batch_size_per_gpu: 32
+  ref:
+    log_prob_micro_batch_size_per_gpu: 32
+  rollout:
+    log_prob_micro_batch_size_per_gpu: 32
+    tensor_model_parallel_size: 1
+    max_model_len: 2048
+    prompt_length: 1 # useless. Just put it here
+    response_length: 200 # single-turn response length
+    enable_kv_cache: True # much faster with this on:) 6.43s vs 10.29s
+    enforce_eager: True
+    free_cache_engine: ${actor_rollout_ref.rollout.enforce_eager}
+    gpu_memory_utilization: 0.5
+    enable_chunked_prefill: ${actor_rollout_ref.rollout.enable_kv_cache}
+    # max_num_batched_tokens: 8192 # set only when enable_chunked_prefill is true
+    val_kwargs:
+      do_sample: False
+      temperature: 0
+
+critic:
+  ppo_mini_batch_size: 32
+  ppo_micro_batch_size_per_gpu: 32
+
+trainer:
+  n_gpus_per_node: 1
