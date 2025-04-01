@@ -1,117 +1,110 @@
+defaults:
+  - ppo_trainer # this is a symbolic link to the verl/verl/trainer/config/ppo_trainer.yaml file
 
-# Trainig paradigm
-rl_or_sft: "rl"
-# System settings
-system:
-  cuda_visible_devices: 0
-  n_gpus: 1
-  multi_processing: "ray"
-  vllm_attention_backend: "XFORMERS"
+actor_rollout_ref:
+  model:
+    path: Qwen/Qwen2.5-0.5B-Instruct
+  actor:
+    ppo_mini_batch_size: 2
+    micro_batch_size_per_gpu: 1
+    ppo_micro_batch_size_per_gpu: 1
+  ref:
+    log_prob_micro_batch_size_per_gpu: 1
+  rollout:
+    log_prob_micro_batch_size_per_gpu: 1
+    tensor_model_parallel_size: 1
+    max_model_len: 1024
+    prompt_length: 1 # useless. Just put it here
+    response_length: 100 # single-turn response length
+    enable_kv_cache: True # much faster with this on:) 6.43s vs 10.29s
+    enforce_eager: True
+    free_cache_engine: ${actor_rollout_ref.rollout.enforce_eager}
+    gpu_memory_utilization: 0.5
+    enable_chunked_prefill: ${actor_rollout_ref.rollout.enable_kv_cache}
+    # max_num_batched_tokens: 8192 # set only when enable_chunked_prefill is true
+    val_kwargs:
+      do_sample: False
+      temperature: 0
 
-# Model settings
-model:
-  base_model: "Qwen/Qwen2.5-0.5B-Instruct"
-  experiment_name: "ragen-main-exp"
-  gradient_checkpointing: true
 
-# Training parameters
-training:
-  train_data_num: null
-  val_data_num: 50
-  micro_batch_size: 1
-  train_batch_size: 8
-  val_batch_size: 10
-  ppo_batch_size: 128
-  max_start_length: 400
-  max_response_length: 400
-  max_obs_length: 200
-  max_turns: 5
-  rollout_tp_size: 1
-  n_rollout: 16
-  total_epochs: 5
-  temperature: 0.7
-  use_sft: false
-  use_kl_loss: true # this means actor KL Loss
-  no_think_rl: false
-  state_masking: false
-  binary_reward: false
-  mask_state: false
-  length_penalty: false
-  ref_update_steps: null # every ref_update_steps, the reference model will be updated using the latest actor model
-  total_training_steps: null
+critic:
+  ppo_micro_batch_size_per_gpu: 1
+  model:
+    path: ${actor_rollout_ref.model.path}
 
-# Optimization parameters
-optimization:
-  actor_lr: 1e-6
-  critic_lr: 1e-5
-  kl_coef: 0.001
-  kl_loss_type: low_var_kl
-  adv_estimator: gae
-  gpu_memory_utilization: 0.4
+data:
+  max_prompt_length: null
+  max_response_length: null
+  train_batch_size: 128
+  val_batch_size: ${data.train_batch_size} # 128
+  env_groups: 8
+  rollout_n: ${int_div:${data.train_batch_size}, ${data.env_groups}} # NOTE: need to check. equals batch_size / env_groups, different from "n", because this rollout_n determines the number of envs in the same group
 
-# Logging settings
-logging:
-  mode: "['wandb']"
-  log_images: true
-  log_image_dir: "log/trajectory"
-  log_image_step_size: 4
-  log_n_image_per_batch: 32
-
-# Trainer settings
 trainer:
-  val_before_train: true
-  val_only: false
-  default_hdfs_dir: null
-  nnodes: 1
-  save_freq: 100
-  test_freq: 200 # 100
-  project_name: "RAGEN"
+  total_training_steps: 200
+  validation_steps: 2 # validation instances = validation_steps * val_batch_size
+  val_before_train: True
+  n_gpus_per_node: 1
+  logger: [ 'console', 'wandb' ]
 
-# SFT settings
-sft:
-  env_type: "sokoban"  # or "frozenlake"
-  output_dir: "models/sft"
+agent_proxy:
+  max_turn: 5
+  rollout_n: ${data.rollout_n}
+  action_sep: "||"
+  max_actions: 3 # how many actions can be output at most in a single turn
+  use_turn_scores: False # important to GAE when applying token-level rewards to token-level advantages. If False, will take the sum of scores as the reward for the last turn.
 
-  # Data generation parameters
-  data_generation:
-    data_dir: "sft/data"
-    algo: "bfs"
-    seed: 100000 # needs to be different from the seed in the RL config
-    train_size: 1000
-    test_size: 100
-    bfs_max_depths: 100
-    prefix: "message"
-    num_processes: 16
+es_manager:
+  format_penalty: -1.0
+  group_size: ${agent_proxy.rollout_n}
+  train:
+    env_groups: ${data.env_groups} 
+    # under the same group, the env config and env seed are ensured to be equal
+    group_size: ${es_manager.group_size}
+    env_configs:
+      tags: ["SimpleSokoban", "HarderSokoban"]
+      n_groups: [6, 2] # If not set, all env names divide nums equally. Under the same group, the env config and env seed (prompt) are equal in each generation
+  val:
+    env_groups: ${data.val_batch_size}
+    group_size: 1 # should be set to 1 because val temperature is set to 0 and same prompt leads to same output
+    env_configs:
+      tags: ["SimpleSokoban"]
+      n_groups: [128] # If not set, all env names divide nums equally. Under the same group, the env config and env seed (prompt) are equal in each generation
 
-  # Training parameters
-  training:
-    num_gpus: 1
-    max_length: 2048
-    learning_rate: 1e-4
-    train_batch_size: 128
-    micro_batch_size: 4
-    experiment_name: "test_sft_lora"
-    logger: "['console','wandb']"
-    epochs: 5
-    hdfs_dir: null
-    validate_before_training: true
-    lora_rank: 64
-    lora_alpha: 32
-    target_modules: "all-linear"
-    enable_gradient_checkpointing: false
-    base_model: "Qwen/Qwen2.5-0.5B-Instruct"
-    project_name: "RAGEN"
-  
-  # Sokoban-specific settings
-  sokoban:
-    dim_x: 6
-    dim_y: 6
-    num_boxes: 1
-    max_steps: 100
-    search_depth: 30
-  
-  # FrozenLake-specific settings
-  frozenlake:
-    size: 4
-    p: 0.8
-    is_slippery: true
+ctx_manager:
+  generation: # go to vllm
+    gen_config:
+      response_length: ${actor_rollout_ref.rollout.response_length}
+      temperature: ${actor_rollout_ref.rollout.temperature}
+      top_p: ${actor_rollout_ref.rollout.top_p}
+      top_k: ${actor_rollout_ref.rollout.top_k}
+      kwargs: null
+
+custom_envs:
+  SimpleSokoban:
+    env_type: sokoban
+    env_instruction: "You are solving the Simple Sokoban puzzle. Example answer format: <think>I should move the box to the left, then go up.</think><answer>Left || Up</answer>"
+    env_config: # keys should be a subset of SokobanConfig
+      dim_x: 6
+      dim_y: 6
+      num_boxes: 1
+      max_steps: 100
+
+  VisualSimpleSokoban:
+    env_type: sokoban
+    env_instruction: "You are solving the Visual Simple Sokoban puzzle. Example answer format: <think>I should move the box to the left, then go up.</think><answer>Left || Up</answer>"
+    env_config: # keys should be a subset of SokobanConfig
+      dim_x: 6
+      dim_y: 6
+      num_boxes: 1
+      max_steps: 100
+      render_mode: "rgb_array"
+
+  HarderSokoban:
+    env_type: sokoban
+    env_instruction: "You are solving the Harder Sokoban puzzle. Example answer format: <think>I should move the box to the left, then go up.</think><answer>Left || Up</answer>"
+    env_config:
+      dim_x: 10
+      dim_y: 10
+      num_boxes: 2
+      max_steps: 100

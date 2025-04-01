@@ -18,10 +18,6 @@ tensorflow/my_graph/*
 # C extensions
 *.so
 data
-sft/output/*
-sft/data/*
-sft_configs/
-models/
 
 # Distribution / packaging
 .Python
@@ -118,6 +114,5 @@ tests/e2e/toy_examples/deepspeed/synchronous/output.txt
 # vim
 *.swp
 
-log*
 
-**logs
+log/
