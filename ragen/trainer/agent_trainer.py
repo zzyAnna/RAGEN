@@ -39,7 +39,7 @@ from verl.trainer.ppo.ray_trainer import RayPPOTrainer as VerlRayPPOTrainer
 import torch
 from verl.utils.torch_functional import masked_mean
 
-from ragen.llm_agent import LLMAgentProxy
+from ragen.llm_agent.agent_proxy import LLMAgentProxy
 
 
 class RayAgentTrainer(VerlRayPPOTrainer):
@@ -112,7 +112,7 @@ class RayAgentTrainer(VerlRayPPOTrainer):
             # pad to be divisible by dp_size
             import time
             start_time = time.time()
-            test_batch = self.agent_proxy.rollout(test_gen_batch)
+            test_batch = self.agent_proxy.rollout(test_gen_batch, val=True)
             end_time = time.time()
             print(f'validation generation time: {end_time - start_time} seconds')
             for key, value in test_batch.meta_info['metrics'].items():
@@ -199,16 +199,17 @@ class RayAgentTrainer(VerlRayPPOTrainer):
             with _timer('step', timing_raw):
                 # generate a batch
                 with _timer('gen', timing_raw):
-                    batch = self.agent_proxy.rollout(batch)
+                    batch = self.agent_proxy.rollout(batch, val=False)
                     metrics = {"train/" + key: value for key, value in batch.meta_info['metrics'].items()}
 
                 if self.config.algorithm.adv_estimator == AdvantageEstimator.REMAX:
                     # TODO: check if this is correct. Not tested yer
-                    logger.log("[WARNING] REMAX implementation is not tested yet in RAGEN.")
+                    logger.log("[NotImplemented] REMAX implementation is not tested yet in RAGEN. Exiting.")
+                    exit()
                     with _timer('gen_max', timing_raw):
                         gen_baseline_batch = deepcopy(batch)
                         gen_baseline_batch.meta_info['do_sample'] = False
-                        gen_baseline_output = self.agent_proxy.rollout(gen_baseline_batch)
+                        gen_baseline_output = self.agent_proxy.rollout(gen_baseline_batch, val=False)
 
                         batch = batch.union(gen_baseline_output)
                         reward_baseline_tensor = self.reward_fn(batch)

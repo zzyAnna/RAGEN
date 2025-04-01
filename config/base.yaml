@@ -14,6 +14,7 @@ actor_rollout_ref:
     log_prob_micro_batch_size_per_gpu: 1
     tensor_model_parallel_size: 1
     max_model_len: 1024
+    prompt_length: 1 # useless. Just put it here
     response_length: 100 # single-turn response length
     enable_kv_cache: True # much faster with this on:) 6.43s vs 10.29s
     enforce_eager: True
@@ -44,7 +45,7 @@ trainer:
   validation_steps: 1 # validation instances = validation_steps * val_batch_size
   val_before_train: True
   n_gpus_per_node: 1
-  logger: [ 'console' ]
+  logger: [ 'console', 'wandb' ]
 
 agent_proxy:
   max_turn: 5

@@ -30,10 +30,12 @@ class EnvStateManager:
     The class is responsible for managing multiple (kinds of) environments
     
     """
-    def __init__(self, config):
-        self.config = config
-        self.env_groups = int(config.es_manager.train.env_groups)
-        self.group_size = config.es_manager.train.group_size
+    def __init__(self, config, mode: str = "train"):
+        self.sys_config = config
+        self.mode = mode
+        self.config = getattr(self.sys_config.es_manager, mode)
+        self.env_groups = int(self.config.env_groups)
+        self.group_size = self.config.group_size
         self._init_envs()
         self.rollout_cache = None
 
@@ -47,20 +49,15 @@ class EnvStateManager:
             {"tag": "HarderSokoban", "group_id": 1, "env_id": 16, ...}
             ...]
         """
-        train_env_config = self.config.es_manager.train
-        assert sum(train_env_config.env_configs.n_groups) == self.env_groups, f"Sum of n_groups must equal env_groups. Got sum({train_env_config.env_configs.n_groups}) != {self.env_groups}"
-        self.train_envs = self._init_env_instances(train_env_config)
-
-        val_env_config = self.config.es_manager.val if self.config.es_manager.val else train_env_config
-        assert sum(val_env_config.env_configs.n_groups) == self.env_groups, f"Sum of n_groups must equal env_groups. Got sum({val_env_config.env_configs.n_groups}) != {self.env_groups}"
-        self.val_envs = self._init_env_instances(val_env_config)
+        assert sum(self.config.env_configs.n_groups) == self.env_groups, f"Sum of n_groups must equal env_groups. Got sum({self.config.env_configs.n_groups}) != {self.env_groups}"
+        self.envs = self._init_env_instances(self.config)
 
     def _init_env_instances(self, config):
         env_list = []
         done_groups = 0
         for tag, n_group in zip(config.env_configs.tags, config.env_configs.n_groups):
             for env_id in range(done_groups * self.group_size, (done_groups + n_group) * self.group_size):
-                cfg_template = self.config.custom_envs[tag]
+                cfg_template = self.sys_config.custom_envs[tag]
                 env_class = cfg_template.env_type
                 env_config = REGISTERED_ENV_CONFIGS[env_class](**cfg_template.env_config)
                 env_obj = REGISTERED_ENVS[env_class](env_config)
@@ -70,7 +67,7 @@ class EnvStateManager:
             done_groups += n_group
         return env_list
 
-    def reset(self, val: bool = False, seed: Optional[int] = None):
+    def reset(self, seed: Optional[int] = None):
         """
         Reset the environments and get initial observation
         build up rollout cache like [{"env_id": int, "history": List[Dict], "group_id": int}, ...]
@@ -79,11 +76,14 @@ class EnvStateManager:
             seeds = [[seed + i] * self.group_size for i in range(self.env_groups)] # [[seed, ..., seed], [seed+1, ..., seed+1], ...]
             return sum(seeds, [])
 
-        envs = self.val_envs if val else self.train_envs
+        envs = self.envs
         rollout_cache = [{"env_id": entry['env_id'], "history": [], "group_id": entry['group_id']} for entry in envs]
 
         # reset all environments
-        seed = random.randint(0, 1000000) if seed is None else seed # get a random seed
+        if self.mode == "train":
+            seed = random.randint(0, 1000000) if seed is None else seed # get a random seed
+        else:
+            seed = 123
         seeds = _expand_seed(seed)
         for seed, entry in zip(seeds, envs):
             entry['env'].reset(seed=seed)
@@ -97,7 +97,7 @@ class EnvStateManager:
         self.rollout_cache = rollout_cache
         return rollout_cache
 
-    def step(self, all_env_inputs: List[Dict], val: bool = False):
+    def step(self, all_env_inputs: List[Dict]):
         """Step the environments.
         1. extract valid actions from the action lookup table (if exists) and execute the actions, and update rollout cache
         2. Since rollout does not need to act over done envs, whenever the environment is done, we only update rollout cache, but not output env_outputs.
@@ -134,7 +134,7 @@ class EnvStateManager:
             })
             return status, history
 
-        envs = self.val_envs if val else self.train_envs
+        envs = self.envs
         env_outputs = []
 
         for env_input in all_env_inputs:
@@ -146,7 +146,7 @@ class EnvStateManager:
             valid_actions = self._extract_map_valid_actions(entry, env_input['actions'])
             acc_reward, turn_info, turn_done, executed_actions = _execute_actions(env, valid_actions)
             if len(valid_actions) != len(env_input['actions']) or not valid_actions:
-                acc_reward += self.config.es_manager.format_penalty
+                acc_reward += self.sys_config.es_manager.format_penalty
                 
             status, history = _log_env_state(entry['status'], self.rollout_cache[env_id]['history'], entry['env'].render(), executed_actions, env_input['actions'], acc_reward, turn_done, turn_info, env_input)
             entry['status'] = status
@@ -156,9 +156,9 @@ class EnvStateManager:
 
         return env_outputs
 
-    def get_rollout_states(self, val: bool = False):
+    def get_rollout_states(self):
         """Get the final output for all environment"""
-        envs = self.val_envs if val else self.train_envs
+        envs = self.envs
         rollout_cache = self.rollout_cache
 
         # add metrics to rollout cache
@@ -225,14 +225,12 @@ class EnvStateManager:
         results = [PIL.Image.fromarray(_state, mode='RGB') for _state in state]
         return results
         
-    def render(self, val: bool = False):
-        envs = self.val_envs if val else self.train_envs
-        rendered_list = [entry['env'].render() for entry in envs]
+    def render(self):
+        rendered_list = [entry['env'].render() for entry in self.envs]
         return rendered_list
 
-    def close(self, val: bool = False):
-        envs = self.val_envs if val else self.train_envs
-        for entry in envs:
+    def close(self):
+        for entry in self.envs:
             entry['env'].close()
 
 
@@ -243,11 +241,11 @@ def main(config):
     """
     Unit test for EnvStateManager
     """
-    es_manager = EnvStateManager(config)
+    es_manager = EnvStateManager(config, mode="train")
     print("Initializing environments...")
     es_manager.reset(seed=123)
 
-    renders = es_manager.render(val=False)
+    renders = es_manager.render()
     for i, render in enumerate(renders[:4]):  # Show first 2 environments
         print(f"Environment {i}:\n{render}\n")
     
@@ -266,11 +264,11 @@ def main(config):
             "actions": ["down"]
         }
     ]
-    env_outputs = es_manager.step(all_env_inputs, val=False)
+    env_outputs = es_manager.step(all_env_inputs)
     print(f"Active environments after step: {len(env_outputs)}")
     print(f"env_outputs[:2]: {env_outputs[:2]}")
     
-    renders = es_manager.render(val=False)
+    renders = es_manager.render()
     for i, render in enumerate(renders[:4]):  # Show first 2 environments
         print(f"Environment {i}:\n{render}\n")
 
@@ -288,16 +286,16 @@ def main(config):
             "actions": ["up", "up", "up", "up", "up"]
         }
     ]
-    env_outputs = es_manager.step(all_env_inputs, val=False)
+    env_outputs = es_manager.step(all_env_inputs)
     print(f"Active environments after step: {len(env_outputs)}")
     print(f"env_outputs[:2]: {env_outputs[:2]}")
     
-    renders = es_manager.render(val=False)
+    renders = es_manager.render()
     for i, render in enumerate(renders[:4]):  # Show first 2 environments
         print(f"Environment {i}:\n{render}\n")
     
     print("\nRendering final output...")
-    final_outputs = es_manager.get_rollout_cache(val=False)
+    final_outputs = es_manager.get_rollout_states()
     print(f"final outputs[:4]: {final_outputs[:4]}")
     
     print("\nClosing environments...")

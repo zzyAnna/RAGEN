@@ -17,15 +17,22 @@ class VllmWrapperWg: # Thi is a developing class for eval and test
 		model_name = config.actor_rollout_ref.model.path
 		ro_config = config.actor_rollout_ref.rollout
 		self.llm = LLM(
-			model_name, 
-			enable_prefix_caching=config.actor_rollout_ref.rollout.enable_kv_cache, 
-			enforce_eager=config.actor_rollout_ref.rollout.enforce_eager,
-            dtype=config.actor_rollout_ref.rollout.dtype,
-            gpu_memory_utilization=config.actor_rollout_ref.rollout.gpu_memory_utilization,
-            disable_log_stats=config.actor_rollout_ref.rollout.disable_log_stats,
-            enable_chunked_prefill=config.actor_rollout_ref.rollout.enable_chunked_prefill,
-			max_num_batched_tokens=config.actor_rollout_ref.rollout.max_num_batched_tokens
+			model_name,
+            enable_sleep_mode=True,
+            tensor_parallel_size=ro_config.tensor_model_parallel_size,
+            dtype=ro_config.dtype,
+            enforce_eager=ro_config.enforce_eager,
+            gpu_memory_utilization=ro_config.gpu_memory_utilization,
+            disable_custom_all_reduce=True,
+            disable_mm_preprocessor_cache=True,
+            skip_tokenizer_init=False,
+            max_model_len=ro_config.max_model_len,
+            disable_log_stats=ro_config.disable_log_stats,
+            max_num_batched_tokens=ro_config.max_num_batched_tokens,
+            enable_chunked_prefill=ro_config.enable_chunked_prefill,
+            enable_prefix_caching=True,
 		)
+		print("LLM initialized")
 		self.sampling_params = SamplingParams(
 			max_tokens=ro_config.response_length,
 			# temperature=ro_config.temperature,
@@ -40,14 +47,14 @@ class VllmWrapperWg: # Thi is a developing class for eval and test
 		This aligns with the verl Worker Group interface.
 		"""
 		# NOTE: free_cache_engine is not used in the vllm wrapper. Only used in the verl vllm.
-		cache_action = lm_inputs.meta_info.get('cache_action', None)
+		# cache_action = lm_inputs.meta_info.get('cache_action', None)
 
 		input_ids = lm_inputs.batch['input_ids']
 		input_texts = self.tokenizer.batch_decode(input_ids, skip_special_tokens=False)
 		input_texts = [i.replace("<|endoftext|>", "") for i in input_texts]
 
 		outputs = self.llm.generate(input_texts, sampling_params=self.sampling_params)
-		texts = ["<think>" + output.outputs[0].text for output in outputs] # The LLM generation does not include <think> and <answer> tags. Add them back here.
+		texts = [output.outputs[0].text for output in outputs] 
 		lm_outputs = DataProto()
 		lm_outputs.non_tensor_batch = {
 			'response_texts': texts,
@@ -64,9 +71,10 @@ class LLMAgentProxy:
 	"""
 	def __init__(self, config, actor_rollout_wg, tokenizer):
 		self.config = config
-		self.ctx_manager = ContextManager(config, tokenizer)
-		self.es_manager = EnvStateManager(config)
-
+		self.train_ctx_manager = ContextManager(config, tokenizer, mode="train")
+		self.train_es_manager = EnvStateManager(config, mode="train")
+		self.val_ctx_manager = ContextManager(config, tokenizer, mode="val")
+		self.val_es_manager = EnvStateManager(config, mode="val")
 		self.actor_wg = actor_rollout_wg
 		self.tokenizer = tokenizer
 
@@ -85,39 +93,38 @@ class LLMAgentProxy:
 
 		return lm_outputs
 
-
 	def rollout(self, dataproto: DataProto, val=False):
-		env_outputs = self.es_manager.reset(val=val)
+		es_manager = self.val_es_manager if val else self.train_es_manager
+		ctx_manager = self.val_ctx_manager if val else self.train_ctx_manager
+		env_outputs = es_manager.reset()
 
 		for i in range(self.config.agent_proxy.max_turn):
-			lm_inputs: DataProto = self.ctx_manager.get_lm_inputs(env_outputs, prepare_for_update=False)
+			lm_inputs: DataProto = ctx_manager.get_lm_inputs(env_outputs, prepare_for_update=False)
 			lm_inputs.meta_info = dataproto.meta_info # TODO: setup vllm early stop. make sure this can be done
-			cache_action = None
-			if i == 0:
-				cache_action = 'init'
-			elif i == self.config.agent_proxy.max_turn - 1:
-				cache_action = 'clear'
-			lm_inputs.meta_info['cache_action'] = cache_action
+			# cache_action = None
+			# if i == 0:
+			# 	cache_action = 'init'
+			# elif i == self.config.agent_proxy.max_turn - 1:
+			# 	cache_action = 'clear'
+			# lm_inputs.meta_info['cache_action'] = cache_action
 			lm_outputs: DataProto = self.generate_sequences(lm_inputs)
-			env_inputs: List[Dict] = self.ctx_manager.get_env_inputs(lm_outputs)
-			env_outputs: List[Dict] = self.es_manager.step(env_inputs, val=val)
+			env_inputs: List[Dict] = ctx_manager.get_env_inputs(lm_outputs)
+			env_outputs: List[Dict] = es_manager.step(env_inputs)
 
-		rollout_states = self.es_manager.get_rollout_states(val=val) 
-		rollouts = self.ctx_manager.formulate_rollouts(rollout_states, val=val)
+		rollout_states = es_manager.get_rollout_states() 
+		rollouts = ctx_manager.formulate_rollouts(rollout_states)
 		return rollouts
 
-	def _reset(self):
-		self.es_manager.reset_envs()
-		self.es_manager.reset_env_status() # make all status to be initialized again
 
 @hydra.main(version_base=None, config_path="../../config", config_name="base")
 def main(config):
+	os.environ["VLLM_WORKER_MULTIPROC_METHOD"] = "spawn"
 	tokenizer = AutoTokenizer.from_pretrained(config.actor_rollout_ref.model.path)
 	actor_wg = VllmWrapperWg(config, tokenizer)
 	proxy = LLMAgentProxy(config, actor_wg, tokenizer)
 	import time
 	start_time = time.time()
-	rollouts = proxy.rollout(DataProto(batch=None, non_tensor_batch=None, meta_info={'eos_token_id': 151645, 'pad_token_id': 151643, 'recompute_log_prob': False, 'do_sample': False, 'validate': True}))
+	rollouts = proxy.rollout(DataProto(batch=None, non_tensor_batch=None, meta_info={'eos_token_id': 151645, 'pad_token_id': 151643, 'recompute_log_prob': False, 'do_sample': False, 'validate': True}), val=True)
 	end_time = time.time()
 	print(f'rollout time: {end_time - start_time} seconds')
 	# print rollout rewards from the rm_scores

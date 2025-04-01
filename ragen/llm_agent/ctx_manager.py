@@ -58,6 +58,7 @@ class ContextManager:
                  config,
                  tokenizer,
                  processor = None,
+                 mode: str = "train",
                  ):
         """
         Initialize the ContextManager.
@@ -69,20 +70,15 @@ class ContextManager:
         self.action_sep = self.config.agent_proxy.action_sep
         self.special_token_list = ["<think>", "</think>", "<answer>", "</answer>", "<|im_start|>", "<|im_end|>"]
 
-        e_cfg = self.config.es_manager
+        self.es_cfg = self.config.es_manager[mode]
         self.env_nums = {
-            "val": {
-                env_tag: n_group * e_cfg.val.group_size
-                for n_group, env_tag in zip(e_cfg.val.env_configs.n_groups, e_cfg.val.env_configs.tags)
-            }, "train": {
-                env_tag: n_group * e_cfg.train.group_size
-                for n_group, env_tag in zip(e_cfg.train.env_configs.n_groups, e_cfg.train.env_configs.tags)
-            }
+                env_tag: n_group * self.es_cfg.group_size
+                for n_group, env_tag in zip(self.es_cfg.env_configs.n_groups, self.es_cfg.env_configs.tags)
         }
         self._init_prefix_lookup()
     
     def _init_prefix_lookup(self):
-        prefix_lookup = {"val": {}, "train": {}}
+        prefix_lookup = {}
         prefixes = {}
         for env_tag, env_config in self.config.custom_envs.items():
             env_config_new = asdict(REGISTERED_ENV_CONFIGS[env_config.env_type]())
@@ -98,20 +94,19 @@ class ContextManager:
                 env_instruction += action_lookup_str
             prefixes[env_tag] = env_instruction
 
-        # Training
-        for split in ["train", "val"]:
-            tags = self.config.es_manager[split].env_configs.tags
-            n_groups = self.config.es_manager[split].env_configs.n_groups
-            group_size = self.config.es_manager[split].group_size
+        tags = self.es_cfg.env_configs.tags
+        n_groups = self.es_cfg.env_configs.n_groups
+        group_size = self.es_cfg.group_size
 
-            cur_group = 0
-            for env_tag, n_group in zip(tags, n_groups):
-                env_instruction = prefixes[env_tag]
-                start_idx = cur_group * group_size
-                end_idx = (cur_group + n_group) * group_size
-                for i in range(start_idx, end_idx):
-                    prefix_lookup[split][i] = env_instruction
-                cur_group += n_group
+        cur_group = 0
+        for env_tag, n_group in zip(tags, n_groups):
+            env_instruction = prefixes[env_tag]
+            start_idx = cur_group * group_size
+            end_idx = (cur_group + n_group) * group_size
+            for i in range(start_idx, end_idx):
+                prefix_lookup[i] = env_instruction
+            cur_group += n_group
+            
         self.prefix_lookup = prefix_lookup
         
 
@@ -134,7 +129,7 @@ class ContextManager:
         return llm_response, actions
         
     
-    def get_lm_inputs(self, env_outputs: List[Dict], prepare_for_update: bool, val: bool = False) -> DataProto:
+    def get_lm_inputs(self, env_outputs: List[Dict], prepare_for_update: bool) -> DataProto:
         """
         env_outputs - please see below example
         [
@@ -151,7 +146,7 @@ class ContextManager:
 
             messages = [
                 {"role": "system", "content": "You're a helpful assistant. You always respond by first wrapping your thoughts in <think>...</think>, then giving your answer in <answer>...</answer>."}, 
-                {"role": "user", "content": self.prefix_lookup["val" if val else "train"][env_output["env_id"]]}
+                {"role": "user", "content": self.prefix_lookup[env_output["env_id"]]}
             ]
 
             for idx, content in enumerate(env_output["history"]):
@@ -205,7 +200,7 @@ class ContextManager:
                         metrics[key] = []
                     metrics[key].append(value)
             metrics = {
-                key: np.sum(value) / self.env_nums["val" if val else "train"][key.split("/")[0]]
+                key: np.sum(value) / self.env_nums[key.split("/")[0]]
                 for key, value in metrics.items()
             }
             llm_inputs.meta_info = {"metrics": metrics}
@@ -219,6 +214,7 @@ class ContextManager:
             )
         else: # dataproto has textual responses
             responses = lm_outputs.non_tensor_batch['response_texts']
+        responses = ["<think>" + response for response in responses] # The LLM generation does not include <think> and <answer> tags. Add them back here.
             
         env_ids = lm_outputs.non_tensor_batch['env_ids']
         env_inputs = []
@@ -232,8 +228,8 @@ class ContextManager:
             })
         return env_inputs
 
-    def formulate_rollouts(self, env_outputs: List[Dict], val: bool = False) -> DataProto:
-        llm_inputs = self.get_lm_inputs(env_outputs, prepare_for_update=True, val=val)
+    def formulate_rollouts(self, env_outputs: List[Dict]) -> DataProto:
+        llm_inputs = self.get_lm_inputs(env_outputs, prepare_for_update=True)
         return llm_inputs
 
     
