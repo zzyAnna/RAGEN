@@ -9,8 +9,9 @@ from contextlib import contextmanager
 from dataclasses import dataclass, field
 from enum import Enum
 from pprint import pprint
-from typing import Type, Dict 
+from typing import Type, Dict
 from copy import deepcopy
+from tqdm import tqdm
 
 import ray
 import numpy as np
@@ -23,6 +24,7 @@ from verl.single_controller.ray import RayResourcePool, RayWorkerGroup, RayClass
 from verl.single_controller.ray.base import create_colocated_worker_cls
 from verl.trainer.ppo import core_algos
 from verl.utils.seqlen_balancing import get_seqlen_balanced_partitions, log_seqlen_unbalance
+from verl.trainer.ppo.metric_utils import compute_data_metrics, compute_throughout_metrics, compute_timing_metrics, reduce_metrics
 from verl.utils.checkpoint.checkpoint_manager import find_latest_ckpt_path
 from verl.utils.dataset.rl_dataset import RLHFDataset, collate_fn
 from verl.utils.tracking import ValidationGenerationsLogger
@@ -91,6 +93,7 @@ class RayAgentTrainer(VerlRayPPOTrainer):
         sample_outputs = []
         sample_scores = []
 
+        env_metric_dict = {}
         for step in range(self.config.trainer.validation_steps):
             # Store original inputs
             input_texts = ["" for _ in range(self.config.es_manager.val.env_groups * self.config.es_manager.val.group_size)]
@@ -107,20 +110,20 @@ class RayAgentTrainer(VerlRayPPOTrainer):
             print(f'test_gen_batch meta info: {test_gen_batch.meta_info}')
 
             # pad to be divisible by dp_size
-            # test_gen_batch_padded, pad_size = pad_dataproto_to_divisor(test_gen_batch, self.actor_rollout_wg.world_size)
-            breakpoint()
-            test_output_gen_batch_padded = self.agent_proxy.rollout(test_gen_batch)
-
-            # unpad
-            test_output_gen_batch = unpad_dataproto(test_output_gen_batch_padded, pad_size=pad_size)
-            print('validation generation end')
+            import time
+            start_time = time.time()
+            test_batch = self.agent_proxy.rollout(test_gen_batch)
+            end_time = time.time()
+            print(f'validation generation time: {end_time - start_time} seconds')
+            for key, value in test_batch.meta_info['metrics'].items():
+                if "val/" + key not in env_metric_dict:
+                    env_metric_dict["val/" + key] = []
+                env_metric_dict["val/" + key].append(value)
 
             # Store generated outputs
-            output_ids = test_output_gen_batch.batch['responses']
+            output_ids = test_batch.batch['responses']
             output_texts = [self.tokenizer.decode(ids, skip_special_tokens=True) for ids in output_ids]
             sample_outputs.extend(output_texts)
-
-            test_batch = test_batch.union(test_output_gen_batch)
 
             # evaluate using reward_function
             reward_tensor = self.val_reward_fn(test_batch)
@@ -145,7 +148,7 @@ class RayAgentTrainer(VerlRayPPOTrainer):
                 data_source_reward[data_source] = []
             data_source_reward[data_source].append(reward_tensor[i].item())
 
-        metric_dict = {}
+        metric_dict = reduce_metrics(env_metric_dict)
         for data_source, rewards in data_source_reward.items():
             metric_dict[f'val/test_score/{data_source}'] = np.mean(rewards)
 
@@ -187,7 +190,7 @@ class RayAgentTrainer(VerlRayPPOTrainer):
         last_val_metrics = None
 
         for step in range(self.total_training_steps):
-            metrics = {}
+            # metrics = {}
             timing_raw = {}
 
             batch: DataProto = DataProto()
@@ -196,11 +199,14 @@ class RayAgentTrainer(VerlRayPPOTrainer):
             with _timer('step', timing_raw):
                 # generate a batch
                 with _timer('gen', timing_raw):
-                    gen_batch_output = self.agent_proxy.rollout(gen_batch)
+                    batch = self.agent_proxy.rollout(batch)
+                    metrics = {"train/" + key: value for key, value in batch.meta_info['metrics'].items()}
 
                 if self.config.algorithm.adv_estimator == AdvantageEstimator.REMAX:
+                    # TODO: check if this is correct. Not tested yer
+                    logger.log("[WARNING] REMAX implementation is not tested yet in RAGEN.")
                     with _timer('gen_max', timing_raw):
-                        gen_baseline_batch = deepcopy(gen_batch)
+                        gen_baseline_batch = deepcopy(batch)
                         gen_baseline_batch.meta_info['do_sample'] = False
                         gen_baseline_output = self.agent_proxy.rollout(gen_baseline_batch)
 
@@ -214,11 +220,12 @@ class RayAgentTrainer(VerlRayPPOTrainer):
 
                         del gen_baseline_batch, gen_baseline_output
 
-                batch.non_tensor_batch['uid'] = np.array([str(uuid.uuid4()) for _ in range(len(batch.batch))],
-                                                            dtype=object)
+                # batch.non_tensor_batch['uid'] = np.array([str(uuid.uuid4()) for _ in range(len(batch.batch))],
+                                                            # dtype=object)
                 # repeat to align with repeated responses in rollout
-                batch = batch.repeat(repeat_times=self.config.actor_rollout_ref.rollout.n, interleave=True)
-                batch = batch.union(gen_batch_output)
+                # batch = batch.repeat(repeat_times=self.config.actor_rollout_ref.rollout.n, interleave=True)
+                # batch = batch.union(gen_batch_output)
+                batch.non_tensor_batch['uid'] = batch.non_tensor_batch['group_ids']
 
                 batch.batch['response_mask'] = compute_response_mask(batch)
                 # balance the number of valid tokens on each dp rank.

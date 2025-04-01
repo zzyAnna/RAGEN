@@ -13,6 +13,18 @@ actor_rollout_ref:
   rollout:
     log_prob_micro_batch_size_per_gpu: 1
     tensor_model_parallel_size: 1
+    max_model_len: 1024
+    response_length: 100 # single-turn response length
+    enable_kv_cache: True # much faster with this on:) 6.43s vs 10.29s
+    enforce_eager: True
+    free_cache_engine: ${actor_rollout_ref.rollout.enforce_eager}
+    gpu_memory_utilization: 0.5
+    enable_chunked_prefill: ${actor_rollout_ref.rollout.enable_kv_cache}
+    # max_num_batched_tokens: 8192 # set only when enable_chunked_prefill is true
+    val_kwargs:
+      do_sample: False
+      temperature: 0
+
 
 critic:
   ppo_micro_batch_size_per_gpu: 1
@@ -20,9 +32,11 @@ critic:
     path: ${actor_rollout_ref.model.path}
 
 data:
-  train_batch_size: 4 # 128
-  val_batch_size: 4 # 128
-  env_groups: 2 # 8
+  max_prompt_length: null
+  max_response_length: null
+  train_batch_size: 128
+  val_batch_size: ${data.train_batch_size} # 128
+  env_groups: 8
   rollout_n: ${int_div:${data.train_batch_size}, ${data.env_groups}} # NOTE: need to check. equals batch_size / env_groups, different from "n", because this rollout_n determines the number of envs in the same group
 
 trainer:
@@ -32,17 +46,12 @@ trainer:
   n_gpus_per_node: 1
   logger: [ 'console' ]
 
-logging:
-  log_images: True
-  log_image_dir: log/trajectory
-  log_image_step_size: 1
-  log_n_image_per_batch: 4
-  log_n_sample_per_batch: 1
-
 agent_proxy:
   max_turn: 5
   rollout_n: ${data.rollout_n}
-  action_sep: " || "
+  action_sep: "||"
+  max_actions: 3 # how many actions can be output at most in a single turn
+  use_turn_scores: False # important to GAE when applying token-level rewards to token-level advantages. If False, will take the sum of scores as the reward for the last turn.
 
 es_manager:
   format_penalty: -1.0
@@ -52,68 +61,49 @@ es_manager:
     # under the same group, the env config and env seed are ensured to be equal
     group_size: ${es_manager.group_size}
     env_configs:
-      tags: ["SimpleSokoban", "SimpleSokobanVisual"]
-      n_groups: [1, 1] # If not set, all env names divide nums equally. Under the same group, the env config and env seed (prompt) are equal in each generation
+      tags: ["SimpleSokoban", "HarderSokoban"]
+      n_groups: [6, 2] # If not set, all env names divide nums equally. Under the same group, the env config and env seed (prompt) are equal in each generation
   val:
-    env_groups: ${data.env_groups}
-    group_size: ${es_manager.group_size}
+    env_groups: ${data.val_batch_size}
+    group_size: 1 # should be set to 1 because val temperature is set to 0 and same prompt leads to same output
     env_configs:
       tags: ["SimpleSokoban"]
-      n_groups: [2] # If not set, all env names divide nums equally. Under the same group, the env config and env seed (prompt) are equal in each generation
+      n_groups: [128] # If not set, all env names divide nums equally. Under the same group, the env config and env seed (prompt) are equal in each generation
 
 ctx_manager:
   generation: # go to vllm
     gen_config:
-      top_p: 1
-      temperature: 1
+      response_length: ${actor_rollout_ref.rollout.response_length}
+      temperature: ${actor_rollout_ref.rollout.temperature}
+      top_p: ${actor_rollout_ref.rollout.top_p}
+      top_k: ${actor_rollout_ref.rollout.top_k}
       kwargs: null
 
 custom_envs:
   SimpleSokoban:
     env_type: sokoban
-    str_to_action_lookup:
-      up: 1
-      down: 2
-      left: 3
-      right: 4
-    env_instruction: "You are solving the Simple Sokoban puzzle."
+    env_instruction: "You are solving the Simple Sokoban puzzle. Example answer format: <think>I should move the box to the left, then go up.</think><answer>Left || Up</answer>"
     env_config: # keys should be a subset of SokobanConfig
       dim_x: 6
       dim_y: 6
       num_boxes: 1
       max_steps: 100
-      render_mode: "text"
 
-  SimpleSokobanVisual:
+  VisualSimpleSokoban:
     env_type: sokoban
-    str_to_action_lookup:
-      up: 1
-      down: 2
-      left: 3
-      right: 4
-    env_instruction: "You are solving the Simple Sokoban puzzle."
+    env_instruction: "You are solving the Visual Simple Sokoban puzzle. Example answer format: <think>I should move the box to the left, then go up.</think><answer>Left || Up</answer>"
     env_config: # keys should be a subset of SokobanConfig
       dim_x: 6
       dim_y: 6
       num_boxes: 1
       max_steps: 100
-      render_mode: "text"
+      render_mode: "rgb_array"
 
   HarderSokoban:
     env_type: sokoban
-    str_to_action_lookup:
-      up: 1
-      down: 2
-      left: 3
-      right: 4
-    env_instruction: "You are solving the Harder Sokoban puzzle."
+    env_instruction: "You are solving the Harder Sokoban puzzle. Example answer format: <think>I should move the box to the left, then go up.</think><answer>Left || Up</answer>"
     env_config:
       dim_x: 10
       dim_y: 10
       num_boxes: 2
       max_steps: 100
-      render_mode: "text"
-
-
-
-

@@ -62,12 +62,6 @@ class FrozenLakeEnv(BaseDiscreteActionEnv, GymFrozenLakeEnv):
     
     def get_all_actions(self):
         return list([k for k in self.ACTION_LOOKUP.keys()])
-    
-    def success(self):
-        """
-        Check if the agent has reached the goal (G) or hole (H)
-        """
-        return self.desc[self.player_pos] in b"G"
 
     @property
     def player_pos(self):

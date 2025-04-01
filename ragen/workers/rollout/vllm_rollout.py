@@ -13,7 +13,6 @@
 # limitations under the License.
 """
 The vllm_rollout that can be applied in different backend. Borrowed from verl.
-NOTE: Currently not used
 """
 from typing import List
 from contextlib import contextmanager
@@ -25,33 +24,94 @@ from torch import nn
 
 from verl import DataProto
 from verl.utils.torch_functional import get_eos_mask, pad_sequence_to_length
-from verl.workers.rollout.base import BaseRollout
+# from verl.workers.rollout.base import BaseRollout
 from verl.third_party.vllm import LLM, vllm_version
 from verl.third_party.vllm import parallel_state as vllm_ps
 from vllm import SamplingParams
 
-from verl.workers.rollout.vllm_rollout import vllm_mode, _pre_process_inputs
-from verl.workers.rollout.vllm_rollout import vLLMRollout as VerlVLLMRollout
+from verl.workers.rollout.vllm_rollout.vllm_rollout import _pre_process_inputs
+from verl.workers.rollout.vllm_rollout.vllm_rollout import vLLMRollout as VerlVLLMRollout
 
 
 class vLLMRollout(VerlVLLMRollout):
 
     def __init__(self, actor_module: nn.Module, config: DictConfig, tokenizer, model_hf_config, **kwargs):
-        """A vLLM rollout. It requires the module is supported by the vllm.
+        super(VerlVLLMRollout, self).__init__()
+        self.config = config
+        assert not (not config.enforce_eager and config.free_cache_engine), \
+            "disable CUDA graph (enforce_eager = False) if free cache engine"
 
-        Args:
-            module: module here follows huggingface APIs
-            config: DictConfig
-            tokenizer: the task/model tokenizer
-            model_hf_config: the huggingface config to initiallize the generating model in vllm
-            **kwargs: train_tp, for Megatron Backend to initialize hybrid engine (zero redundancy) process group
-        """
-        super().__init__(actor_module, config, tokenizer, model_hf_config, **kwargs)
+        tensor_parallel_size = self.config.get('tensor_model_parallel_size', 1)
+        assert tensor_parallel_size <= torch.distributed.get_world_size(), \
+            "tensor parallel size should be less than or equal to the world size"
+        max_num_batched_tokens = int(self.config.get('max_num_batched_tokens', 8192))
+
+        if kwargs.get('train_tp', None) is not None:
+            # deployed with megatron
+            import os
+            os.environ['CUDA_TIMER_STREAM_KAFKA_ENABLE'] = '0'
+            os.environ['MEGATRON_IMPORT_TIMERS'] = '0'
+            train_tp = kwargs.get('train_tp', None)
+            num_tp_per_train_tp = train_tp // tensor_parallel_size
+            if vllm_version in ('0.4.2', '0.5.4', '0.6.3'):
+                vllm_ps.initialize_parallel_state(tensor_model_parallel_size=tensor_parallel_size,
+                                                  num_tp_per_train_tp=num_tp_per_train_tp)
+
+        assert model_hf_config.max_position_embeddings >= self.config.max_model_len, \
+            "model context length should be greater than total sequence length"
+
+        max_model_len = self.config.max_model_len if self.config.max_model_len \
+                        else config.prompt_length + config.response_length
+        max_model_len = int(max_model_len)
+
+        if max_num_batched_tokens < max_model_len and self.config.enable_chunked_prefill:
+            raise ValueError('Enable chunked prefill, max_num_batched_tokens is smaller than max_model_len, \
+                             please increase max_num_batched_tokens or disable chunked prefill')
+        self.inference_engine = LLM(
+            actor_module,
+            enable_prefix_caching=config.enable_kv_cache,
+            tokenizer=tokenizer,
+            model_hf_config=model_hf_config,
+            tensor_parallel_size=tensor_parallel_size,
+            dtype=config.dtype,
+            enforce_eager=config.enforce_eager,
+            gpu_memory_utilization=config.gpu_memory_utilization,
+            skip_tokenizer_init=False,
+            max_model_len=max_model_len,
+            load_format=config.load_format,
+            disable_log_stats=config.disable_log_stats,
+            max_num_batched_tokens=max_num_batched_tokens,
+            enable_chunked_prefill=config.enable_chunked_prefill,
+        )
+
+        # Offload vllm model to reduce peak memory usage
+        self.inference_engine.offload_model_weights()
+
+        kwargs = dict(
+            n=1,
+            logprobs=0,  # can be set to 0 and let actor to recompute
+            max_tokens=config.response_length,
+        )
+
+        # we may detokenize the result all together later
+        if vllm_version in ('0.4.2', '0.5.4', '0.6.3'):
+            kwargs['detokenize'] = False
+
+        # supporting adding any sampling params from the config file
+        for k in config.keys():
+            if hasattr(SamplingParams(), str(k)):
+                kwargs[k] = config.get(k)
+
+        print(f"kwargs: {kwargs}")
+        self.sampling_params = SamplingParams(**kwargs)
+
+        self.pad_token_id = tokenizer.pad_token_id
+
 
     @torch.no_grad()
     def generate_sequences(self, prompts: DataProto, **kwargs) -> DataProto:
-        # rebuild vllm cache engine
-        if self.config.free_cache_engine:
+        cache_action = prompts.meta_info.get('cache_action', None)
+        if self.config.free_cache_engine and cache_action == 'init':
             self.inference_engine.init_cache_engine()
 
         idx = prompts.batch['input_ids']  # (bs, prompt_length)
@@ -139,8 +199,7 @@ class vLLMRollout(VerlVLLMRollout):
             },
             batch_size=batch_size)
 
-        # free vllm cache engine
-        if self.config.free_cache_engine:
+        if self.config.free_cache_engine and cache_action == 'clear':
             self.inference_engine.free_cache_engine()
 
         return DataProto(batch=batch)

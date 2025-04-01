@@ -43,10 +43,10 @@ class SokobanEnv(BaseDiscreteActionEnv, GymSokobanEnv):
         
     def step(self, action: int):
         previous_pos = self.player_position
-        _, reward, done, _ = GymSokobanEnv.step(self, action, )
+        _, reward, done, _ = GymSokobanEnv.step(self, action) 
         next_obs = self.render()
         action_effective = not np.array_equal(previous_pos, self.player_position)
-        info = {"action_is_effective": action_effective, "action_is_valid": True, "success": done}
+        info = {"action_is_effective": action_effective, "action_is_valid": True, "success": self.boxes_on_target == self.num_boxes}
             
         return next_obs, reward, done, info
 
@@ -66,9 +66,6 @@ class SokobanEnv(BaseDiscreteActionEnv, GymSokobanEnv):
     def close(self):
         self.render_cache = None
         super(SokobanEnv, self).close()
-
-    def success(self):
-        return self.boxes_on_target == self.num_boxes
 
 if __name__ == '__main__':
     import matplotlib.pyplot as plt

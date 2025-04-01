@@ -35,194 +35,205 @@ class EnvStateManager:
         self.env_groups = int(config.es_manager.train.env_groups)
         self.group_size = config.es_manager.train.group_size
         self._init_envs()
-
-    def _init_env_from_config(self, config):
-        """Initialize the environments from config"""
-        env_type = config.env_type
-        env_config = REGISTERED_ENV_CONFIGS[env_type](**config.env_config)
-        env = REGISTERED_ENVS[env_type](env_config)
-        return env
-
-    def _init_env_list(self, config):
-        """Initialize the environment list
-        tags: ["SimpleSokoban", "HarderSokoban"]
-        n_groups: [1, 1]
-        group_size: 16
-        env_list = [
-            {"tag": "SimpleSokoban", "group_id": 0, "env_id": 0, "env": env, "env_config": env_config, "status": EnvStatus()}
-            ...
-            {"tag": "SimpleSokoban", "group_id": 0, "env_id": 15 (group_size - 1), ...}
-            {"tag": "HarderSokoban", "group_id": 1, "env_id": 16, ...}
-            ...
-        ]
-        """
-        group_idx, env_idx = 0, 0
-        env_list = []
-        for tag, n_group in zip(config.env_configs.tags, config.env_configs.n_groups):
-            for _ in range(n_group):
-                for _ in range(self.group_size):
-                    env_config = self.config.custom_envs[tag]
-                    env = self._init_env_from_config(env_config)
-                    env_entry = {
-                        'tag': tag,
-                        'group_id': group_idx,
-                        'env_id': env_idx,
-                        'env': env,
-                        'env_config': env_config,
-                        'status': EnvStatus()
-                    }
-                    env_list.append(env_entry)
-                    env_idx += 1
-                group_idx += 1
-        return env_list
+        self.rollout_cache = None
 
     def _init_envs(self):
-        """Initialize the environments from config"""
-
+        """Initialize the environments. train_envs and val_envs are lists of envs:
+        Input: tags: ["SimpleSokoban", "HarderSokoban"]; n_groups: [1, 1]; group_size: 16
+        Output: envs: List[Dict], each **entry** is a dict with keys: tag, group_id, env_id, env, env_config, status
+        Example: [{"tag": "SimpleSokoban", "group_id": 0, "env_id": 0, "env": env, "config": env_config, "status": EnvStatus()},
+            ...
+            {"tag": "SimpleSokoban", "group_id": 0, "env_id": 15 (group_size - 1), ...},
+            {"tag": "HarderSokoban", "group_id": 1, "env_id": 16, ...}
+            ...]
+        """
         train_env_config = self.config.es_manager.train
-        val_env_config = self.config.es_manager.val if self.config.es_manager.val else train_env_config
-        
-        # Verify that the sum of n_groups equals env_groups
         assert sum(train_env_config.env_configs.n_groups) == self.env_groups, f"Sum of n_groups must equal env_groups. Got sum({train_env_config.env_configs.n_groups}) != {self.env_groups}"
+        self.train_envs = self._init_env_instances(train_env_config)
 
-        self.train_envs = self._init_env_list(train_env_config)
-        self.val_envs = self._init_env_list(val_env_config)
-        self.rollout_cache = [] # cache for rollout logs for each env
+        val_env_config = self.config.es_manager.val if self.config.es_manager.val else train_env_config
+        assert sum(val_env_config.env_configs.n_groups) == self.env_groups, f"Sum of n_groups must equal env_groups. Got sum({val_env_config.env_configs.n_groups}) != {self.env_groups}"
+        self.val_envs = self._init_env_instances(val_env_config)
 
-    def _update_history(self, history: List[Dict], next_state, last_step_info: Optional[Dict] = None):
-        """Entry for an environment rollout history"""
-        if last_step_info is not None:
-            assert len(history), "History should not be empty"
-            history[-1].update(last_step_info)
-
-        entry = {'state': ""}
-        if isinstance(next_state, list):
-            entry['images'] = []
-            for _state in next_state:
-                entry['state'] += f"<image>"
-                entry['images'].append(_state)
-        else:
-            entry['state'] = next_state
-        history.append(entry)
-
-    def _parse_env_input(self, env_entry: Dict, parsed_llm_response: List[str]):
-        """Parse the LLM response for the environment
-        """
-        valid_actions = []
-        action_lookup = env_entry['env_config'].get('str_to_action_lookup', None)
-        if action_lookup is not None:
-            for action in parsed_llm_response:
-                if action in action_lookup:
-                    valid_actions.append(action_lookup[action])
-        else:
-            valid_actions = parsed_llm_response
-        
-        return valid_actions
-    
-    def _handle_mm_state(self, state: Union[str, np.ndarray, list[np.ndarray]]):
-        """Handle the state from the environment
-        """
-        if isinstance(state, np.ndarray):
-            state = [state]
-        else:
-            return state
-        
-        results = []
-        for _state in state:
-            assert _state.ndim == 3 and _state.shape[2] == 3, f"State must be a 3D numpy array with shape (H, W, 3). Got shape: {_state.shape}"
-            results.append(PIL.Image.fromarray(_state, mode='RGB'))
-        return results
-
-
+    def _init_env_instances(self, config):
+        env_list = []
+        done_groups = 0
+        for tag, n_group in zip(config.env_configs.tags, config.env_configs.n_groups):
+            for env_id in range(done_groups * self.group_size, (done_groups + n_group) * self.group_size):
+                cfg_template = self.config.custom_envs[tag]
+                env_class = cfg_template.env_type
+                env_config = REGISTERED_ENV_CONFIGS[env_class](**cfg_template.env_config)
+                env_obj = REGISTERED_ENVS[env_class](env_config)
+                entry = {'tag': tag, 'group_id': env_id // self.group_size, 'env_id': env_id, 
+                        'env': env_obj, 'config': env_config, 'status': EnvStatus()}
+                env_list.append(entry)
+            done_groups += n_group
+        return env_list
 
     def reset(self, val: bool = False, seed: Optional[int] = None):
-        """Reset the environments and get initial observation"""
-
-        envs = self.val_envs if val else self.train_envs
-
+        """
+        Reset the environments and get initial observation
+        build up rollout cache like [{"env_id": int, "history": List[Dict], "group_id": int}, ...]
+        """
         def _expand_seed(seed: int):
             seeds = [[seed + i] * self.group_size for i in range(self.env_groups)] # [[seed, ..., seed], [seed+1, ..., seed+1], ...]
             return sum(seeds, [])
+
+        envs = self.val_envs if val else self.train_envs
+        rollout_cache = [{"env_id": entry['env_id'], "history": [], "group_id": entry['group_id']} for entry in envs]
+
+        # reset all environments
         seed = random.randint(0, 1000000) if seed is None else seed # get a random seed
         seeds = _expand_seed(seed)
+        for seed, entry in zip(seeds, envs):
+            entry['env'].reset(seed=seed)
+            entry['status'] = EnvStatus(seed=seed)
 
-        rollout_cache = [{"env_id": entry['env_id'], "history": [], "group_id": entry['group_id']} for entry in envs]
-        for idx, env in enumerate(envs):
-            env['env'].reset(seed=seeds[idx])
+        # update rollout cache
+        for cache, env in zip(rollout_cache, envs):
             next_state = self._handle_mm_state(env['env'].render())
-            self._update_history(rollout_cache[idx]['history'], next_state=next_state, last_step_info=None)
-            env['status'] = EnvStatus(seed=seeds[idx])
-
+            cache['history'] = self._update_cache_history(cache['history'], next_state=next_state, cur_step_info=None)
+            
         self.rollout_cache = rollout_cache
         return rollout_cache
 
     def step(self, all_env_inputs: List[Dict], val: bool = False):
-        """Step the environments
+        """Step the environments.
+        1. extract valid actions from the action lookup table (if exists) and execute the actions, and update rollout cache
+        2. Since rollout does not need to act over done envs, whenever the environment is done, we only update rollout cache, but not output env_outputs.
+        Input:
         all_env_inputs: List[Dict]
             {env_id: int, llm_response: str, actions: List[str]}
             NOTE: should use env_id as index for existing some already done envs
         env_outputs: List[Dict]
-            {env_id: int, history: List[Dict]}
+            {env_id: int, history: List[Dict][{state: str, actions: List[str], reward: float, info: Dict, llm_response: str, llm_raw_response: str, (Optional)images: List[PIL.Image.Image]}]}
         """
-        env_outputs = []
-
-        envs = self.val_envs if val else self.train_envs
-
-        for env_input in all_env_inputs:
+        def _execute_actions(env, actions):
             acc_reward, turn_info, turn_done = 0, {}, False
-            env_id = env_input['env_id']
-            env_entry = envs[env_id]
-            env = env_entry['env']
-            valid_actions = self._parse_env_input(env_entry, env_input['actions'])
             executed_actions = []
-            if len(valid_actions) != len(env_input['actions']) or not valid_actions:
-                acc_reward += self.config.es_manager.format_penalty
-            for action in valid_actions:
+            for action in actions:
                 _, reward, done, info = env.step(action)
                 acc_reward += reward
-                turn_info.update(info) # NOTE: currently use last info
+                turn_info.update(info) # NOTE: currently use last info for multi-action
                 executed_actions.append(action)
                 if done:
                     turn_done = True
                     break
-            obs = self._handle_mm_state(env.render())
-            env_entry['status'].rewards.append(acc_reward) # NOTE use turn-wise acc_reward
-            env_entry['status'].cur_step += len(executed_actions)
+            return acc_reward, turn_info, turn_done, executed_actions
+
+        def _log_env_state(status, history, cur_obs, executed_actions, all_actions, acc_reward, turn_done, turn_info, env_input):
+            obs = self._handle_mm_state(cur_obs)
+            status.cur_step += len(all_actions)
+            status.rewards.append(acc_reward) # NOTE use turn-wise acc_reward
             if turn_done:
-                env_entry['status'].terminated = True # TODO check terminated definition in gymnasium
-                env_entry['status'].truncated = not env.success()
-            self._update_history(
-                self.rollout_cache[env_id]['history'],
-                next_state=obs,
-                last_step_info={
-                    'actions': executed_actions,
-                    'reward': acc_reward,
-                    'info': turn_info,
-                    'llm_response': env_input['llm_response'],
-                    'llm_raw_response': env_input['llm_raw_response']
-                }
-            )
+                status.terminated = True # TODO check terminated definition in gymnasium
+                status.truncated = not turn_info.get('success', False)
+            history = self._update_cache_history(history, next_state=obs, cur_step_info={
+                'actions': executed_actions, 'reward': acc_reward, 'info': turn_info,
+                'llm_response': env_input['llm_response'], 'llm_raw_response': env_input['llm_raw_response']
+            })
+            return status, history
+
+        envs = self.val_envs if val else self.train_envs
+        env_outputs = []
+
+        for env_input in all_env_inputs:
+            acc_reward, turn_info, turn_done = 0, {}, False
+            entry = envs[env_input['env_id']]
+            env_id, env = entry['env_id'], entry['env']
+
+            # execute actions in envs
+            valid_actions = self._extract_map_valid_actions(entry, env_input['actions'])
+            acc_reward, turn_info, turn_done, executed_actions = _execute_actions(env, valid_actions)
+            if len(valid_actions) != len(env_input['actions']) or not valid_actions:
+                acc_reward += self.config.es_manager.format_penalty
+                
+            status, history = _log_env_state(entry['status'], self.rollout_cache[env_id]['history'], entry['env'].render(), executed_actions, env_input['actions'], acc_reward, turn_done, turn_info, env_input)
+            entry['status'] = status
+            self.rollout_cache[env_id]['history'] = history
             if not turn_done: # NOTE done environments are not sent for further llm generation (for efficiency)
                 env_outputs.append(self.rollout_cache[env_id])
 
         return env_outputs
 
-    def render_final_output(self, val: bool = False):
+    def get_rollout_states(self, val: bool = False):
         """Get the final output for all environment"""
-        return self.rollout_cache
+        envs = self.val_envs if val else self.train_envs
+        rollout_cache = self.rollout_cache
 
+        # add metrics to rollout cache
+        for entry, cache in zip(envs, rollout_cache):
+            status = entry['status']
+            env_metric = {
+                'success': float(status.terminated and (not status.truncated)),
+                'num_steps': status.cur_step,
+            }
+            custom_metric = {}
+            for turn in cache['history']:
+                for k, v in turn.get('info', {}).items():
+                    if k == 'success':
+                        continue
+                    if k not in custom_metric:
+                        custom_metric[k] = []
+                    custom_metric[k].append(float(v))
+            for k, v in custom_metric.items():
+                env_metric[k] = np.sum(v) / len(cache['history'])
+
+            cache['history'][-1]['metrics'] = custom_metric
+            env_metric = {f"{entry['tag']}/{k}": v for k, v in env_metric.items()}
+            cache['metrics'] = env_metric
+        return rollout_cache
+
+
+
+
+    def _update_cache_history(self, history: List[Dict], next_state, cur_step_info: Optional[Dict] = None):
+        """
+        Update last step info and append state to history
+        """
+        if cur_step_info is not None: # update last step info
+            assert len(history), "History should not be empty"
+            history[-1].update(cur_step_info)
+        
+        entry = {} # append state to history
+        if isinstance(next_state, str): # text state
+            entry['state'] = next_state
+        else: # multimodal state
+            entry['state'] = "<images>" * len(next_state)
+            entry['images'] = next_state
+        history.append(entry)
+        return history
+
+    def _extract_map_valid_actions(self, entry: Dict, actions: List[str]):
+        """extract valid actions from the action lookup table (if exists)"""
+        mapped_actions = []
+        action_lookup = getattr(entry['env'].config, 'action_lookup', None)
+        if action_lookup is None:
+            mapped_actions = actions
+        else: # the envs have pre-defined action lookup
+            rev_action_lookup = {v: k for k, v in action_lookup.items()}
+            mapped_actions = [rev_action_lookup[action] for action in actions if action in rev_action_lookup]
+        return mapped_actions
+    
+    def _handle_mm_state(self, state: Union[str, np.ndarray, list[np.ndarray]]):
+        """Handle the state from the environment
+        """
+        if isinstance(state, str): # text state
+            return state
+        elif isinstance(state, np.ndarray): # when env state is a single image, convert it to a list to unify output format
+            state = [state]
+        results = [PIL.Image.fromarray(_state, mode='RGB') for _state in state]
+        return results
         
     def render(self, val: bool = False):
         envs = self.val_envs if val else self.train_envs
-        render_list = []
-        for env_entry in envs:
-            render_list.append(env_entry['env'].render())
-        return render_list
+        rendered_list = [entry['env'].render() for entry in envs]
+        return rendered_list
 
     def close(self, val: bool = False):
         envs = self.val_envs if val else self.train_envs
-        for env_entry in envs:
-            env_entry['env'].close()
+        for entry in envs:
+            entry['env'].close()
 
 
 
@@ -286,7 +297,7 @@ def main(config):
         print(f"Environment {i}:\n{render}\n")
     
     print("\nRendering final output...")
-    final_outputs = es_manager.render_final_output(val=False)
+    final_outputs = es_manager.get_rollout_cache(val=False)
     print(f"final outputs[:4]: {final_outputs[:4]}")
     
     print("\nClosing environments...")
