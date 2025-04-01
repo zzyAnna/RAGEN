@@ -14,16 +14,20 @@ from .config import AlfredEnvConfig
 from .utils import load_config, check_format
 
 class AlfredTXTEnv(BaseLanguageBasedEnv):
+
+    raw_env: AlfredTWEnv = AlfredTWEnv(config=load_config(AlfredEnvConfig().config_file), train_eval="train")
+    # NOTE Currently raw_env cannot customize config.
+
     def __init__(self, config: AlfredEnvConfig = AlfredEnvConfig()):
         super().__init__()
         self.config = config
         self.ACTION_LOOKUP = self.config.action_lookup
-        config = load_config(self.config.config_file)
-        self.raw_env = AlfredTWEnv(config=config, train_eval="train")
+        # raw_env_config = load_config(self.config.config_file)
+        # self.raw_env = AlfredTWEnv(config=raw_env_config, train_eval="train")
         self.num_games = self.raw_env.num_games
         self.game_files = self.raw_env.game_files
-        print(f"Overall we have {len(self.game_files)} games in split={self.raw_env.train_eval}")
-        self.alfred_env = self.raw_env.init_env(batch_size=1)
+        # print(f"Overall we have {len(self.game_files)} games in split={self.raw_env.train_eval}")
+        # self.alfred_env = self.raw_env.init_env(batch_size=1)
         self.current_game_file = None
         self.render_cache = None
         self.render_mode = self.config.render_mode

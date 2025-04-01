@@ -1,0 +1,46 @@
+custom_envs:
+  SimpleSokoban:
+    env_type: sokoban
+    env_instruction: "You are solving the Simple Sokoban puzzle. Example answer format: <think>I should move the box to the left, then go up.</think><answer>Left || Up</answer>"
+    env_config: # keys should be a subset of SokobanConfig
+      dim_x: 6
+      dim_y: 6
+      num_boxes: 1
+      max_steps: 100
+
+  VisualSimpleSokoban:
+    env_type: sokoban
+    env_instruction: "You are solving the Visual Simple Sokoban puzzle. Example answer format: <think>I should move the box to the left, then go up.</think><answer>Left || Up</answer>"
+    env_config: # keys should be a subset of SokobanConfig
+      dim_x: 6
+      dim_y: 6
+      num_boxes: 1
+      max_steps: 100
+      render_mode: "rgb_array"
+
+  HarderSokoban:
+    env_type: sokoban
+    env_instruction: "You are solving the Harder Sokoban puzzle. Example answer format: <think>I should move the box to the left, then go up.</think><answer>Left || Up</answer>"
+    env_config:
+      dim_x: 10
+      dim_y: 10
+      num_boxes: 2
+      max_steps: 100
+
+  Alfworld:
+    env_type: alfworld
+    env_instruction: "You are solving the Alfworld puzzle. "
+    env_config: null
+
+  Countdown:
+    env_type: countdown
+    env_instruction: "You are solving the Countdown puzzle. "
+
+  Bandit:
+    env_type: bandit
+    env_instruction: "You are solving the Bandit puzzle. "
+
+  FrozenLake:
+    env_type: frozen_lake
+    env_instruction: "You are solving the FrozenLake puzzle. "
+

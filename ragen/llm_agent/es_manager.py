@@ -59,7 +59,10 @@ class EnvStateManager:
             for env_id in range(done_groups * self.group_size, (done_groups + n_group) * self.group_size):
                 cfg_template = self.sys_config.custom_envs[tag]
                 env_class = cfg_template.env_type
-                env_config = REGISTERED_ENV_CONFIGS[env_class](**cfg_template.env_config)
+                if cfg_template.env_config is None:
+                    env_config = REGISTERED_ENV_CONFIGS[env_class]()
+                else:
+                    env_config = REGISTERED_ENV_CONFIGS[env_class](**cfg_template.env_config)
                 env_obj = REGISTERED_ENVS[env_class](env_config)
                 entry = {'tag': tag, 'group_id': env_id // self.group_size, 'env_id': env_id, 
                         'env': env_obj, 'config': env_config, 'status': EnvStatus()}
