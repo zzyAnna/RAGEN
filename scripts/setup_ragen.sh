@@ -82,27 +82,27 @@ main() {
             print_step "Found NVCC version: $nvcc_version"
             
             if [[ "$nvcc_major" -gt 12 || ("$nvcc_major" -eq 12 && "$nvcc_minor" -ge 1) ]]; then
-                print_step "CUDA $nvcc_version is already installed and meets requirements (>=12.1)"
+                print_step "CUDA $nvcc_version is already installed and meets requirements (>=12.4)"
                 export CUDA_HOME=${CUDA_HOME:-$(dirname $(dirname $(which nvcc)))}
             else
-                print_step "CUDA version < 12.1, installing CUDA toolkit 12.1..."
-                conda install -c "nvidia/label/cuda-12.1.0" cuda-toolkit -y
+                print_step "CUDA version < 12.4, installing CUDA toolkit 12.4..."
+                conda install -c "nvidia/label/cuda-12.4.0" cuda-toolkit -y
                 export CUDA_HOME=$CONDA_PREFIX
             fi
         else
-            print_step "NVCC not found, installing CUDA toolkit 12.1..."
-            conda install -c "nvidia/label/cuda-12.1.0" cuda-toolkit -y
+            print_step "NVCC not found, installing CUDA toolkit 12.4..."
+            conda install -c "nvidia/label/cuda-12.4.0" cuda-toolkit -y
             export CUDA_HOME=$CONDA_PREFIX
         fi
         
         print_step "Installing PyTorch with CUDA support..."
-        pip install torch==2.4.0 --index-url https://download.pytorch.org/whl/cu121
+        pip install torch==2.6.0 --index-url https://download.pytorch.org/whl/cu124
         
         print_step "Installing flash-attention..."
         pip3 install flash-attn --no-build-isolation
     else
         print_step "Installing PyTorch without CUDA support..."
-        pip install torch==2.4.0
+        pip install torch==2.6.0
     fi
     
     # Install remaining requirements

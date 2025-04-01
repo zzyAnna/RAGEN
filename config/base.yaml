@@ -42,7 +42,7 @@ data:
 
 trainer:
   total_training_steps: 200
-  validation_steps: 1 # validation instances = validation_steps * val_batch_size
+  validation_steps: 2 # validation instances = validation_steps * val_batch_size
   val_before_train: True
   n_gpus_per_node: 1
   logger: [ 'console', 'wandb' ]
