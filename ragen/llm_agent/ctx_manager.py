@@ -214,7 +214,7 @@ class ContextManager:
             )
         else: # dataproto has textual responses
             responses = lm_outputs.non_tensor_batch['response_texts']
-        responses = ["<think>" + response for response in responses] # The LLM generation does not include <think> and <answer> tags. Add them back here.
+        responses = ["<think>" + response for response in responses] # The LLM generation does not include <think> tags. Add them back here.
             
         env_ids = lm_outputs.non_tensor_batch['env_ids']
         env_inputs = []
