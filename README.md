@@ -60,7 +60,7 @@ RICO enables LLMs to jointly optimize reasoning and action strategies over entir
 Given an initial state, the LLM generates multiple trajectories. At each step, the model receives the trajectory history and generates a reasoning-guided action: `<think>...</think><ans> action </ans>`. The environment receives the action and returns feedback (reward and next state).
 
 #### Update Stage: Multi-turn Trajectory Optimization 
-After generating trajectories, we train LLMs to optimize expected rewards. Instead of step-by-step optimization, RICO optimizes entire trajectories using importance sampling. This approach enables long-horizon reasoning while maintaining computational efficiency.
+After generating trajectories, we train LLMs to optimize expected rewards. Instead of step-by-step optimization, RICO optimizes entire trajectories based on normalized trajectory-level rewards. This approach enables long-horizon reasoning while maintaining computational efficiency.
 
 ### > Reward Normalization Strategies 
 We implement three progressive normalization strategies to stabilize training: 
