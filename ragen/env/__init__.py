@@ -8,7 +8,8 @@ from .sokoban.config import SokobanEnvConfig
 from .sokoban.env import SokobanEnv
 from .frozen_lake.config import FrozenLakeEnvConfig
 from .frozen_lake.env import FrozenLakeEnv
-
+from .metamathqa.env import MetaMathQAEnv
+from .metamathqa.config import MetaMathQAEnvConfig
 
 REGISTERED_ENVS = {
     'bandit': BanditEnv,
@@ -16,6 +17,7 @@ REGISTERED_ENVS = {
     'sokoban': SokobanEnv,
     'frozen_lake': FrozenLakeEnv,
     'alfworld': AlfredTXTEnv,
+    'metamathqa': MetaMathQAEnv,
 }
 
 REGISTERED_ENV_CONFIGS = {
@@ -24,4 +26,5 @@ REGISTERED_ENV_CONFIGS = {
     'sokoban': SokobanEnvConfig,
     'frozen_lake': FrozenLakeEnvConfig,
     'alfworld': AlfredEnvConfig,
+    'metamathqa': MetaMathQAEnvConfig,
 }
