@@ -11,8 +11,6 @@ actor_rollout_ref:
   rollout:
     log_prob_micro_batch_size_per_gpu: 32
     tensor_model_parallel_size: 1
-    max_model_len: 2048
-    response_length: 200 # single-turn response length
 
 critic:
   ppo_mini_batch_size: 32

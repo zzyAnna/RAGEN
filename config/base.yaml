@@ -19,9 +19,9 @@ actor_rollout_ref:
   rollout:
     log_prob_micro_batch_size_per_gpu: 1
     tensor_model_parallel_size: 1
-    max_model_len: 1024
+    max_model_len: 2048
     prompt_length: 1 # useless. Just put it here
-    response_length: 100 # single-turn response length
+    response_length: 200 # single-turn response length
     enable_kv_cache: True # much faster with this on:) 6.43s vs 10.29s
     enforce_eager: True
     free_cache_engine: ${actor_rollout_ref.rollout.enforce_eager}
@@ -49,6 +49,8 @@ data:
   rollout_n: ${int_div:${data.train_batch_size}, ${data.env_groups}} # NOTE: need to check. equals batch_size / env_groups, different from "n", because this rollout_n determines the number of envs in the same group
 
 trainer:
+  project_name: ragen_new
+  experiment_name: test
   total_training_steps: 200
   validation_steps: 2 # validation instances = validation_steps * val_batch_size
   val_before_train: True
@@ -73,13 +75,13 @@ es_manager:
     # under the same group, the env config and env seed are ensured to be equal
     group_size: ${es_manager.group_size}
     env_configs:
-      tags: ["SimpleSokoban", "HarderSokoban"]
-      n_groups: [6, 2] # If not set, all env names divide nums equally. Under the same group, the env config and env seed (prompt) are equal in each generation
+      tags: ["SimpleSokoban"]
+      n_groups: [8] # If not set, all env names divide nums equally. Under the same group, the env config and env seed (prompt) are equal in each generation
   val:
     env_groups: ${data.val_batch_size}
     group_size: 1 # should be set to 1 because val temperature is set to 0 and same prompt leads to same output
     env_configs:
-      tags: ["Alfworld"]
+      tags: ["SimpleSokoban"]
       n_groups: [128] # If not set, all env names divide nums equally. Under the same group, the env config and env seed (prompt) are equal in each generation
 
 ctx_manager:

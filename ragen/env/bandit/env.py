@@ -26,6 +26,7 @@ class BanditEnv(BaseDiscreteActionEnv, gym.Env):
                 start: self.hi_arm_name,
                 start + 1: self.lo_arm_name,
             }
+        self.config.action_lookup = self.ACTION_LOOKUP
         self.ARM_IDX_TO_NAME = self.ACTION_LOOKUP
         self.NAME_TO_ARM_IDX = {name: idx for idx, name in self.ACTION_LOOKUP.items()}
 

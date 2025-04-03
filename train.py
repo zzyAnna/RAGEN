@@ -15,16 +15,6 @@ from ragen.utils import register_resolvers
 register_resolvers()
 import sys
 
-def get_config_name():
-    import argparse
-    parser = argparse.ArgumentParser()
-    parser.add_argument("--config_name", type=str, default="base")
-    args, unknown = parser.parse_known_args()
-    sys.argv = [sys.argv[0]] + unknown  # Hydra 解析剩下的参数
-    return args.config_name
-
-config_name = get_config_name()
-
 class DummyRewardManager():
     """The reward manager.
     """
@@ -115,7 +105,7 @@ def get_custom_reward_fn(config):
     return getattr(module, function_name)
 
 
-@hydra.main(version_base=None, config_path="config", config_name=config_name)
+@hydra.main(version_base=None, config_path="config", config_name="base")
 def main(config):
     run_ppo(config)
 

@@ -1,7 +1,7 @@
 custom_envs:
   SimpleSokoban:
     env_type: sokoban
-    env_instruction: "You are solving the Simple Sokoban puzzle. Example answer format: <think>I should move the box to the left, then go up.</think><answer>Left || Up</answer>"
+    env_instruction: "You are solving the Simple Sokoban puzzle. Move all boxes to targets. Example answer format: <think>I should go left first, then move the box to the up side.</think><answer>Left || Up</answer>"
     env_config: # keys should be a subset of SokobanConfig
       dim_x: 6
       dim_y: 6
@@ -10,7 +10,7 @@ custom_envs:
 
   VisualSimpleSokoban:
     env_type: sokoban
-    env_instruction: "You are solving the Visual Simple Sokoban puzzle. Example answer format: <think>I should move the box to the left, then go up.</think><answer>Left || Up</answer>"
+    env_instruction: "You are solving the Visual Simple Sokoban puzzle. Move all boxes to targets. Example answer format: <think>I should go left first, then move the box to the up side.</think><answer>Left || Up</answer>"
     env_config: # keys should be a subset of SokobanConfig
       dim_x: 6
       dim_y: 6
@@ -20,27 +20,29 @@ custom_envs:
 
   HarderSokoban:
     env_type: sokoban
-    env_instruction: "You are solving the Harder Sokoban puzzle. Example answer format: <think>I should move the box to the left, then go up.</think><answer>Left || Up</answer>"
+    env_instruction: "You are solving the Harder Sokoban puzzle. Move all boxes to targets. Example answer format: <think>I should go left first, then move the box to the up side.</think><answer>Left || Up</answer>"
     env_config:
       dim_x: 10
       dim_y: 10
       num_boxes: 2
       max_steps: 100
 
-  Alfworld:
-    env_type: alfworld
-    env_instruction: "You are solving the Alfworld puzzle. "
-    env_config: null
+  # Alfworld:
+  #   env_type: alfworld
+  #   env_instruction: "You are solving the Alfworld puzzle. "
+  #   env_config: null
 
   Countdown:
     env_type: countdown
-    env_instruction: "You are solving the Countdown puzzle. "
+    env_instruction: "You are solving the Countdown puzzle. You should use the num list to create an equation that equals the target. Example answer format: <think> To find an equation using [3, 5, 2] to get 10. Let's check 3 + 5 = 8, 8 + 2 = 10. So the answer is 3 + 5 + 2 = 10. </think><answer>3 + 5 + 2</answer>"
+    env_config: null
 
   Bandit:
     env_type: bandit
-    env_instruction: "You are solving the Bandit puzzle. "
+    env_instruction: "You are solving the Bandit puzzle. Guess which machine has the higher expected reward. Example answer format: <think>Among the machines of Milk, Coffee, and Tea, I should pull the lever Coffee because coffee is often associated with alertness and energy, suggesting it may offer a higher reward.</think><answer>Coffee</answer>"
+    env_config: null
 
   FrozenLake:
     env_type: frozen_lake
-    env_instruction: "You are solving the FrozenLake puzzle. "
-
+    env_instruction: "You are solving the FrozenLake puzzle. Forbid the whole and go to the target. You may move to the unintended direction due to the slippery ice. Example answer format: <think>To forbid the hole and go to the target, I should go left then go up.</think><answer>Left || Up</answer>"
+    env_config: null

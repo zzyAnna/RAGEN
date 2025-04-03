@@ -15,7 +15,8 @@ from .utils import load_config, check_format
 
 class AlfredTXTEnv(BaseLanguageBasedEnv):
 
-    raw_env: AlfredTWEnv = AlfredTWEnv(config=load_config(AlfredEnvConfig().config_file), train_eval="train")
+    # raw_env: AlfredTWEnv = AlfredTWEnv(config=load_config(AlfredEnvConfig().config_file), train_eval="train")
+    # print("initializing alfworld env")
     # NOTE Currently raw_env cannot customize config.
 
     def __init__(self, config: AlfredEnvConfig = AlfredEnvConfig()):
