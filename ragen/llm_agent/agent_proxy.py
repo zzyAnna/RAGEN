@@ -9,6 +9,7 @@ import hydra
 import os
 from typing import List, Dict
 from verl.protocol import pad_dataproto_to_divisor, unpad_dataproto
+from ragen.zero_shot.base_llm import ConcurrentLLM
 
 class VllmWrapperWg: # Thi is a developing class for eval and test
 	def __init__(self, config, tokenizer):
@@ -64,6 +65,64 @@ class VllmWrapperWg: # Thi is a developing class for eval and test
 		lm_outputs.meta_info = lm_inputs.meta_info
 
 		return lm_outputs
+	
+class ApiCallingWrapperWg:
+    """Wrapper class for API-based LLM calls that fits into the VERL framework"""
+    
+    def __init__(self, config, tokenizer):
+        self.config = config
+        self.tokenizer = tokenizer
+        self.llm_kwargs = {
+            "max_tokens": config.api_calling.get("response_length", 500),
+            "temperature": config.api_calling.get("temperature", 0),
+            "top_p": config.api_calling.get("top_p", 1),
+        }
+        
+        self.llm = ConcurrentLLM(
+            provider=config.api_calling.get("provider_name", "openai"),
+            model_name=config.api_calling.get("model_name", "gpt-4o"),
+            api_key=config.api_calling.get("api_key", None),
+            max_concurrency=config.api_calling.get("max_concurrency", 10)
+        )
+        
+        print(f"API-based LLM ({self.provider_name} - {self.model_name}) initialized")
+
+
+    def generate_sequences(self, lm_inputs: DataProto) -> DataProto:
+        """
+        Convert the input ids to text, make API calls to generate responses, 
+        and create a DataProto with the results.
+        """
+        input_ids = lm_inputs.batch['input_ids']
+        input_texts = self.tokenizer.batch_decode(input_ids, skip_special_tokens=False)
+        input_texts = [i.replace("<|endoftext|>", "") for i in input_texts]
+        
+        # Extract env_ids and group_ids from input
+        env_ids = lm_inputs.non_tensor_batch.get('env_ids', None)
+        group_ids = lm_inputs.non_tensor_batch.get('group_ids', None)
+        
+        # Make async API calls using the run_batch method (which wraps asyncio.run internally)
+        results = self.llm.run_batch(
+            prompts=input_texts,
+            system_message=self.system_message,
+            temperature=self.temperature,
+            max_tokens=self.max_tokens,
+            top_p=self.top_p if hasattr(self, 'top_p') and self.top_p is not None else None
+        )
+        
+        # Extract the response texts
+        texts = [result["response"] if result["success"] else "" for result in results]
+        
+        # Create output DataProto
+        lm_outputs = DataProto()
+        lm_outputs.non_tensor_batch = {
+            'response_texts': texts,
+            'env_ids': env_ids,
+            'group_ids': group_ids
+        }
+        lm_outputs.meta_info = lm_inputs.meta_info
+        
+        return lm_outputs
 
 class LLMAgentProxy:
 	"""

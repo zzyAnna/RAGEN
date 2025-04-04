@@ -1,6 +1,6 @@
 from dataclasses import dataclass
 from abc import ABC, abstractmethod
-from typing import List, Dict, Optional, Union, Any
+from typing import List, Dict, Optional, Union, Any, Tuple
 import os
 import asyncio
 
@@ -48,7 +48,7 @@ class OpenAIProvider(LLMProvider):
 class AnthropicProvider(LLMProvider):
     """Anthropic Claude API provider implementation"""
     
-    def __init__(self, model_name: str = "claude-3-opus-20240229", api_key: Optional[str] = None):
+    def __init__(self, model_name: str = "claude-3.5-sonnet-20240620", api_key: Optional[str] = None):
         self.model_name = model_name
         self.api_key = api_key or os.environ.get("ANTHROPIC_API_KEY")
         if not self.api_key:
@@ -140,96 +140,56 @@ class ConcurrentLLM:
             return await self.provider.generate(messages, **kwargs)
     
     async def generate_batch(self, 
-                           prompts: List[str], 
-                           system_message: Optional[str] = None,
-                           **kwargs) -> List[Dict[str, Any]]:
-        """Generate responses for multiple prompts concurrently"""
-        tasks = []
+                       messages_list: List[List[Dict[str, str]]], 
+                       **kwargs) -> Tuple[List[Dict[str, Any]], List[List[Dict[str, str]]]]:
+        """Generate responses for multiple message sets concurrently
         
-        for prompt in prompts:
-            messages = []
-            if system_message:
-                messages.append({"role": "system", "content": system_message})
-            messages.append({"role": "user", "content": prompt})
+        Args:
+            messages_list: List of message arrays, where each array contains message dictionaries
+                        with 'role' and 'content' keys
+            **kwargs: Additional keyword arguments to pass to the generate method
             
-            task = asyncio.create_task(self.generate(messages, **kwargs))
-            tasks.append((prompt, task))
-        
+        Returns:
+            - List of dictionaries containing the messages, responses, and metadata
+            - List of messages that failed to generate
+        """
         results = []
-        for prompt, task in tasks:
-            try:
-                response = await task
-                results.append({
-                    "prompt": prompt,
-                    "response": response.content,
-                    "model": response.model_name,
-                    "success": True
-                })
-            except Exception as e:
-                results.append({
-                    "prompt": prompt,
-                    "error": str(e),
-                    "success": False
-                })
+        # Queue to store unfinished or failed tasks
+        retry_queue = messages_list.copy()
+        max_retries = kwargs.get("max_retries", 5)
         
-        return results
+        while retry_queue and max_retries > 0:
+            current_batch = retry_queue.copy()
+            retry_queue = []
+            tasks = []
+            
+            for messages in current_batch:
+                task = asyncio.create_task(self.generate(messages, **kwargs))
+                tasks.append((messages, task))
+            
+            for messages, task in tasks:
+                try:
+                    response = await task
+                    results.append({
+                        "messages": messages,
+                        "response": response.content,
+                        "model": response.model_name,
+                        "success": True
+                    })
+                except Exception as e:
+                    # Add to retry queue for failed tasks
+                    retry_queue.append(messages)
+            
+            # Decrement retry counter if we had failures
+            if retry_queue:
+                max_retries -= 1
+                await asyncio.sleep(5)
+        
+        return results, retry_queue
 
     def run_batch(self, 
-                prompts: List[str], 
-                system_message: Optional[str] = None,
-                **kwargs) -> List[Dict[str, Any]]:
-        """Synchronous wrapper for generate_batch"""
-        return asyncio.run(self.generate_batch(prompts, system_message, **kwargs))
+                  messages_list: List[List[Dict[str, str]]], 
+                  **kwargs) -> List[Dict[str, Any]]:
+        return asyncio.run(self.generate_batch(messages_list, **kwargs))
 
 
-# Example usage of TogetherProvider for async chat completion
-async def async_chat_completion(messages: List[str]):
-    """
-    Process multiple messages concurrently with Together AI.
-    
-    Args:
-        messages: List of message strings to process
-    """
-    llm = ConcurrentLLM("together")
-    results = await llm.generate_batch(messages)
-    
-    for result in results:
-        if result["success"]:
-            print(result["response"])
-        else:
-            print(f"Error: {result['error']}")
-
-# Example alternative using the provider directly
-async def async_chat_completion_direct(messages: List[str]):
-    """
-    Process multiple messages concurrently with Together AI using the API directly.
-    
-    Args:
-        messages: List of message strings to process
-    """
-    async_client = AsyncTogether(api_key=os.environ.get("TOGETHER_API_KEY"))
-    tasks = [
-        async_client.chat.completions.create(
-            model="meta-llama/Llama-3-70b-chat-hf",
-            messages=[{"role": "user", "content": message}],
-        )
-        for message in messages
-    ]
-    responses = await asyncio.gather(*tasks)
-    
-    for response in responses:
-        print(response.choices[0].message.content)
-
-# Example usage
-if __name__ == "__main__":
-    message_list = [
-        "What is the capital of France?",
-        "Write a short poem about programming",
-        "Explain quantum computing in simple terms"
-    ]
-    
-    # Using the ConcurrentLLM framework
-    asyncio.run(async_chat_completion(message_list))
-    
-    # Or using the direct method
-    # asyncio.run(async_chat_completion_direct(message_list))
