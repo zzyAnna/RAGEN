@@ -44,6 +44,9 @@ data:
   max_prompt_length: null
   max_response_length: null
   train_batch_size: 128
+  val_batch_size: 32 # ${data.train_batch_size} # 128
+  env_groups: 8
+  rollout_n: ${int_div:${data.train_batch_size}, ${data.env_groups}} # NOTE: need to check. equals batch_size / env_groups, different from "n", because this rollout_n determines the number of envs in the same group
 
 trainer:
   project_name: ragen_new
@@ -79,7 +82,7 @@ es_manager:
     group_size: 1 # should be set to 1 because val temperature is set to 0 and same prompt leads to same output
     env_configs:
       tags: ["SimpleSokoban"]
-      n_groups: [128] # [128] # If not set, all env names divide nums equally. Under the same group, the env config and env seed (prompt) are equal in each generation
+      n_groups: [32] # [128] # If not set, all env names divide nums equally. Under the same group, the env config and env seed (prompt) are equal in each generation
 
 ctx_manager:
   generation: # go to vllm

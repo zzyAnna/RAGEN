@@ -134,7 +134,18 @@ class ConcurrentLLM:
             else:
                 raise ValueError(f"Unknown provider: {provider}")
         
-        self.semaphore = asyncio.Semaphore(max_concurrency)
+        self.max_concurrency = max_concurrency
+        self._semaphore = None
+
+    @property
+    def semaphore(self):
+        """
+        Lazy initialization of the semaphore.
+        This ensures the semaphore is created in the event loop where it's used.
+        """
+        if self._semaphore is None:
+            self._semaphore = asyncio.Semaphore(self.max_concurrency)
+        return self._semaphore
     
     async def generate(self, messages: List[Dict[str, str]], **kwargs) -> LLMResponse:
         """Generate a response with concurrency control"""
