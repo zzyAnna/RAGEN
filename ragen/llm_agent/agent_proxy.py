@@ -72,23 +72,17 @@ class ApiCallingWrapperWg:
     def __init__(self, config, tokenizer):
         self.config = config
         self.tokenizer = tokenizer
-        api_config = config.get("api_calling", {})
-        self.llm_kwargs = {
-            "max_tokens": api_config.get("response_length", 500),
-            "temperature": api_config.get("temperature", 0),
-            "top_p": api_config.get("top_p", 1),
-        }
+        model_info = config.model_info[config.model_config.model_name]
+        self.llm_kwargs = model_info.generation_kwargs
         
-        # provider_name, model_name = api_config.get("provider_name", "anthropic"), api_config.get("model_name", "claude-3-7-sonnet-20250219")
-        provider_name, model_name = api_config.get("provider_name", "openai"), api_config.get("model_name", "gpt-4o")
+        
         self.llm = ConcurrentLLM(
-			provider=provider_name,
-            model_name=model_name,
-            api_key=api_config.get("api_key", None),
-            max_concurrency=api_config.get("max_concurrency", 10)
+			provider=model_info.provider_name,
+            model_name=model_info.model_name,
+            max_concurrency=config.model_config.max_concurrency
         )
         
-        print(f'API-based LLM ({provider_name} - {model_name}) initialized')
+        print(f'API-based LLM ({model_info.provider_name} - {model_info.model_name}) initialized')
 
 
     def generate_sequences(self, lm_inputs: DataProto) -> DataProto:
@@ -183,7 +177,7 @@ class LLMAgentProxy:
 # 	for k, v in metrics.items():
 # 		print(f'{k}: {v}')
 
-@hydra.main(version_base=None, config_path="../../config", config_name="base")
+@hydra.main(version_base=None, config_path="../../config", config_name="evaluate_api_llm")
 def main(config):
 	# detect config name from python -m ragen.llm_agent.agent_proxy --config_name frozen_lake
 	tokenizer = AutoTokenizer.from_pretrained(config.actor_rollout_ref.model.path)

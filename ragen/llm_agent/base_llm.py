@@ -3,6 +3,7 @@ from abc import ABC, abstractmethod
 from typing import List, Dict, Optional, Union, Any, Tuple
 import os
 import asyncio
+import time
 
 from anthropic import AsyncAnthropic
 from openai import AsyncOpenAI
@@ -34,11 +35,14 @@ class OpenAIProvider(LLMProvider):
         self.client = AsyncOpenAI(api_key=self.api_key)
     
     async def generate(self, messages: List[Dict[str, str]], **kwargs) -> LLMResponse:
+        if "o1-mini" in self.model_name:
+            if messages[0]["role"] == "system":
+                messages = messages[1:]
+            
         response = await self.client.chat.completions.create(
             model=self.model_name,
             messages=messages,
-            temperature=kwargs.get("temperature", 0),
-            max_tokens=kwargs.get("max_tokens", 500)
+            **kwargs
         )
         return LLMResponse(
             content=response.choices[0].message.content,
@@ -75,10 +79,9 @@ class AnthropicProvider(LLMProvider):
         
         response = await self.client.messages.create(
             model=self.model_name,
-            max_tokens=kwargs.get("max_tokens", 500),
-            temperature=kwargs.get("temperature", 0),
             system=system_content,
-            messages=chat_messages
+            messages=chat_messages,
+            **kwargs
         )
         return LLMResponse(
             content=response.content[0].text,
@@ -100,8 +103,7 @@ class TogetherProvider(LLMProvider):
         response = await self.client.chat.completions.create(
             model=self.model_name,
             messages=messages,
-            temperature=kwargs.get("temperature", 0),
-            max_tokens=kwargs.get("max_tokens", 500)
+            **kwargs
         )
         return LLMResponse(
             content=response.choices[0].message.content,
@@ -112,7 +114,7 @@ class ConcurrentLLM:
     """Unified concurrent interface for multiple LLM providers"""
     
     def __init__(self, provider: Union[str, LLMProvider], model_name: Optional[str] = None, 
-                api_key: Optional[str] = None, max_concurrency: int = 10):
+                api_key: Optional[str] = None, max_concurrency: int = 4):
         """
         Initialize the concurrent LLM client.
         
@@ -134,9 +136,10 @@ class ConcurrentLLM:
             else:
                 raise ValueError(f"Unknown provider: {provider}")
         
+        # Store max_concurrency but don't create the semaphore yet
         self.max_concurrency = max_concurrency
         self._semaphore = None
-
+    
     @property
     def semaphore(self):
         """
@@ -152,23 +155,12 @@ class ConcurrentLLM:
         async with self.semaphore:
             return await self.provider.generate(messages, **kwargs)
     
-    async def generate_batch(self, 
-                        messages_list: List[List[Dict[str, str]]], 
-                        **kwargs) -> Tuple[List[Dict[str, Any]], List[List[Dict[str, str]]]]:
-        """Generate responses for multiple message sets concurrently
-        
-        Args:
-            messages_list: List of message arrays, where each array contains message dictionaries
-                        with 'role' and 'content' keys
-            **kwargs: Additional keyword arguments to pass to the generate method
-            
-        Returns:
-            - List of dictionaries containing the messages, responses, and metadata
-            - List of messages that failed to generate
-        """
-        # Initialize results list with placeholders to maintain order
+    def run_batch(self, 
+                messages_list: List[List[Dict[str, str]]], 
+                **kwargs) -> Tuple[List[Dict[str, Any]], List[List[Dict[str, str]]]]:
+        """Process batches with retries in separate event loops, using id() to track messages"""
+
         results = [None] * len(messages_list)
-        # Map to track original positions
         position_map = {id(messages): i for i, messages in enumerate(messages_list)}
         
         # Queue to store unfinished or failed tasks
@@ -177,44 +169,49 @@ class ConcurrentLLM:
         retry_count = 0
         
         while current_batch and retry_count < max_retries:
-            tasks = []
+            async def process_batch():
+                self._semaphore = None  # Reset semaphore for this event loop
+                batch_results = []
+                failures = []
+                
+                tasks_with_messages = [(msg, asyncio.create_task(self.generate(msg, **kwargs))) 
+                                    for msg in current_batch]
+                for messages, task in tasks_with_messages:
+                    try:
+                        response = await task
+                        position = position_map[id(messages)]
+                        batch_results.append((position, {
+                            "messages": messages,
+                            "response": response.content,
+                            "model": response.model_name,
+                            "success": True
+                        }))
+                    except Exception as e:
+                        print(f'[DEBUG] error: {e}')
+                        failures.append(messages)
+                
+                return batch_results, failures
             
-            for messages in current_batch:
-                task = asyncio.create_task(self.generate(messages, **kwargs))
-                tasks.append((messages, task))
+            # Run in fresh event loop
+            batch_results, next_batch = asyncio.run(process_batch())
             
-            next_batch = []
-            
-            for messages, task in tasks:
-                try:
-                    response = await task
-                    # Get the original position and store result there
-                    position = position_map[id(messages)]
-                    results[position] = {
-                        "messages": messages,
-                        "response": response.content,
-                        "model": response.model_name,
-                        "success": True
-                    }
-                except Exception as e:
-                    # Add to next batch for retry
-                    print(f'[DEBUG] error: {e}')
-                    next_batch.append(messages)
+            # Update results with successful responses
+            for position, result in batch_results:
+                results[position] = result
             
             # Update for next iteration
             if next_batch:
                 retry_count += 1
+                # Update position map for failed messages
+                position_map = {id(messages): position_map[id(messages)] 
+                            for messages in next_batch}
+                
                 current_batch = next_batch
-                await asyncio.sleep(5)
-                print(f'[DEBUG] retry_count: {retry_count}')
+                time.sleep(5)
+                print(f'[DEBUG] {len(next_batch)} failed messages, retry_count: {retry_count}')
             else:
                 break
 
         return results, next_batch
-
-    def run_batch(self, 
-                  messages_list: List[List[Dict[str, str]]], 
-                  **kwargs) -> List[Dict[str, Any]]:
-        return asyncio.run(self.generate_batch(messages_list, **kwargs))
 
 
