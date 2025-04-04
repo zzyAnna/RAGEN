@@ -9,7 +9,7 @@ import hydra
 import os
 from typing import List, Dict
 from verl.protocol import pad_dataproto_to_divisor, unpad_dataproto
-from ragen.zero_shot.base_llm import ConcurrentLLM
+from .base_llm import ConcurrentLLM
 
 class VllmWrapperWg: # Thi is a developing class for eval and test
 	def __init__(self, config, tokenizer):
@@ -72,20 +72,23 @@ class ApiCallingWrapperWg:
     def __init__(self, config, tokenizer):
         self.config = config
         self.tokenizer = tokenizer
+        api_config = config.get("api_calling", {})
         self.llm_kwargs = {
-            "max_tokens": config.api_calling.get("response_length", 500),
-            "temperature": config.api_calling.get("temperature", 0),
-            "top_p": config.api_calling.get("top_p", 1),
+            "max_tokens": api_config.get("response_length", 500),
+            "temperature": api_config.get("temperature", 0),
+            "top_p": api_config.get("top_p", 1),
         }
         
+        # provider_name, model_name = api_config.get("provider_name", "anthropic"), api_config.get("model_name", "claude-3-7-sonnet-20250219")
+        provider_name, model_name = api_config.get("provider_name", "openai"), api_config.get("model_name", "gpt-4o")
         self.llm = ConcurrentLLM(
-            provider=config.api_calling.get("provider_name", "openai"),
-            model_name=config.api_calling.get("model_name", "gpt-4o"),
-            api_key=config.api_calling.get("api_key", None),
-            max_concurrency=config.api_calling.get("max_concurrency", 10)
+			provider=provider_name,
+            model_name=model_name,
+            api_key=api_config.get("api_key", None),
+            max_concurrency=api_config.get("max_concurrency", 10)
         )
         
-        print(f"API-based LLM ({self.provider_name} - {self.model_name}) initialized")
+        print(f'API-based LLM ({provider_name} - {model_name}) initialized')
 
 
     def generate_sequences(self, lm_inputs: DataProto) -> DataProto:
@@ -93,33 +96,22 @@ class ApiCallingWrapperWg:
         Convert the input ids to text, make API calls to generate responses, 
         and create a DataProto with the results.
         """
-        input_ids = lm_inputs.batch['input_ids']
-        input_texts = self.tokenizer.batch_decode(input_ids, skip_special_tokens=False)
-        input_texts = [i.replace("<|endoftext|>", "") for i in input_texts]
-        
-        # Extract env_ids and group_ids from input
-        env_ids = lm_inputs.non_tensor_batch.get('env_ids', None)
-        group_ids = lm_inputs.non_tensor_batch.get('group_ids', None)
-        
-        # Make async API calls using the run_batch method (which wraps asyncio.run internally)
-        results = self.llm.run_batch(
-            prompts=input_texts,
-            system_message=self.system_message,
-            temperature=self.temperature,
-            max_tokens=self.max_tokens,
-            top_p=self.top_p if hasattr(self, 'top_p') and self.top_p is not None else None
+
+        messages_list = lm_inputs.non_tensor_batch['messages_list'].tolist()
+        results, failed_messages = self.llm.run_batch(
+            messages_list=messages_list,
+            **self.llm_kwargs
         )
-        
-        # Extract the response texts
-        texts = [result["response"] if result["success"] else "" for result in results]
-        
-        # Create output DataProto
+        assert not failed_messages, f"Failed to generate responses for the following messages: {failed_messages}"
+
+        texts = [result["response"] for result in results]
+        print(f'[DEBUG] texts: {texts}')
         lm_outputs = DataProto()
         lm_outputs.non_tensor_batch = {
-            'response_texts': texts,
-            'env_ids': env_ids,
-            'group_ids': group_ids
-        }
+			'response_texts': texts,
+			'env_ids': lm_inputs.non_tensor_batch['env_ids'],
+			'group_ids': lm_inputs.non_tensor_batch['group_ids']
+		} # this is a bit hard-coded to bypass the __init__ check in DataProto
         lm_outputs.meta_info = lm_inputs.meta_info
         
         return lm_outputs
@@ -145,7 +137,7 @@ class LLMAgentProxy:
 			lm_outputs = unpad_dataproto(padded_lm_outputs, pad_size=pad_size)
 			lm_outputs.meta_info = lm_inputs.meta_info
 			lm_outputs.non_tensor_batch = lm_inputs.non_tensor_batch
-		elif isinstance(self.actor_wg, VllmWrapperWg):
+		elif isinstance(self.actor_wg, VllmWrapperWg) or isinstance(self.actor_wg, ApiCallingWrapperWg):
 			lm_outputs = self.actor_wg.generate_sequences(lm_inputs)
 		else:
 			raise ValueError(f"Unsupported actor worker type: {type(self.actor_wg)}")
@@ -170,16 +162,37 @@ class LLMAgentProxy:
 		rollouts = ctx_manager.formulate_rollouts(rollout_states)
 		return rollouts
 
+# @hydra.main(version_base=None, config_path="../../config", config_name="base")
+# def main(config):
+# 	# detect config name from python -m ragen.llm_agent.agent_proxy --config_name frozen_lake
+# 	os.environ["VLLM_WORKER_MULTIPROC_METHOD"] = "spawn"
+# 	tokenizer = AutoTokenizer.from_pretrained(config.actor_rollout_ref.model.path)
+# 	actor_wg = VllmWrapperWg(config, tokenizer)
+# 	proxy = LLMAgentProxy(config, actor_wg, tokenizer)
+# 	import time
+# 	start_time = time.time()
+# 	rollouts = proxy.rollout(DataProto(batch=None, non_tensor_batch=None, meta_info={'eos_token_id': 151645, 'pad_token_id': 151643, 'recompute_log_prob': False, 'do_sample': False, 'validate': True}), val=True)
+# 	end_time = time.time()
+# 	print(f'rollout time: {end_time - start_time} seconds')
+# 	# print rollout rewards from the rm_scores
+# 	rm_scores = rollouts.batch["rm_scores"]
+# 	metrics = rollouts.meta_info["metrics"]
+# 	avg_reward = rm_scores.sum(-1).mean().item()
+# 	print(f'rollout rewards: {avg_reward}')
+# 	print(f'metrics:')
+# 	for k, v in metrics.items():
+# 		print(f'{k}: {v}')
+
 @hydra.main(version_base=None, config_path="../../config", config_name="base")
 def main(config):
 	# detect config name from python -m ragen.llm_agent.agent_proxy --config_name frozen_lake
-	os.environ["VLLM_WORKER_MULTIPROC_METHOD"] = "spawn"
 	tokenizer = AutoTokenizer.from_pretrained(config.actor_rollout_ref.model.path)
-	actor_wg = VllmWrapperWg(config, tokenizer)
+	actor_wg = ApiCallingWrapperWg(config, tokenizer)
 	proxy = LLMAgentProxy(config, actor_wg, tokenizer)
 	import time
 	start_time = time.time()
 	rollouts = proxy.rollout(DataProto(batch=None, non_tensor_batch=None, meta_info={'eos_token_id': 151645, 'pad_token_id': 151643, 'recompute_log_prob': False, 'do_sample': False, 'validate': True}), val=True)
+	print(f'[DEBUG] rollouts: {rollouts}')
 	end_time = time.time()
 	print(f'rollout time: {end_time - start_time} seconds')
 	# print rollout rewards from the rm_scores

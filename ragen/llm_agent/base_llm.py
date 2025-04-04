@@ -4,7 +4,7 @@ from typing import List, Dict, Optional, Union, Any, Tuple
 import os
 import asyncio
 
-import anthropic
+from anthropic import AsyncAnthropic
 from openai import AsyncOpenAI
 from together import AsyncTogether
 
@@ -46,7 +46,9 @@ class OpenAIProvider(LLMProvider):
         )
 
 class AnthropicProvider(LLMProvider):
-    """Anthropic Claude API provider implementation"""
+    """Anthropic Claude API provider implementation
+    Refer to https://github.com/anthropics/anthropic-sdk-python
+    """
     
     def __init__(self, model_name: str = "claude-3.5-sonnet-20240620", api_key: Optional[str] = None):
         self.model_name = model_name
@@ -54,7 +56,7 @@ class AnthropicProvider(LLMProvider):
         if not self.api_key:
             raise ValueError("Anthropic API key not provided and not found in environment variables")
         
-        self.client = anthropic.Anthropic(api_key=self.api_key)
+        self.client = AsyncAnthropic(api_key=self.api_key)
     
     async def generate(self, messages: List[Dict[str, str]], **kwargs) -> LLMResponse:
         # Extract system message if present
@@ -126,7 +128,7 @@ class ConcurrentLLM:
             if provider.lower() == "openai":
                 self.provider = OpenAIProvider(model_name or "gpt-4o", api_key)
             elif provider.lower() == "anthropic":
-                self.provider = AnthropicProvider(model_name or "claude-3-opus-20240229", api_key)
+                self.provider = AnthropicProvider(model_name or "claude-3-7-sonnet-20250219", api_key)
             elif provider.lower() == "together":
                 self.provider = TogetherProvider(model_name or "meta-llama/Llama-3-70b-chat-hf", api_key)
             else:
@@ -140,8 +142,8 @@ class ConcurrentLLM:
             return await self.provider.generate(messages, **kwargs)
     
     async def generate_batch(self, 
-                       messages_list: List[List[Dict[str, str]]], 
-                       **kwargs) -> Tuple[List[Dict[str, Any]], List[List[Dict[str, str]]]]:
+                        messages_list: List[List[Dict[str, str]]], 
+                        **kwargs) -> Tuple[List[Dict[str, Any]], List[List[Dict[str, str]]]]:
         """Generate responses for multiple message sets concurrently
         
         Args:
@@ -153,39 +155,51 @@ class ConcurrentLLM:
             - List of dictionaries containing the messages, responses, and metadata
             - List of messages that failed to generate
         """
-        results = []
-        # Queue to store unfinished or failed tasks
-        retry_queue = messages_list.copy()
-        max_retries = kwargs.get("max_retries", 5)
+        # Initialize results list with placeholders to maintain order
+        results = [None] * len(messages_list)
+        # Map to track original positions
+        position_map = {id(messages): i for i, messages in enumerate(messages_list)}
         
-        while retry_queue and max_retries > 0:
-            current_batch = retry_queue.copy()
-            retry_queue = []
+        # Queue to store unfinished or failed tasks
+        current_batch = messages_list.copy()
+        max_retries = kwargs.get("max_retries", 100)
+        retry_count = 0
+        
+        while current_batch and retry_count < max_retries:
             tasks = []
             
             for messages in current_batch:
                 task = asyncio.create_task(self.generate(messages, **kwargs))
                 tasks.append((messages, task))
             
+            next_batch = []
+            
             for messages, task in tasks:
                 try:
                     response = await task
-                    results.append({
+                    # Get the original position and store result there
+                    position = position_map[id(messages)]
+                    results[position] = {
                         "messages": messages,
                         "response": response.content,
                         "model": response.model_name,
                         "success": True
-                    })
+                    }
                 except Exception as e:
-                    # Add to retry queue for failed tasks
-                    retry_queue.append(messages)
+                    # Add to next batch for retry
+                    print(f'[DEBUG] error: {e}')
+                    next_batch.append(messages)
             
-            # Decrement retry counter if we had failures
-            if retry_queue:
-                max_retries -= 1
+            # Update for next iteration
+            if next_batch:
+                retry_count += 1
+                current_batch = next_batch
                 await asyncio.sleep(5)
-        
-        return results, retry_queue
+                print(f'[DEBUG] retry_count: {retry_count}')
+            else:
+                break
+
+        return results, next_batch
 
     def run_batch(self, 
                   messages_list: List[List[Dict[str, str]]], 

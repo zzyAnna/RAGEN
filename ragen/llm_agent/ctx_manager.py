@@ -140,6 +140,7 @@ class ContextManager:
         prefix_lookup - from env_id to initial prompt
         """
         llm_input_texts = []
+        messages_list = [] # for api calling
         for env_output in env_outputs:
             if 'state' in env_output['history'][-1] and prepare_for_update:
                 env_output['history'] = env_output['history'][:-1] # when prepare for update, we do not add the state from the n+1 turn to the trajectory
@@ -166,7 +167,7 @@ class ContextManager:
             if not prepare_for_update:
                 text += "<think>" # force the LLM to think before answering
             llm_input_texts.append(text)
-        
+            messages_list.append(messages)
 
         inputs = self.tokenizer(llm_input_texts, return_tensors="pt", padding=True, padding_side="left", truncation=False) # do not truncate here. Process later at TODO
         input_ids, attention_mask = inputs.input_ids, inputs.attention_mask
@@ -190,6 +191,7 @@ class ContextManager:
         llm_inputs.non_tensor_batch = {
             "env_ids": np.array([env_output["env_id"] for env_output in env_outputs], dtype=object),
             "group_ids": np.array([env_output["group_id"] for env_output in env_outputs], dtype=object),
+            "messages_list": np.array(messages_list, dtype=object),
         }
 
         if prepare_for_update:
