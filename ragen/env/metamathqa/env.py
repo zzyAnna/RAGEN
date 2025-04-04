@@ -16,10 +16,12 @@ class MetaMathQAEnv(BaseLanguageBasedEnv):
         self.current_question_idx = None
         self.current_question = None
         self.correct_answer = None
+        self.step_num = None
         
         
     def _extract_answer(self, response):
         match = re.search(r"The answer is: (.*?)$", response, re.DOTALL)
+        print(response)
         if match:
             return match.group(1).strip()
         return None
@@ -29,31 +31,34 @@ class MetaMathQAEnv(BaseLanguageBasedEnv):
         with all_seed(seed):
             self.current_question_idx = random.randint(0, len(dataset) - 1)
         question_data = dataset[self.current_question_idx]
-        self.current_question = question_data['original_question']
+        self.current_question = question_data['query']
         self.correct_answer = self._extract_answer(question_data['response'])
-        
+        self.step_num = 0
         
         return self.current_question
         
     def step(self, action):
-        is_correct = self._check_answer(action)
-        reward = 1.0 if is_correct else 0.0
+        is_correct, is_valid = self._check_answer(action)
+        reward = 1.0 / (2 ** self.step_num) if is_correct else 0.0
         if is_correct:
             observation = "Correct!"
             done = True
         else:
             observation = "Incorrect. Please think again."
             done = False
-        return observation, reward, done, {}
+        self.step_num += 1
+        info = {"action_is_valid": is_valid, "success": is_correct}
+        return observation, reward, done, info
     
     def _check_answer(self, user_answer):
         """Check if the user's answer matches the correct answer."""
         user_answer = user_answer.strip()
-        normalized_user = re.sub(r'\s+', '', user_answer.lower())
+        normalized_answer = re.sub(r'\s+', '', user_answer.lower())
         if self.correct_answer:
-            normalized_correct = re.sub(r'\s+', '', self.correct_answer.lower())
-            return normalized_user == normalized_correct
-        return False
+            normalized_label = re.sub(r'\s+', '', self.correct_answer.lower())
+            is_correct = normalized_answer == normalized_label
+        is_valid = normalized_answer != ""
+        return is_correct, is_valid
 
 
 if __name__ == "__main__":
@@ -81,7 +86,9 @@ if __name__ == "__main__":
             break
         
         # Take a step in the environment with the user's answer
+        #breakpoint()
         obs, reward, done, info = env.step(user_answer)
+        
         
         # Print the results
         print("\nFeedback:", obs)
