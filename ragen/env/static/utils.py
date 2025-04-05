@@ -40,13 +40,14 @@ def process_metamathqa(item: Dict[str, Any]) -> Tuple[str, str]:
 def process_gsm8k(item: Dict[str, Any]) -> Tuple[str, str]:
     """Process GSM8K dataset item."""
     question = item["question"]
-    answer = extract_answer_from_text(item["answer"])
+    answer = item["answer"]
+    answer=answer.split("####")[1].strip().lower()
     return question, answer
 
 def process_theoremqa(item: Dict[str, Any]) -> Tuple[str, str]:
     """Process TheoremQA dataset item."""
-    question = item["question"]
-    answer = item["answer"]
+    question = item["Question"]
+    answer = str(item["Answer"])
     return question, answer
 
 def process_mmlu(item: Dict[str, Any]) -> Tuple[str, str]:
@@ -56,6 +57,12 @@ def process_mmlu(item: Dict[str, Any]) -> Tuple[str, str]:
     formatted_question = question + "\n" + "\n".join([f"{chr(65+i)}. {choice}" for i, choice in enumerate(choices)])
     answer = chr(65 + item['answer'])  # Convert to A, B, C, D format
     return formatted_question, answer
+
+def process_gpqa(item: Dict[str, Any]) -> Tuple[str, str]:
+    """Process GPQA dataset item."""
+    question = item["Question"]
+    answer = extract_answer_from_text(item["Correct Answer"])
+    return question, answer
 
 # ====== Scoring Functions ======
 
@@ -129,23 +136,41 @@ def compute_score_multiple_choice(prediction: str, label: str) -> Dict[str, Any]
 ##########################registration###########################
 REGISTERD_STATIC_ENV = {
     "metamathqa": {
-        "hf_path": "meta-math/MetaMathQA",
+        "config": {
+            "path": "meta-math/MetaMathQA",
+        },
         "processor": process_metamathqa,
         "compute_score": compute_score_exact_match
     },
     "gsm8k": {
-        "hf_path": "gsm8k",
+        "config": {
+            "path": "openai/gsm8k",
+            "name":"main"
+        },
         "processor": process_gsm8k,
         "compute_score": compute_score_numeric
     },
-    "theoremqa": {
-        "hf_path": "theoremqa/theoremqa",
-        "processor": process_theoremqa,
-        "compute_score": compute_score_numeric
-    },
+    # "theoremqa": {
+    #     "config": {
+    #         "path": "TIGER-Lab/TheoremQA",
+    #     },
+    #     "processor": process_theoremqa,
+    #     "compute_score": compute_score_numeric
+    # },
     "mmlu": {
-        "hf_path": "cais/mmlu",
+        "config": {
+            "path": "cais/mmlu",
+            "name": "abstract_algebra",
+        },
         "processor": process_mmlu,
         "compute_score": compute_score_multiple_choice
-    }
+    },
+    # "gpqa":{
+    #     "config": {
+    #         "path": "Idavidrein/gpqa",
+    #         "name": "gpqa_main",
+    #     },
+    #     "processor": process_gpqa,
+    #     "compute_score": compute_score_exact_match
+    # }
 }

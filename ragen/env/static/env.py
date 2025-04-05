@@ -16,7 +16,10 @@ class StaticEnv(BaseLanguageBasedEnv):
         super(StaticEnv, self).__init__()
         
         self.config = config
-        self.dataset = load_dataset(path=REGISTERD_STATIC_ENV[self.config.dataset_name]["hf_path"], cache_dir=self.config.cache_dir)
+        dataset_config=getattr(config, "dataset_config", None)
+        if dataset_config is None:
+            dataset_config=REGISTERD_STATIC_ENV[self.config.dataset_name]["config"]
+        self.dataset = load_dataset(**dataset_config, cache_dir=self.config.cache_dir)
         
         if self.config.split is None:
             self.split = list(self.dataset.keys())[0]
@@ -66,40 +69,43 @@ class StaticEnv(BaseLanguageBasedEnv):
 
 if __name__ == "__main__":
     # Example usage
-    config = StaticEnvConfig(
-        dataset_name="metamathqa",
-        cache_dir="./data",
-        split="train",
-    )
     
-    # Initialize the environment
-    env = StaticEnv(config)
     
-    # Reset the environment to get the first question
-    print("\n--- New Question ---")
-    obs = env.reset(seed=42)
-    print(obs)
     
-    print("\n--- Correct Answer ---")
-    print(env.correct_answer)
-    
-    # Interactive loop for testing
-    while True:
-        user_answer = input("\nEnter your answer (or 'q' to quit): ")
-        if user_answer.lower() == 'q':
-            break
+    for dataset_name in REGISTERD_STATIC_ENV.keys():
+        config = StaticEnvConfig(
+            dataset_name=dataset_name,
+            cache_dir="./data",
+        )
         
-        # Take a step in the environment with the user's answer
-        obs, reward, done, info = env.step(user_answer)
+        # Initialize the environment
+        env = StaticEnv(config)
         
-        # Print the results
-        print(f"\n{obs}")
+        # Reset the environment to get the first question
+        print("\n--- New Question ---")
+        obs = env.reset(seed=42)
+        print(obs)
         
-        # If the episode is done, reset the environment for a new question
-        if done:
-            print(f"\ntotal step: {env.step_num}, reward: {reward}")
-            print("\n--- New Question ---")
-            question = env.reset()
-            print(question)
-            print("\n--- Correct Answer ---")
-            print(env.correct_answer)
+        print("\n--- Correct Answer ---")
+        print(env.correct_answer)
+        
+        # Interactive loop for testing
+        while True:
+            user_answer = input("\nEnter your answer (or 'q' to quit): ")
+            if user_answer.lower() == 'q':
+                break
+            
+            # Take a step in the environment with the user's answer
+            obs, reward, done, info = env.step(user_answer)
+            
+            # Print the results
+            print(f"\n{obs}")
+            
+            # If the episode is done, reset the environment for a new question
+            if done:
+                print(f"\ntotal step: {env.step_num}, reward: {reward}")
+                print("\n--- New Question ---")
+                question = env.reset()
+                print(question)
+                print("\n--- Correct Answer ---")
+                print(env.correct_answer)
