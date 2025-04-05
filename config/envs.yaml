@@ -2,7 +2,7 @@ custom_envs:
   SimpleSokoban:
     env_type: sokoban
     env_instruction: "You are solving the Simple Sokoban puzzle. Move all boxes to targets. Example answer format: <think>I should go left first, then move the box to the up side.</think><answer>Left || Up</answer>"
-    max_tokens: 200
+    max_tokens: 200 # used to curate llm prompt "max words", not used for rollout
     env_config: # keys should be a subset of SokobanConfig
       dim_x: 6
       dim_y: 6
@@ -43,12 +43,18 @@ custom_envs:
 
   Bandit:
     env_type: bandit
-    env_instruction: "You are solving the Bandit puzzle. Guess which machine has the higher expected reward. Example answer format: <think>Among the machines of Milk, Coffee, and Tea, I should pull the lever Coffee because coffee is often associated with alertness and energy, suggesting it may offer a higher reward.</think><answer>Coffee</answer>"
+    env_instruction: "You are solving the Bandit puzzle. Guess which machine has the higher expected reward. Example answer format: <think>I see machines of milk(1), coffee(2), tea(3), and need to choose from [1, 2, 3]. Let analyze. I should pull the lever coffee, which is often associated with alertness and energy, suggesting it may offer a higher reward.</think><answer>coffee</answer>"
     max_tokens: 200
     env_config: null
 
   FrozenLake:
     env_type: frozen_lake
     env_instruction: "You are solving the FrozenLake puzzle. Forbid the whole and go to the target. You may move to the unintended direction due to the slippery ice. Example answer format: <think>To forbid the hole and go to the target, I should go left then go up.</think><answer>Left || Up</answer>"
+    max_tokens: 200
+    env_config: null
+
+  MetamathQA:
+    env_type: metamathqa
+    env_instruction: "You are solving Math problems. "
     max_tokens: 200
     env_config: null

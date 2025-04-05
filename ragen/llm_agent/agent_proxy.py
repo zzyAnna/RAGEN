@@ -36,10 +36,9 @@ class VllmWrapperWg: # Thi is a developing class for eval and test
 		print("LLM initialized")
 		self.sampling_params = SamplingParams(
 			max_tokens=ro_config.response_length,
-			# temperature=ro_config.temperature,
-			temperature=0,
-			top_p=ro_config.top_p,
-			top_k=ro_config.top_k,
+			temperature=ro_config.val_kwargs.temperature,
+			top_p=ro_config.val_kwargs.top_p,
+			top_k=ro_config.val_kwargs.top_k,
 		)
 
 	def generate_sequences(self, lm_inputs: DataProto):
@@ -151,7 +150,6 @@ class LLMAgentProxy:
 			env_outputs: List[Dict] = es_manager.step(env_inputs)
 			if len(env_outputs) == 0: # all finished
 				break
-		breakpoint()
 		rollout_states = es_manager.get_rollout_states() 
 		rollouts = ctx_manager.formulate_rollouts(rollout_states)
 		return rollouts
