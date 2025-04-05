@@ -17,6 +17,7 @@ class MetaMathQAEnv(BaseLanguageBasedEnv):
         self.current_question = None
         self.correct_answer = None
         self.step_num = None
+        self.render_cache = None
         
         
     def _extract_answer(self, response):
@@ -34,8 +35,8 @@ class MetaMathQAEnv(BaseLanguageBasedEnv):
         self.current_question = question_data['query']
         self.correct_answer = self._extract_answer(question_data['response'])
         self.step_num = 0
-        
-        return self.current_question
+        self.render_cache = self.current_question
+        return self.render_cache
         
     def step(self, action):
         is_correct, is_valid = self._check_answer(action)
@@ -48,7 +49,8 @@ class MetaMathQAEnv(BaseLanguageBasedEnv):
             done = False
         self.step_num += 1
         info = {"action_is_valid": is_valid, "success": is_correct}
-        return observation, reward, done, info
+        self.render_cache = observation
+        return self.render_cache, reward, done, info
     
     def _check_answer(self, user_answer):
         """Check if the user's answer matches the correct answer."""
@@ -59,6 +61,9 @@ class MetaMathQAEnv(BaseLanguageBasedEnv):
             is_correct = normalized_answer == normalized_label
         is_valid = normalized_answer != ""
         return is_correct, is_valid
+
+    def render(self):
+        return self.render_cache
 
 
 if __name__ == "__main__":

@@ -137,7 +137,8 @@ class RayAgentTrainer(VerlRayPPOTrainer):
 
         self._maybe_log_val_generations(inputs=sample_inputs, outputs=sample_outputs, scores=sample_scores)
 
-        reward_tensor = torch.cat(reward_tensor_lst, dim=0).sum(-1).cpu()  # (batch_size,)
+        reward_tensor_lst = [i.sum(-1).cpu() for i in reward_tensor_lst]
+        reward_tensor = torch.cat(reward_tensor_lst) # (batch_size,)
         data_sources = np.concatenate(data_source_lst, axis=0)
 
         # evaluate test_score based on data source
