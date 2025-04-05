@@ -2,6 +2,9 @@ defaults:
   - ppo_trainer # this is a symbolic link to the verl/verl/trainer/config/ppo_trainer.yaml file
   - envs
 
+system:
+  CUDA_VISIBLE_DEVICES: "0"
+
 actor_rollout_ref:
   model:
     path: Qwen/Qwen2.5-0.5B-Instruct
