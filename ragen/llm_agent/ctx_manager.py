@@ -125,8 +125,9 @@ class ContextManager:
                 action_content = action_content.replace(special_token, "").strip()
                 think_content = think_content.replace(special_token, "").strip()
             actions = [action.strip() for action in action_content.split(self.action_sep) if action.strip()]
-            if len(actions) > self.config.agent_proxy.max_actions:
-                actions = actions[:self.config.agent_proxy.max_actions] #Only the first MAX_ACTIONS actions are kept in the rollout.
+            max_actions=getattr(self.config.agent_proxy, "max_actions", 10)
+            if len(actions) > max_actions:
+                actions = actions[:max_actions] #Only the first MAX_ACTIONS actions are kept in the rollout.
                 action_content = (" " + self.action_sep + " ").join(actions)
 
         llm_response = "<think>" + think_content + "</think>" + "<answer>" + action_content + "</answer>"
