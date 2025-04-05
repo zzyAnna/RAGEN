@@ -224,6 +224,23 @@ if __name__ == "__main__":
     # llm = ConcurrentLLM(provider="openai", model_name="gpt-4o")
     # llm = ConcurrentLLM(provider="anthropic", model_name="claude-3-5-sonnet-20240620")
     llm = ConcurrentLLM(provider="together", model_name="Qwen/Qwen2.5-7B-Instruct-Turbo")
-    messages = [[{"role": "user", "content": "what is 2+2?"}], [{"role": "user", "content": "what is 2+3?"}]]
+    messages = [
+        [{"role": "user", "content": "what is 2+2?"}],
+        [{"role": "user", "content": "what is 2+3?"}],
+        [{"role": "user", "content": "what is 2+4?"}],
+        [{"role": "user", "content": "what is 2+5?"}],
+        [{"role": "user", "content": "what is 2+6?"}],
+        [{"role": "user", "content": "what is 2+7?"}],
+        [{"role": "user", "content": "what is 2+8?"}],
+        [{"role": "user", "content": "what is 2+9?"}],
+        [{"role": "user", "content": "what is 2+10?"}],
+        [{"role": "user", "content": "what is 2+11?"}],
+        [{"role": "user", "content": "what is 2+12?"}],
+        [{"role": "user", "content": "what is 2+13?"}],
+        [{"role": "user", "content": "what is 2+14?"}],
+        [{"role": "user", "content": "what is 2+15?"}],
+        [{"role": "user", "content": "what is 2+16?"}],
+        [{"role": "user", "content": "what is 2+17?"}],
+    ]
     response = llm.run_batch(messages, max_tokens=100)
     print(f"final response: {response}")

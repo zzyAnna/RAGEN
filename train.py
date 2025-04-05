@@ -191,21 +191,37 @@ class TaskRunner:
 
         from verl.trainer.ppo.ray_trainer import ResourcePoolManager, Role
 
+        # role_worker_mapping = {
+        #     Role.ActorRollout: ray.remote(ActorRolloutRefWorker),
+        #     Role.Critic: ray.remote(CriticWorker),
+        #     Role.RefPolicy: ray.remote(ActorRolloutRefWorker)
+        # }
         role_worker_mapping = {
             Role.ActorRollout: ray.remote(ActorRolloutRefWorker),
             Role.Critic: ray.remote(CriticWorker),
-            Role.RefPolicy: ray.remote(ActorRolloutRefWorker)
         }
-
+        if config.actor_rollout_ref.actor.use_ref:
+            print("[DEBUG] using ref policy")
+            role_worker_mapping[Role.RefPolicy] = ray.remote(ActorRolloutRefWorker)
+        else:
+            print("[DEBUG] not using ref policy, setting use_kl_loss to False")
+            config.actor_rollout_ref.actor.use_kl_loss = False
         global_pool_id = 'global_pool'
         resource_pool_spec = {
             global_pool_id: [config.trainer.n_gpus_per_node] * config.trainer.nnodes,
         }
+
         mapping = {
             Role.ActorRollout: global_pool_id,
             Role.Critic: global_pool_id,
-            Role.RefPolicy: global_pool_id,
         }
+        if config.actor_rollout_ref.actor.use_ref:
+            mapping[Role.RefPolicy] = global_pool_id
+        # mapping = {
+        #     Role.ActorRollout: global_pool_id,
+        #     Role.Critic: global_pool_id,
+        #     Role.RefPolicy: global_pool_id,
+        # }
 
         # we should adopt a multi-source reward function here
         # - for rule-based rm, we directly call a reward score
