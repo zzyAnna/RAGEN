@@ -16,6 +16,7 @@ actor_rollout_ref:
     micro_batch_size_per_gpu: null # following micro_batch_size_per_gpu
     ppo_micro_batch_size_per_gpu: null # following micro_batch_size_per_gpu
     use_kl_loss: True
+    use_ref: True
     kl_loss_coef: 0.01
     kl_loss_type: mse
     optim:
