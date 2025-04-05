@@ -44,9 +44,6 @@ data:
   max_prompt_length: null
   max_response_length: null
   train_batch_size: 128
-  val_batch_size: ${data.train_batch_size} # 128
-  env_groups: 8
-  rollout_n: ${int_div:${data.train_batch_size}, ${data.env_groups}} # NOTE: need to check. equals batch_size / env_groups, different from "n", because this rollout_n determines the number of envs in the same group
 
 trainer:
   project_name: ragen_new
