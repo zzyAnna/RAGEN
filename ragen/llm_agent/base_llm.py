@@ -44,6 +44,8 @@ class OpenAIProvider(LLMProvider):
             messages=messages,
             **kwargs
         )
+        if response.choices[0].finish_reason in ['length', 'content_filter']:
+            raise ValueError("Content filtered or length exceeded")
         return LLMResponse(
             content=response.choices[0].message.content,
             model_name=response.model
@@ -83,6 +85,8 @@ class AnthropicProvider(LLMProvider):
             messages=chat_messages,
             **kwargs
         )
+        if response.stop_reason == "max_tokens":
+            raise ValueError("Max tokens exceeded")
         return LLMResponse(
             content=response.content[0].text,
             model_name=response.model
@@ -215,3 +219,11 @@ class ConcurrentLLM:
         return results, next_batch
 
 
+
+if __name__ == "__main__":
+    # llm = ConcurrentLLM(provider="openai", model_name="gpt-4o")
+    # llm = ConcurrentLLM(provider="anthropic", model_name="claude-3-5-sonnet-20240620")
+    llm = ConcurrentLLM(provider="together", model_name="Qwen/Qwen2.5-7B-Instruct-Turbo")
+    messages = [[{"role": "user", "content": "what is 2+2?"}], [{"role": "user", "content": "what is 2+3?"}]]
+    response = llm.run_batch(messages, max_tokens=100)
+    print(f"final response: {response}")

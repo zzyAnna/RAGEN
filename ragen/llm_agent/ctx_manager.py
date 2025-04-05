@@ -80,6 +80,8 @@ class ContextManager:
     def _init_prefix_lookup(self):
         prefix_lookup = {}
         prefixes = {}
+        env_config_lookup = {}
+        env_config = {}
         for env_tag, env_config in self.config.custom_envs.items():
             env_config_new = asdict(REGISTERED_ENV_CONFIGS[env_config.env_type]())
             for k,v in env_config.items():
@@ -93,6 +95,7 @@ class ContextManager:
                 action_lookup_str += f"\nYou can make up to {self.config.agent_proxy.max_actions} actions, separated by the action separator \" " + self.action_sep + " \"\n"
                 env_instruction += action_lookup_str
             prefixes[env_tag] = env_instruction
+            env_config_lookup[env_tag] = {'max_tokens': env_config.get("max_tokens", self.config.actor_rollout_ref.rollout.response_length)}
 
         tags = self.es_cfg.env_configs.tags
         n_groups = self.es_cfg.env_configs.n_groups
@@ -105,10 +108,11 @@ class ContextManager:
             end_idx = (cur_group + n_group) * group_size
             for i in range(start_idx, end_idx):
                 prefix_lookup[i] = env_instruction
+                env_config_lookup[i] = env_config_lookup[env_tag]
             cur_group += n_group
             
         self.prefix_lookup = prefix_lookup
-        
+        self.env_config_lookup = env_config_lookup
 
     def _parse_response(self, response: str) -> List:
         pattern = r'<think>(.*?)</think>\s*<answer>(.*?)</answer>'
@@ -146,7 +150,7 @@ class ContextManager:
                 env_output['history'] = env_output['history'][:-1] # when prepare for update, we do not add the state from the n+1 turn to the trajectory
 
             messages = [
-                {"role": "system", "content": "You're a helpful assistant. You always respond by first wrapping your thoughts in <think>...</think>, then giving your answer in <answer>...</answer>."}, 
+                {"role": "system", "content": f"You're a helpful assistant. You always respond by first wrapping your thoughts in <think>...</think>, then giving your answer in <answer>...</answer>. Max response length: {self.env_config_lookup[env_output['env_id']]['max_tokens']} words (tokens)."}, 
                 {"role": "user", "content": self.prefix_lookup[env_output["env_id"]]}
             ]
 

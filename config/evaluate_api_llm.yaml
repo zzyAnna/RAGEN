@@ -2,7 +2,7 @@ defaults:
   - base # this is a symbolic link to the verl/verl/trainer/config/ppo_trainer.yaml file
 
 model_config:
-  model_name: Qwen2.5-72B-Instruct
+  model_name: gpt-4o
   max_concurrency: 8
 
 model_info:
