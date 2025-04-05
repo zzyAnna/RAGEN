@@ -1,8 +1,6 @@
 from abc import ABC, abstractmethod
 import re
 from typing import Optional, List, Tuple, Any, Dict
-from transformers import AutoTokenizer
-import torch
 
 class BaseEnv(ABC):
     """
