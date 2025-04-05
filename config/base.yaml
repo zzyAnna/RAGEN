@@ -44,15 +44,12 @@ data:
   max_prompt_length: null
   max_response_length: null
   train_batch_size: 128
-  val_batch_size: ${data.train_batch_size} # 128
-  env_groups: 8
-  rollout_n: ${int_div:${data.train_batch_size}, ${data.env_groups}} # NOTE: need to check. equals batch_size / env_groups, different from "n", because this rollout_n determines the number of envs in the same group
 
 trainer:
   project_name: ragen_new
   experiment_name: test
   total_training_steps: 200
-  validation_steps: 2 # validation instances = validation_steps * val_batch_size
+  validation_steps: 2 # validation instances = validation_steps * val_env_groups * group_size
   val_before_train: True
   n_gpus_per_node: 1
   test_freq: 10
@@ -61,24 +58,24 @@ trainer:
 
 agent_proxy:
   max_turn: 5
-  rollout_n: ${data.rollout_n}
   action_sep: "||"
   max_actions: 3 # how many actions can be output at most in a single turn
   use_turn_scores: False # important to GAE when applying token-level rewards to token-level advantages. If False, will take the sum of scores as the reward for the last turn.
-  score_normalization: "batch_mean" # TODO
+  reward_normalization:
+    group_size: "env" # env / batch / prompt
+    method: "mean_std"
 
 es_manager:
   format_penalty: -1.0
-  group_size: ${agent_proxy.rollout_n}
   train:
-    env_groups: ${data.env_groups} 
+    env_groups: 8
     # under the same group, the env config and env seed are ensured to be equal
-    group_size: ${es_manager.group_size}
+    group_size: 16
     env_configs:
       tags: ["SimpleSokoban"]
       n_groups: [8] # If not set, all env names divide nums equally. Under the same group, the env config and env seed (prompt) are equal in each generation
   val:
-    env_groups: ${data.val_batch_size}
+    env_groups: 128
     group_size: 1 # should be set to 1 because val temperature is set to 0 and same prompt leads to same output
     env_configs:
       tags: ["SimpleSokoban"]

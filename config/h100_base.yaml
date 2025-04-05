@@ -1,0 +1,42 @@
+defaults:
+  - base # this is a symbolic link to the verl/verl/trainer/config/ppo_trainer.yaml file
+
+actor_rollout_ref:
+  actor:
+    ppo_mini_batch_size: 64
+    micro_batch_size_per_gpu: 8
+    ppo_micro_batch_size_per_gpu: 8
+  ref:
+    log_prob_micro_batch_size_per_gpu: 8
+  rollout:
+    log_prob_micro_batch_size_per_gpu: 8
+    tensor_model_parallel_size: 2
+
+critic:
+  ppo_mini_batch_size: ${actor_rollout_ref.actor.ppo_mini_batch_size}
+  ppo_micro_batch_size_per_gpu: 8
+
+trainer:
+  n_gpus_per_node: 8
+  project_name: ragen_new
+  experiment_name: test-0.5B-twoenvs-removeinvalid
+
+data:
+  train_batch_size: ${mul:${es_manager.train.env_groups}, ${es_manager.train.group_size}}
+
+es_manager:
+  format_penalty: -1.0
+  train:
+    env_groups: 16
+    # under the same group, the env config and env seed are ensured to be equal
+    group_size: 16
+    env_configs:
+      tags: ["SimpleSokoban", "FrozenLake"] #, "Bandit", "Countdown"]
+      n_groups: [8, 8] #, 8, 8] # If not set, all env names divide nums equally. Under the same group, the env config and env seed (prompt) are equal in each generation
+  val:
+    env_groups: 256
+    group_size: 1 # should be set to 1 because val temperature is set to 0 and same prompt leads to same output
+    env_configs:
+      tags: ["SimpleSokoban", "FrozenLake"] #, "Bandit", "Countdown"]
+      n_groups: [128, 128] #, 128, 128] # If not set, all env names divide nums equally. Under the same group, the env config and env seed (prompt) are equal in each generation
+

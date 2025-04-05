@@ -115,8 +115,8 @@ main() {
     echo -e "${GREEN}Installation completed successfully!${NC}"
     echo "To activate the environment, run: conda activate ragen"
     
-    export CMAKE_POLICY_VERSION_MINIMUM=3.5 && pip install alfworld[full]
-    alfworld-download
+    # export CMAKE_POLICY_VERSION_MINIMUM=3.5 && pip install alfworld[full]
+    # alfworld-download
 }
 
 # Run main installation
