@@ -132,6 +132,52 @@ class ContextManager:
         llm_response = "<think>" + think_content + "</think>" + "<answer>" + action_content + "</answer>"
         return llm_response, actions
         
+    def _normalize_score_tensor(self, score_tensor: torch.Tensor, env_outputs: List[Dict]) -> torch.Tensor:
+        """
+        Normalize the score tensor to be between 0 and 1.
+        """
+        assert self.config.agent_proxy.use_turn_scores == False, "Reward normalization is not supported for use_turn_scores == True"
+        
+        rn_cfg = self.config.agent_proxy.reward_normalization
+        grouping, method = rn_cfg.grouping, rn_cfg.method
+        if grouping == "prompt":
+            group_tags = [env_output["group_id"] for env_output in env_outputs]
+        elif grouping == "env":
+            group_tags = [env_output["tag"] for env_output in env_outputs]
+        elif grouping == "batch":
+            group_tags = [1] * len(env_outputs)
+        else:
+            raise ValueError(f"Invalid grouping: {grouping}")
+
+
+        if method == "mean_std":
+            norm_func = lambda x: (x - x.mean(dim=-1, keepdim=True)) / x.std(dim=-1, keepdim=True)
+        elif method == "mean":
+            norm_func = lambda x: (x - x.mean(dim=-1, keepdim=True))
+        else:
+            raise ValueError(f"Invalid normalization method: {method}")
+
+        # apply groupwise normalization
+        group2index = {}
+        for i, env_tag in enumerate(group_tags):
+            if env_tag not in group2index:
+                group2index[env_tag] = []
+            group2index[env_tag].append(i)
+        group2index = {k: torch.tensor(v) for k, v in group2index.items()}
+
+        
+        acc_scores = score_tensor[:, -1]
+        normalized_acc_scores = acc_scores.clone()
+        for group, index in group2index.items():
+            normalized_acc_scores[index] = norm_func(normalized_acc_scores[index])
+
+        # apply penalty
+        penalty = torch.tensor([env_output["penalty"] for env_output in env_outputs], dtype=torch.float32)
+        normalized_acc_scores = normalized_acc_scores + penalty
+
+        score_tensor[:, -1] = normalized_acc_scores
+
+        return score_tensor
     
     def get_lm_inputs(self, env_outputs: List[Dict], prepare_for_update: bool) -> DataProto:
         """
@@ -179,6 +225,7 @@ class ContextManager:
         if prepare_for_update:
             scores = [[i['reward'] for i in env_output['history']] for env_output in env_outputs]
             loss_mask, score_tensor = get_loss_mask_and_scores(input_ids, self.tokenizer, scores, use_turn_scores=self.config.agent_proxy.use_turn_scores)
+            normalized_score_tensor = self._normalize_score_tensor(score_tensor, env_outputs)
 
         llm_inputs = DataProto()
         llm_inputs.batch = TensorDict({
@@ -190,7 +237,7 @@ class ContextManager:
 
         if prepare_for_update:
             llm_inputs.batch["loss_mask"] = loss_mask # remove the first token
-            llm_inputs.batch["rm_scores"] = score_tensor # remove the first token
+            llm_inputs.batch["rm_scores"] = normalized_score_tensor # remove the first token
 
         llm_inputs.non_tensor_batch = {
             "env_ids": np.array([env_output["env_id"] for env_output in env_outputs], dtype=object),

@@ -37,7 +37,7 @@ custom_envs:
 
   Countdown:
     env_type: countdown
-    env_instruction: "You are solving the Countdown puzzle. You should use the num list to create an equation that equals the target. Example answer format: <think> To find an equation using [3, 5, 2] to get 10. Let's check 3 + 5 = 8, 8 + 2 = 10. So the answer is 3 + 5 + 2 = 10. </think><answer>3 + 5 + 2</answer>"
+    env_instruction: "You are solving the Countdown puzzle. You should use the num list to create an equation that equals the target. Example answer format: <think> To find an equation using [3, 5, 2] to get 4. Let's check 2 + 5 = 7, 7 - 3 = 4. So the answer is 2 + 5 - 3 = 4. </think><answer>2 + 5 - 3</answer>"
     max_tokens: 200
     env_config: null
 

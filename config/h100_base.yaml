@@ -6,26 +6,28 @@ system:
 
 actor_rollout_ref:
   actor:
-    ppo_mini_batch_size: ${int_div:${data.train_batch_size}, 4} # 128 -> 32
-    micro_batch_size_per_gpu: ${int_div:${actor_rollout_ref.actor.ppo_mini_batch_size}, 4} # 32 -> 8
-    ppo_micro_batch_size_per_gpu: ${int_div:${actor_rollout_ref.actor.ppo_mini_batch_size}, 4} # 32 -> 8
+    ppo_mini_batch_size: null # by default, ppo_mini_batch_size = train_batch_size / 4
+    micro_batch_size_per_gpu: null # by default, no grad accumulation
+    ppo_micro_batch_size_per_gpu: null # by default, no grad accumulation
   ref:
-    log_prob_micro_batch_size_per_gpu: ${int_div:${actor_rollout_ref.actor.ppo_mini_batch_size}, 4} # 32 -> 8
+    log_prob_micro_batch_size_per_gpu: null # by default, no grad accumulation
   rollout:
-    log_prob_micro_batch_size_per_gpu: ${int_div:${actor_rollout_ref.actor.ppo_mini_batch_size}, 4} # 32 -> 8
+    log_prob_micro_batch_size_per_gpu: null # by default, no grad accumulation
     tensor_model_parallel_size: 2
 
 critic:
-  ppo_mini_batch_size: ${int_div:${data.train_batch_size}, 4} # 128 -> 32
-  ppo_micro_batch_size_per_gpu: ${int_div:${critic.ppo_mini_batch_size}, 4} # 32 ->  8
+  ppo_mini_batch_size: null # by default, ppo_mini_batch_size = train_batch_size / 4
+  ppo_micro_batch_size_per_gpu: null # by default, no grad accumulation
 
 trainer:
   n_gpus_per_node: 4
   project_name: ragen_new
   experiment_name: test-0.5B-frozenlake-removeinvalid
 
-data:
-  train_batch_size: ${mul:${es_manager.train.env_groups}, ${es_manager.train.group_size}}
+agent_proxy:
+  reward_normalization:
+    grouping: "env" # env / batch / prompt
+    method: "mean_std"
 
 es_manager:
   format_penalty: -1.0

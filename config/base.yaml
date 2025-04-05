@@ -3,7 +3,7 @@ defaults:
   - envs
 
 system:
-  CUDA_VISIBLE_DEVICES: "0"
+  CUDA_VISIBLE_DEVICES: "7"
 
 actor_rollout_ref:
   model:
@@ -46,7 +46,7 @@ critic:
 data:
   max_prompt_length: null
   max_response_length: null
-  train_batch_size: 128
+  train_batch_size: null
 
 trainer:
   project_name: ragen_new
@@ -65,11 +65,11 @@ agent_proxy:
   max_actions: 3 # how many actions can be output at most in a single turn
   use_turn_scores: False # important to GAE when applying token-level rewards to token-level advantages. If False, will take the sum of scores as the reward for the last turn.
   reward_normalization:
-    group_size: "env" # env / batch / prompt
+    grouping: "env" # env / batch / prompt
     method: "mean_std"
 
 es_manager:
-  format_penalty: -1.0
+  format_penalty: -0.1
   train:
     env_groups: 8
     # under the same group, the env config and env seed are ensured to be equal
