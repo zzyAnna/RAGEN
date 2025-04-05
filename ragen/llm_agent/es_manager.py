@@ -19,7 +19,7 @@ class EnvStatus:
     """Status of an environment"""
     truncated: bool = False # done but not success
     terminated: bool = False # done and success
-    cur_step: int = 0 # current action step (single action)
+    num_actions: int = 0 # current action step (single action)
     rewards: List[float] = field(default_factory=list) # rewards for each turn
     seed: Optional[int] = None # what seed is used to reset this environment
 
@@ -95,7 +95,7 @@ class EnvStateManager:
         # update rollout cache
         for cache, env in zip(rollout_cache, envs):
             next_state = self._handle_mm_state(env['env'].render())
-            cache['history'] = self._update_cache_history(cache['history'], next_state=next_state, cur_step_info=None)
+            cache['history'] = self._update_cache_history(cache['history'], next_state=next_state, num_actions_info=None)
             
         self.rollout_cache = rollout_cache
         return rollout_cache
@@ -126,12 +126,12 @@ class EnvStateManager:
 
         def _log_env_state(status, history, cur_obs, executed_actions, all_actions, acc_reward, turn_done, turn_info, env_input):
             obs = self._handle_mm_state(cur_obs)
-            status.cur_step += len(all_actions)
+            status.num_actions += len(all_actions)
             status.rewards.append(acc_reward) # NOTE use turn-wise acc_reward
             if turn_done:
                 status.terminated = True # TODO check terminated definition in gymnasium
                 status.truncated = not turn_info.get('success', False)
-            history = self._update_cache_history(history, next_state=obs, cur_step_info={
+            history = self._update_cache_history(history, next_state=obs, num_actions_info={
                 'actions': executed_actions, 'reward': acc_reward, 'info': turn_info,
                 'llm_response': env_input['llm_response'], 'llm_raw_response': env_input['llm_raw_response']
             })
@@ -149,10 +149,10 @@ class EnvStateManager:
             # execute actions in envs
             valid_actions = self._extract_map_valid_actions(entry, env_input['actions'])
             acc_reward, turn_info, turn_done, executed_actions = _execute_actions(env, valid_actions)
-            if len(valid_actions) != len(env_input['actions']) or not valid_actions:
+            if len(valid_actions) != len(env_input['actions']):
                 self.rollout_cache[env_id]["penalty"] += self.sys_config.es_manager.format_penalty
                 
-            status, history = _log_env_state(entry['status'], self.rollout_cache[env_id]['history'], entry['env'].render(), executed_actions, env_input['actions'], acc_reward, turn_done, turn_info, env_input)
+            status, history = _log_env_state(entry['status'], self.rollout_cache[env_id]['history'], entry['env'].render(), executed_actions, valid_actions, acc_reward, turn_done, turn_info, env_input)
             entry['status'] = status
             self.rollout_cache[env_id]['history'] = history
             if not turn_done: # NOTE done environments are not sent for further llm generation (for efficiency)
@@ -170,7 +170,7 @@ class EnvStateManager:
             status = entry['status']
             env_metric = {
                 'success': float(status.terminated and (not status.truncated)),
-                'num_steps': status.cur_step,
+                'num_actions': status.num_actions,
             }
             custom_metric = {}
             for turn in cache['history']:
@@ -191,13 +191,13 @@ class EnvStateManager:
 
 
 
-    def _update_cache_history(self, history: List[Dict], next_state, cur_step_info: Optional[Dict] = None):
+    def _update_cache_history(self, history: List[Dict], next_state, num_actions_info: Optional[Dict] = None):
         """
         Update last step info and append state to history
         """
-        if cur_step_info is not None: # update last step info
+        if num_actions_info is not None: # update last step info
             assert len(history), "History should not be empty"
-            history[-1].update(cur_step_info)
+            history[-1].update(num_actions_info)
         
         entry = {} # append state to history
         if isinstance(next_state, str): # text state

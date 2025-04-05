@@ -1,0 +1,25 @@
+defaults:
+  - base # this is a symbolic link to the verl/verl/trainer/config/ppo_trainer.yaml file
+
+system:
+  CUDA_VISIBLE_DEVICES: "2"
+
+trainer:
+  project_name: ragen_new
+  experiment_name: test-0.5B-FrozenLake
+
+es_manager:
+  train:
+    env_groups: 8
+    # under the same group, the env config and env seed are ensured to be equal
+    group_size: 16
+    env_configs:
+      tags: ["Bandit"] # ["Bandit"]  ["Countdown"] ["FrozenLake"] ["SimpleSokoban"]
+      n_groups: [8] #, 8, 8] # If not set, all env names int_divide nums equally. Under the same group, the env config and env seed (prompt) are equal in each generation
+  val:
+    env_groups: 128
+    group_size: 1 # should be set to 1 because val temperature is set to 0 and same prompt leads to same output
+    env_configs:
+      tags: ["Bandit"] #, "Countdown"]
+      n_groups: [128] #, 128, 128] # If not set, all env names int_divide nums equally. Under the same group, the env config and env seed (prompt) are equal in each generation
+
