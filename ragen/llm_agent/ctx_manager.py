@@ -130,7 +130,7 @@ class ContextManager:
                 think_content = think_content.replace(special_token, "").strip()
             
             actions = [action.strip() for action in action_content.split(self.action_sep) if action.strip()]
-            max_actions = getattr(self.config.agent_proxy, "max_actions_per_turn", 10)
+            max_actions = self.config.agent_proxy.max_actions_per_turn
 
             if len(actions) > max_actions:
                 actions = actions[:max_actions] #Only the first MAX_ACTIONS actions are kept in the rollout.
