@@ -66,9 +66,39 @@ custom_envs:
     max_tokens: 200
     env_config: null
 
-  BanditNoThink:
+
+  BanditGeneralization:
+    env_type: bandit
+    max_actions_per_traj: 1
+    env_instruction: "You are solving the Bandit puzzle. Guess which machine has the higher expected reward. Example answer format: <think>I see machines of milk(1), coffee(2), tea(3), and need to choose from [1, 2, 3]. Let analyze. I should pull the lever coffee, which is often associated with alertness and energy, suggesting it may offer a higher reward.</think><answer>coffee</answer>"
+    max_tokens: 200
+    env_config: 
+      lo_arm_name: "Engineer"
+      hi_arm_name: "Teacher"
+
+  BanditGeneralizationTest:
+    env_type: bandit
+    max_actions_per_traj: 1
+    env_instruction: "You are solving the Bandit puzzle. Guess which machine has the higher expected reward. Example answer format: <think>I see machines of milk(1), coffee(2), tea(3), and need to choose from [1, 2, 3]. Let analyze. I should pull the lever coffee, which is often associated with alertness and energy, suggesting it may offer a higher reward.</think><answer>coffee</answer>"
+    max_tokens: 200
+    env_config: 
+      lo_arm_name: "Trader"
+      hi_arm_name: "Librarian"
+
+  BanditGeneralizationNoThink:
     env_type: bandit
     max_actions_per_traj: 1
     env_instruction: "You are solving the Bandit puzzle. Guess which machine has the higher expected reward. Example answer format: <answer>coffee</answer>"
     max_tokens: 200
-    env_config: null
+    env_config: 
+      lo_arm_name: "Engineer"
+      hi_arm_name: "Teacher"
+
+  BanditGeneralizationNoThinkTest:
+    env_type: bandit
+    max_actions_per_traj: 1
+    env_instruction: "You are solving the Bandit puzzle. Guess which machine has the higher expected reward. Example answer format: <answer>coffee</answer>"
+    max_tokens: 200
+    env_config: 
+      lo_arm_name: "Trader"
+      hi_arm_name: "Librarian"

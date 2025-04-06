@@ -69,9 +69,11 @@ class SokobanEnv(BaseDiscreteActionEnv, GymSokobanEnv):
 
 if __name__ == '__main__':
     import matplotlib.pyplot as plt
-    config = SokobanEnvConfig(dim_room=(6, 6), num_boxes=1, max_steps=100, search_depth=30)
+    config = SokobanEnvConfig(dim_room=(6, 6), num_boxes=1, max_steps=100, search_depth=10)
     env = SokobanEnv(config)
-    print(env.reset(seed=1010))
+    for i in range(10):
+        print(env.reset(seed=1010 + i))
+        print()
     while True:
         keyboard = input("Enter action: ")
         if keyboard == 'q':
