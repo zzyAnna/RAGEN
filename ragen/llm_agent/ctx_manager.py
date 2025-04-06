@@ -201,7 +201,6 @@ class ContextManager:
         llm_input_texts = []
         messages_list = [] # for api calling
         for env_output in env_outputs:
-            print(f"Last message: {env_output['history'][-1]}")
             if 'state' in env_output['history'][-1] and prepare_for_update:
                 env_output['history'] = env_output['history'][:-1] # when prepare for update, we do not add the state from the n+1 turn to the trajectory
             THINK_PROMPT = "first wrapping your thoughts in <think>...</think>, then " if self.config.agent_proxy.enable_think else ""
