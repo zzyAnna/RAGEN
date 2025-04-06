@@ -1,6 +1,7 @@
 custom_envs:
   SimpleSokoban:
     env_type: sokoban
+    max_actions_per_traj: 10
     env_instruction: "You are solving the Simple Sokoban puzzle. Move all boxes to targets. Example answer format: <think>I should go left first, then move the box to the up side.</think><answer>Left || Up</answer>"
     max_tokens: 200 # used to curate llm prompt "max words", not used for rollout
     env_config: # keys should be a subset of SokobanConfig
@@ -11,6 +12,7 @@ custom_envs:
 
   VisualSimpleSokoban:
     env_type: sokoban
+    max_actions_per_traj: 10
     env_instruction: "You are solving the Visual Simple Sokoban puzzle. Move all boxes to targets. Example answer format: <think>I should go left first, then move the box to the up side.</think><answer>Left || Up</answer>"
     max_tokens: 200
     env_config: # keys should be a subset of SokobanConfig
@@ -22,6 +24,7 @@ custom_envs:
 
   HarderSokoban:
     env_type: sokoban
+    max_actions_per_traj: 10
     env_instruction: "You are solving the Harder Sokoban puzzle. Move all boxes to targets. Example answer format: <think>I should go left first, then move the box to the up side.</think><answer>Left || Up</answer>"
     max_tokens: 200
     env_config:
@@ -37,30 +40,35 @@ custom_envs:
 
   Countdown:
     env_type: countdown
+    max_actions_per_traj: 10
     env_instruction: "You are solving the Countdown puzzle. You should use the num list to create an equation that equals the target. Example answer format: <think> To find an equation using [3, 5, 2] to get 4. Let's check 2 + 5 = 7, 7 - 3 = 4. So the answer is 2 + 5 - 3 = 4. </think><answer>2 + 5 - 3</answer>"
     max_tokens: 200
     env_config: null
 
   Bandit:
     env_type: bandit
+    max_actions_per_traj: 1
     env_instruction: "You are solving the Bandit puzzle. Guess which machine has the higher expected reward. Example answer format: <think>I see machines of milk(1), coffee(2), tea(3), and need to choose from [1, 2, 3]. Let analyze. I should pull the lever coffee, which is often associated with alertness and energy, suggesting it may offer a higher reward.</think><answer>coffee</answer>"
     max_tokens: 200
     env_config: null
 
   FrozenLake:
     env_type: frozen_lake
+    max_actions_per_traj: 10
     env_instruction: "You are solving the FrozenLake puzzle. Forbid the whole and go to the target. You may move to the unintended direction due to the slippery ice. Example answer format: <think>To forbid the hole and go to the target, I should go left then go up.</think><answer>Left || Up</answer>"
     max_tokens: 200
     env_config: null
 
   MetamathQA:
     env_type: metamathqa
+    max_actions_per_traj: 1
     env_instruction: "You are solving Math problems. "
     max_tokens: 200
     env_config: null
 
   BanditNoThink:
     env_type: bandit
+    max_actions_per_traj: 1
     env_instruction: "You are solving the Bandit puzzle. Guess which machine has the higher expected reward. Example answer format: <answer>coffee</answer>"
     max_tokens: 200
     env_config: null
