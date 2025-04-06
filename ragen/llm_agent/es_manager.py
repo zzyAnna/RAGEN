@@ -155,7 +155,7 @@ class EnvStateManager:
                 
             status, history = _log_env_state(entry['status'], self.rollout_cache[env_id]['history'], entry['env'].render(), executed_actions, valid_actions, acc_reward, turn_done, turn_info, env_input)
             entry['status'] = status
-            if entry['status'].num_actions > getattr(entry['config'], 'max_micro_steps', 10):
+            if entry['status'].num_actions > entry['config']['max_actions_per_traj']:
                 entry['status'].truncated = True
                 turn_done = True
             self.rollout_cache[env_id]['history'] = history
