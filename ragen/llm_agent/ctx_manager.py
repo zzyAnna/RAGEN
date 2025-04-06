@@ -115,7 +115,7 @@ class ContextManager:
         self.env_config_lookup = env_config_lookup
 
     def _parse_response(self, response: str) -> List:
-        pattern = r'<think>(.*?)</think>\s*<answer>(.*?)</answer>'
+        pattern = r'<think>(.*?)</think>\s*<answer>(.*?)</answer>' if self.config.agent_proxy.enable_think else r'<answer>(.*?)</answer>'
         match = re.search(pattern, response, re.DOTALL)
         if not match:
             think_content, action_content, actions = "", "", []
@@ -196,8 +196,9 @@ class ContextManager:
             if 'state' in env_output['history'][-1] and prepare_for_update:
                 env_output['history'] = env_output['history'][:-1] # when prepare for update, we do not add the state from the n+1 turn to the trajectory
 
+            THINK_PROMPT = "first wrapping your thoughts in <think>...</think>, then " if self.config.agent_proxy.enable_think else ""
             messages = [
-                {"role": "system", "content": f"You're a helpful assistant. You always respond by first wrapping your thoughts in <think>...</think>, then giving your answer in <answer>...</answer>. Max response length: {self.env_config_lookup[env_output['env_id']]['max_tokens']} words (tokens)."}, 
+                {"role": "system", "content": f"You're a helpful assistant. You always respond by {THINK_PROMPT}giving your answer in <answer>...</answer>. Max response length: {self.env_config_lookup[env_output['env_id']]['max_tokens']} words (tokens)."}, 
                 {"role": "user", "content": self.prefix_lookup[env_output["env_id"]]}
             ]
 

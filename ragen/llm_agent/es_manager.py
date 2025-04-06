@@ -182,7 +182,7 @@ class EnvStateManager:
                         custom_metric[k] = []
                     custom_metric[k].append(float(v))
             for k, v in custom_metric.items():
-                env_metric[k] = np.sum(v) / len(cache['history'])
+                env_metric[k] = np.sum(v) / (len(cache['history']) - 1) # NOTE: exclude the last observation
 
             cache['history'][-1]['metrics'] = custom_metric
             env_metric = {f"{entry['tag']}/{k}": v for k, v in env_metric.items()}
