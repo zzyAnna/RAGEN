@@ -59,7 +59,7 @@ class EnvStateManager:
             for env_id in range(done_groups * self.group_size, (done_groups + n_group) * self.group_size):
                 cfg_template = self.sys_config.custom_envs[tag]
                 env_class = cfg_template.env_type
-		max_actions_per_traj = cfg_template.max_actions_per_traj
+                max_actions_per_traj = cfg_template.max_actions_per_traj
                 if cfg_template.env_config is None:
                     env_config = REGISTERED_ENV_CONFIGS[env_class]()
                 else:
