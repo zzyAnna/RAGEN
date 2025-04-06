@@ -92,7 +92,7 @@ class ContextManager:
                 env_instruction += grid_vocab_str
             if env_config_new.get("action_lookup", False):
                 action_lookup_str = "\nYour available actions are:\n" + ", ".join([f"{v}" for k, v in env_config_new["action_lookup"].items()])
-                action_lookup_str += f"\nYou can make up to {self.config.agent_proxy.max_actions} actions, separated by the action separator \" " + self.action_sep + " \"\n"
+                action_lookup_str += f"\nYou can make up to {env_config_new['max_actions_per_traj']} actions, separated by the action separator \" " + self.action_sep + " \"\n"
                 env_instruction += action_lookup_str
             prefixes[env_tag] = env_instruction
             env_config_lookup[env_tag] = {'max_tokens': env_config.get("max_tokens", self.config.actor_rollout_ref.rollout.response_length)}
@@ -124,6 +124,7 @@ class ContextManager:
                 think_content, action_content = match.group(1), match.group(2)
             else:
                 think_content, action_content = "", match.group(1)
+
                 
             for special_token in self.special_token_list:
                 action_content = action_content.replace(special_token, "").strip()
