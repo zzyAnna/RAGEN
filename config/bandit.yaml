@@ -1,0 +1,109 @@
+defaults:
+  - ppo_trainer # this is a symbolic link to the verl/verl/trainer/config/ppo_trainer.yaml file
+  - envs
+
+system:
+  CUDA_VISIBLE_DEVICES: "1"
+
+micro_batch_size_per_gpu: 4
+ppo_mini_batch_size: 32
+
+actor_rollout_ref:
+  model:
+    path: Qwen/Qwen2.5-0.5B-Instruct
+  actor:
+    ppo_mini_batch_size: null  # by default, ppo_mini_batch_size = train_batch_size / 4
+    micro_batch_size_per_gpu: null # following micro_batch_size_per_gpu
+    ppo_micro_batch_size_per_gpu: null # following micro_batch_size_per_gpu
+    use_kl_loss: True
+    use_ref: True
+    kl_loss_coef: 0.01
+    kl_loss_type: mse
+    optim:
+      betas: [0.9, 0.95]
+  ref:
+    log_prob_micro_batch_size_per_gpu: null # following micro_batch_size_per_gpu
+  rollout:
+    log_prob_micro_batch_size_per_gpu: null # following micro_batch_size_per_gpu
+    tensor_model_parallel_size: 1
+    max_model_len: 2048
+    prompt_length: 1 # useless. Just put it here
+    response_length: 400 # single-turn response length
+    enable_kv_cache: True # much faster with this on:) 6.43s vs 10.29s
+    enforce_eager: True
+    free_cache_engine: ${actor_rollout_ref.rollout.enforce_eager}
+    gpu_memory_utilization: 0.5
+    enable_chunked_prefill: ${actor_rollout_ref.rollout.enable_kv_cache}
+    # max_num_batched_tokens: 8192 # set only when enable_chunked_prefill is true
+    val_kwargs:
+      do_sample: True
+      temperature: 1
+
+
+critic:
+  ppo_mini_batch_size: null # by default, ppo_mini_batch_size = train_batch_size / 4
+  ppo_micro_batch_size_per_gpu: null # following micro_batch_size_per_gpu
+  model:
+    path: ${actor_rollout_ref.model.path}
+  optim:
+    betas: [0.9, 0.95]
+
+algorithm:
+  gamma: 1.0
+  lam: 1.0
+  adv_estimator: grpo # gae
+  kl_penalty: kl  # how to estimate kl divergence
+  kl_ctrl:
+    type: fixed
+    kl_coef: 0.001
+
+data:
+  max_prompt_length: null
+  max_response_length: null
+  train_batch_size: null
+
+trainer:
+  project_name: ragen_new
+  experiment_name: bandit-test-grpo-no-think
+  total_training_steps: 200
+  validation_steps: 2 # validation instances = validation_steps * val_env_groups * group_size
+  val_before_train: True
+  n_gpus_per_node: 1
+  test_freq: 10
+  val_generations_to_log_to_wandb: 20
+  logger: [ 'console', 'wandb' ]
+
+agent_proxy:
+  max_turn: 1
+  action_sep: "||"
+  max_actions: 1 # how many actions can be output at most in a single turn
+  use_turn_scores: False # important to GAE when applying token-level rewards to token-level advantages. If False, will take the sum of scores as the reward for the last turn.
+  enable_think: False # False -> no think RL
+  reward_normalization:
+    grouping: "batch" # env / batch / prompt
+    method: "mean_std"
+
+es_manager:
+  format_penalty: -0.1
+  train:
+    env_groups: 8
+    # under the same group, the env config and env seed are ensured to be equal
+    group_size: 16
+    env_configs:
+      tags: ["BanditNoThink"]
+      n_groups: [8] # If not set, all env names divide nums equally. Under the same group, the env config and env seed (prompt) are equal in each generation
+  val:
+    env_groups: 128
+    group_size: 1 # should be set to 1 because val temperature is set to 0 and same prompt leads to same output
+    env_configs:
+      tags: ["BanditNoThink"]
+      n_groups: [128] # [128] # If not set, all env names divide nums equally. Under the same group, the env config and env seed (prompt) are equal in each generation
+
+ctx_manager:
+  generation: # go to vllm
+    gen_config:
+      response_length: ${actor_rollout_ref.rollout.response_length}
+      temperature: ${actor_rollout_ref.rollout.temperature}
+      top_p: ${actor_rollout_ref.rollout.top_p}
+      top_k: ${actor_rollout_ref.rollout.top_k}
+      kwargs: null
