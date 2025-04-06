@@ -120,16 +120,21 @@ class ContextManager:
         if not match:
             think_content, action_content, actions = "", "", []
         else:
-            think_content, action_content = match.group(1), match.group(2)
-            for special_token in self.special_token_list: # remove all special tokens in responses to forbid confusion in training
+            if self.config.agent_proxy.enable_think:
+                think_content, action_content = match.group(1), match.group(2)
+            else:
+                think_content, action_content = "", match.group(1)
+                
+            for special_token in self.special_token_list:
                 action_content = action_content.replace(special_token, "").strip()
                 think_content = think_content.replace(special_token, "").strip()
+            
             actions = [action.strip() for action in action_content.split(self.action_sep) if action.strip()]
             if len(actions) > self.config.agent_proxy.max_actions:
-                actions = actions[:self.config.agent_proxy.max_actions] #Only the first MAX_ACTIONS actions are kept in the rollout.
+                actions = actions[:self.config.agent_proxy.max_actions]
                 action_content = (" " + self.action_sep + " ").join(actions)
 
-        llm_response = "<think>" + think_content + "</think>" + "<answer>" + action_content + "</answer>"
+        llm_response = f"<think>{think_content}</think><answer>{action_content}</answer>" if self.config.agent_proxy.enable_think else f"<answer>{action_content}</answer>"
         return llm_response, actions
         
     def _normalize_score_tensor(self, score_tensor: torch.Tensor, env_outputs: List[Dict]) -> torch.Tensor:
