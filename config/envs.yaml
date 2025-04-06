@@ -1,7 +1,7 @@
 custom_envs:
   SimpleSokoban:
     env_type: sokoban
-    max_actions_per_traj: 10
+    max_actions_per_traj: 10 # used in environment state manager to control the actual max actions executed per trajectory
     env_instruction: "You are solving the Simple Sokoban puzzle. Move all boxes to targets. Example answer format: <think>I should go left first, then move the box to the up side.</think><answer>Left || Up</answer>"
     max_tokens: 200 # used to curate llm prompt "max words", not used for rollout
     env_config: # keys should be a subset of SokobanConfig
