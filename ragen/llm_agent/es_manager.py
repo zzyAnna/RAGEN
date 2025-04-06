@@ -135,7 +135,8 @@ class EnvStateManager:
                 'actions': executed_actions, 'reward': acc_reward, 'info': turn_info,
                 'llm_response': env_input['llm_response'], 'llm_raw_response': env_input['llm_raw_response']
             })
-            history = [content for content in history[:-1] if content['actions']] + [history[-1]]
+            # filter out invalid actions
+            # history = [content for content in history[:-1] if content['actions']] + [history[-1]]
             return status, history
 
         envs = self.envs

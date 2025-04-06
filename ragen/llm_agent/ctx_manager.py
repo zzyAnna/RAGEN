@@ -135,6 +135,7 @@ class ContextManager:
     def _normalize_score_tensor(self, score_tensor: torch.Tensor, env_outputs: List[Dict]) -> torch.Tensor:
         """
         Normalize the score tensor to be between 0 and 1.
+        NOTE: only support score at the last token for now
         """
         assert self.config.agent_proxy.use_turn_scores == False, "Reward normalization is not supported for use_turn_scores == True"
         
