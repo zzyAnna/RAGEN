@@ -59,7 +59,6 @@ custom_envs:
     max_tokens: 200
     env_config: null
 
-
   BanditNoThink:
     env_type: bandit
     env_instruction: "You are solving the Bandit puzzle. Guess which machine has the higher expected reward. Example answer format: <answer>coffee</answer>"
