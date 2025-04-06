@@ -135,7 +135,8 @@ class EnvStateManager:
                 'actions': executed_actions, 'reward': acc_reward, 'info': turn_info,
                 'llm_response': env_input['llm_response'], 'llm_raw_response': env_input['llm_raw_response']
             })
-            history = [content for content in history[:-1] if content['actions']] + [history[-1]]
+            # filter out invalid actions
+            # history = [content for content in history[:-1] if content['actions']] + [history[-1]]
             return status, history
 
         envs = self.envs
@@ -184,7 +185,7 @@ class EnvStateManager:
                         custom_metric[k] = []
                     custom_metric[k].append(float(v))
             for k, v in custom_metric.items():
-                env_metric[k] = np.sum(v) / len(cache['history'])
+                env_metric[k] = np.sum(v) / (len(cache['history']) - 1) # NOTE: exclude the last observation
 
             cache['history'][-1]['metrics'] = custom_metric
             env_metric = {f"{entry['tag']}/{k}": v for k, v in env_metric.items()}

@@ -115,27 +115,34 @@ class ContextManager:
         self.env_config_lookup = env_config_lookup
 
     def _parse_response(self, response: str) -> List:
-        pattern = r'<think>(.*?)</think>\s*<answer>(.*?)</answer>'
+        pattern = r'<think>(.*?)</think>\s*<answer>(.*?)</answer>' if self.config.agent_proxy.enable_think else r'<answer>(.*?)</answer>'
         match = re.search(pattern, response, re.DOTALL)
         if not match:
             think_content, action_content, actions = "", "", []
         else:
-            think_content, action_content = match.group(1), match.group(2)
-            for special_token in self.special_token_list: # remove all special tokens in responses to forbid confusion in training
+            if self.config.agent_proxy.enable_think:
+                think_content, action_content = match.group(1), match.group(2)
+            else:
+                think_content, action_content = "", match.group(1)
+                
+            for special_token in self.special_token_list:
                 action_content = action_content.replace(special_token, "").strip()
                 think_content = think_content.replace(special_token, "").strip()
+            
             actions = [action.strip() for action in action_content.split(self.action_sep) if action.strip()]
-            max_actions=getattr(self.config.agent_proxy, "max_actions", 10)
+            max_actions = getattr(self.config.agent_proxy, "max_actions_per_turn", 10)
+
             if len(actions) > max_actions:
                 actions = actions[:max_actions] #Only the first MAX_ACTIONS actions are kept in the rollout.
                 action_content = (" " + self.action_sep + " ").join(actions)
 
-        llm_response = "<think>" + think_content + "</think>" + "<answer>" + action_content + "</answer>"
+        llm_response = f"<think>{think_content}</think><answer>{action_content}</answer>" if self.config.agent_proxy.enable_think else f"<answer>{action_content}</answer>"
         return llm_response, actions
         
     def _normalize_score_tensor(self, score_tensor: torch.Tensor, env_outputs: List[Dict]) -> torch.Tensor:
         """
         Normalize the score tensor to be between 0 and 1.
+        NOTE: only support score at the last token for now
         """
         assert self.config.agent_proxy.use_turn_scores == False, "Reward normalization is not supported for use_turn_scores == True"
         
@@ -152,7 +159,7 @@ class ContextManager:
 
 
         if method == "mean_std":
-            norm_func = lambda x: (x - x.mean(dim=-1, keepdim=True)) / x.std(dim=-1, keepdim=True)
+            norm_func = lambda x: (x - x.mean(dim=-1, keepdim=True)) / (x.std(dim=-1, keepdim=True) + 1e-6)
         elif method == "mean":
             norm_func = lambda x: (x - x.mean(dim=-1, keepdim=True))
         else:
@@ -196,8 +203,9 @@ class ContextManager:
             if 'state' in env_output['history'][-1] and prepare_for_update:
                 env_output['history'] = env_output['history'][:-1] # when prepare for update, we do not add the state from the n+1 turn to the trajectory
 
+            THINK_PROMPT = "first wrapping your thoughts in <think>...</think>, then " if self.config.agent_proxy.enable_think else ""
             messages = [
-                {"role": "system", "content": f"You're a helpful assistant. You always respond by first wrapping your thoughts in <think>...</think>, then giving your answer in <answer>...</answer>. Max response length: {self.env_config_lookup[env_output['env_id']]['max_tokens']} words (tokens)."}, 
+                {"role": "system", "content": f"You're a helpful assistant. You always respond by {THINK_PROMPT}giving your answer in <answer>...</answer>. Max response length: {self.env_config_lookup[env_output['env_id']]['max_tokens']} words (tokens)."}, 
                 {"role": "user", "content": self.prefix_lookup[env_output["env_id"]]}
             ]
 
