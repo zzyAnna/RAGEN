@@ -96,7 +96,7 @@ class EnvStateManager:
         # update rollout cache
         for cache, env in zip(rollout_cache, envs):
             next_state = self._handle_mm_state(env['env'].render())
-            cache['history'] = self._update_cache_history(cache['history'], next_state=next_state, num_actions_info=None)
+            cache['history'] = self._update_cache_history(cache['history'], next_state=next_state, actions_left=env['max_actions_per_traj'], num_actions_info=None)
             
         self.rollout_cache = rollout_cache
         return rollout_cache
@@ -125,14 +125,15 @@ class EnvStateManager:
                     break
             return acc_reward, turn_info, turn_done, executed_actions
 
-        def _log_env_state(status, history, cur_obs, executed_actions, all_actions, acc_reward, turn_done, turn_info, env_input):
+        def _log_env_state(status, history, cur_obs, max_actions_per_traj, executed_actions, all_actions, acc_reward, turn_done, turn_info, env_input):
             obs = self._handle_mm_state(cur_obs)
-            status.num_actions += len(all_actions)
+            status.num_actions += len(executed_actions)
             status.rewards.append(acc_reward) # NOTE use turn-wise acc_reward
+            actions_left = max_actions_per_traj - status.num_actions
             if turn_done:
                 status.terminated = True # TODO check terminated definition in gymnasium
                 status.truncated = not turn_info.get('success', False)
-            history = self._update_cache_history(history, next_state=obs, num_actions_info={
+            history = self._update_cache_history(history, next_state=obs, actions_left=actions_left, num_actions_info={
                 'actions': executed_actions, 'reward': acc_reward, 'info': turn_info,
                 'llm_response': env_input['llm_response'], 'llm_raw_response': env_input['llm_raw_response']
             })
@@ -147,17 +148,19 @@ class EnvStateManager:
             acc_reward, turn_info, turn_done = 0, {}, False
             entry = envs[env_input['env_id']]
             env_id, env = entry['env_id'], entry['env']
+            actions_left_before = entry['max_actions_per_traj'] - entry['status'].num_actions
 
             # execute actions in envs
             valid_actions = self._extract_map_valid_actions(entry, env_input['actions'])
-            acc_reward, turn_info, turn_done, executed_actions = _execute_actions(env, valid_actions)
-            if len(valid_actions) != len(env_input['actions']) and len(valid_actions) != 0: # NOTE: if valid_actions is empty, this turn won't be added to the rollout cache, so no penalty
+            acc_reward, turn_info, turn_done, executed_actions = _execute_actions(env, valid_actions[:actions_left_before])
+            if len(valid_actions) != len(env_input['actions']) or not valid_actions:
                 self.rollout_cache[env_id]["penalty"] += self.sys_config.es_manager.format_penalty
                 
-            status, history = _log_env_state(entry['status'], self.rollout_cache[env_id]['history'], entry['env'].render(), executed_actions, valid_actions, acc_reward, turn_done, turn_info, env_input)
+            status, history = _log_env_state(entry['status'], self.rollout_cache[env_id]['history'], entry['env'].render(), entry['max_actions_per_traj'], executed_actions, valid_actions, acc_reward, turn_done, turn_info, env_input)
             entry['status'] = status
-            if entry['status'].num_actions > entry['max_actions_per_traj']:
+            if entry['status'].num_actions >= entry['max_actions_per_traj'] and not turn_done:
                 entry['status'].truncated = True
+                entry['status'].terminated = True
                 turn_done = True
             self.rollout_cache[env_id]['history'] = history
             if not turn_done: # NOTE done environments are not sent for further llm generation (for efficiency)
@@ -196,7 +199,7 @@ class EnvStateManager:
 
 
 
-    def _update_cache_history(self, history: List[Dict], next_state, num_actions_info: Optional[Dict] = None):
+    def _update_cache_history(self, history: List[Dict], next_state, actions_left, num_actions_info: Optional[Dict] = None):
         """
         Update last step info and append state to history
         """
@@ -210,6 +213,7 @@ class EnvStateManager:
         else: # multimodal state
             entry['state'] = "<images>" * len(next_state)
             entry['images'] = next_state
+        entry['actions_left'] = actions_left
         history.append(entry)
         return history
 

@@ -160,7 +160,7 @@ class ContextManager:
 
 
         if method == "mean_std":
-            norm_func = lambda x: (x - x.mean(dim=-1, keepdim=True)) / (x.std(dim=-1, keepdim=True) + 1e-6)
+            norm_func = lambda x: (x - x.mean(dim=-1, keepdim=True)) / (x.std(dim=-1, keepdim=True) + 1e-6) if x.std(dim=-1, keepdim=True).abs().max() > 1e-6 else torch.zeros_like(x)
         elif method == "mean":
             norm_func = lambda x: (x - x.mean(dim=-1, keepdim=True))
         else:
@@ -201,9 +201,9 @@ class ContextManager:
         llm_input_texts = []
         messages_list = [] # for api calling
         for env_output in env_outputs:
+            print(f"Last message: {env_output['history'][-1]}")
             if 'state' in env_output['history'][-1] and prepare_for_update:
                 env_output['history'] = env_output['history'][:-1] # when prepare for update, we do not add the state from the n+1 turn to the trajectory
-
             THINK_PROMPT = "first wrapping your thoughts in <think>...</think>, then " if self.config.agent_proxy.enable_think else ""
             messages = [
                 {"role": "system", "content": f"You're a helpful assistant. You always respond by {THINK_PROMPT}giving your answer in <answer>...</answer>. Max response length: {self.env_config_lookup[env_output['env_id']]['max_tokens']} words (tokens)."}, 
@@ -213,19 +213,23 @@ class ContextManager:
             for idx, content in enumerate(env_output["history"]):
                 messages[-1]["content"] += f"\nTurn {idx + 1}:\n"
                 if "state" in content:
-                    messages[-1]["content"] += f"State:\n{content['state']}\n"
+                    messages[-1]["content"] += f"State:\n{content['state']}\nYou have {content['actions_left']} actions left\n"
                 if "llm_response" in content:
                     messages.append({"role": "assistant", "content": content["llm_response"]})
                 if "reward" in content and not (prepare_for_update and idx == len(env_output["history"]) - 1):
                     # when prepare for update, we do not add the reward from the n+1 turn to the trajectory
                     messages.append({"role": "user", "content": f"Reward:\n{content['reward']}\n"})
+                    
 
             # NOTE: this assertion is important for loss mask computation        
             assert all(msg["role"] == "assistant" for msg in messages[2::2])
 
             text = self.tokenizer.apply_chat_template(messages, add_generation_prompt=(not prepare_for_update), tokenize=False)
             if not prepare_for_update:
-                text += "<think>" # force the LLM to think before answering
+                if self.config.agent_proxy.enable_think:
+                    text += "<think>" # force the LLM to think before answering
+                else:
+                    text += "<answer>" # force the LLM to answer
             llm_input_texts.append(text)
             messages_list.append(messages)
 
@@ -277,7 +281,7 @@ class ContextManager:
             )
         else: # dataproto has textual responses
             responses = lm_outputs.non_tensor_batch['response_texts']
-        responses = ["<think>" + response for response in responses] # The LLM generation does not include <think> tags. Add them back here.
+        responses = ["<think>" + response if self.config.agent_proxy.enable_think else "<answer>" + response for response in responses] # The LLM generation does not include <think> tags. Add them back here.
             
         env_ids = lm_outputs.non_tensor_batch['env_ids']
         env_inputs = []
