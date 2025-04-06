@@ -3,7 +3,7 @@ defaults:
   - envs
 
 system:
-  CUDA_VISIBLE_DEVICES: "1"
+  CUDA_VISIBLE_DEVICES: "0"
 
 micro_batch_size_per_gpu: 4
 ppo_mini_batch_size: 32
