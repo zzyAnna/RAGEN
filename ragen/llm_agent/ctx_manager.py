@@ -151,7 +151,7 @@ class ContextManager:
 
 
         if method == "mean_std":
-            norm_func = lambda x: (x - x.mean(dim=-1, keepdim=True)) / x.std(dim=-1, keepdim=True)
+            norm_func = lambda x: (x - x.mean(dim=-1, keepdim=True)) / (x.std(dim=-1, keepdim=True) + 1e-6)
         elif method == "mean":
             norm_func = lambda x: (x - x.mean(dim=-1, keepdim=True))
         else:
