@@ -1,0 +1,56 @@
+defaults:
+  - base
+
+system:
+  CUDA_VISIBLE_DEVICES: "0, 1, 2, 3"
+
+micro_batch_size_per_gpu: 4
+ppo_mini_batch_size: 32
+
+actor_rollout_ref:
+  model:
+    path: Qwen/Qwen2.5-3B
+  actor:
+    use_kl_loss: True
+    use_ref: True
+    kl_loss_coef: 0.01
+    kl_loss_type: mse
+    val_kwargs:
+      do_sample: True
+      temperature: 1
+
+algorithm:
+  adv_estimator: grpo # gae
+
+trainer:
+  project_name: ragen_new
+  experiment_name: sokoban-tmp
+  total_training_steps: 200
+  validation_steps: 2 # validation instances = validation_steps * val_env_groups * group_size
+  val_before_train: True
+  n_gpus_per_node: 4
+  test_freq: 10
+  val_generations_to_log_to_wandb: 20
+
+agent_proxy:
+  max_turn: 1
+  max_actions_per_turn: 1 # how many actions can be output at most in a single turn
+  enable_think: False # False -> no think RL
+  reward_normalization:
+    grouping: "batch" # env / batch / prompt
+    method: "mean_std"
+
+es_manager:
+  format_penalty: -0.1
+  train:
+    env_groups: 8
+    group_size: 16
+    env_configs:
+      tags: ["SokobanSearchDepth30"]
+      n_groups: [8] # If not set, all env names divide nums equally. Under the same group, the env config and env seed (prompt) are equal in each generation
+  val:
+    env_groups: 128
+    group_size: 1 # should be set to 1 because val temperature is set to 0 and same prompt leads to same output
+    env_configs:
+      tags: ["Sokoban2Boxes", "SokobanDifferentGridVocab", "SokobanDifferentActionVocab"]
+      n_groups: [128] # If not set, all env names divide nums equally. Under the same group, the env config and env seed (prompt) are equal in each generation
