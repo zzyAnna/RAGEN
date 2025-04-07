@@ -2,9 +2,10 @@ custom_envs:
   SimpleSokoban:
     env_type: sokoban
     max_actions_per_traj: 10 # used in environment state manager to control the actual max actions executed per trajectory
-    env_instruction: "You are solving the Simple Sokoban puzzle. Move all boxes to targets. Example answer format: <think>I should go left first, then move the box to the up side.</think><answer>Left || Up</answer>"
+    env_instruction: "You are solving the Simple Sokoban puzzle. Move all boxes to targets. Example answer format: <answer>Left || Up</answer>"
     max_tokens: 200 # used to curate llm prompt "max words", not used for rollout
     env_config: # keys should be a subset of SokobanConfig
+      search_depth: 5
       dim_x: 6
       dim_y: 6
       num_boxes: 1
@@ -13,7 +14,7 @@ custom_envs:
   SokobanSearchDepth10:
     env_type: sokoban
     max_actions_per_traj: 10
-    env_instruction: "You are solving the Sokoban puzzle. Move all boxes to targets. Example answer format: <think>I should go left first, then move the box to the up side.</think><answer>Left || Up</answer>"
+    env_instruction: "You are solving the Sokoban puzzle. Move all boxes to targets. Example answer format: <answer>Left || Up</answer>"
     max_tokens: 200
     env_config: # keys should be a subset of SokobanConfig
       search_depth: 10
@@ -25,7 +26,7 @@ custom_envs:
   SokobanSearchDepth20:
     env_type: sokoban
     max_actions_per_traj: 10
-    env_instruction: "You are solving the Sokoban puzzle. Move all boxes to targets. Example answer format: <think>I should go left first, then move the box to the up side.</think><answer>Left || Up</answer>"
+    env_instruction: "You are solving the Sokoban puzzle. Move all boxes to targets. Example answer format: <answer>Left || Up</answer>"
     max_tokens: 200
     env_config: # keys should be a subset of SokobanConfig
       search_depth: 20
@@ -37,7 +38,7 @@ custom_envs:
   SokobanSearchDepth30:
     env_type: sokoban
     max_actions_per_traj: 10
-    env_instruction: "You are solving the Sokoban puzzle. Move all boxes to targets. Example answer format: <think>I should go left first, then move the box to the up side.</think><answer>Left || Up</answer>"
+    env_instruction: "You are solving the Sokoban puzzle. Move all boxes to targets. Example answer format: <answer>Left || Up</answer>"
     max_tokens: 200
     env_config: # keys should be a subset of SokobanConfig
       search_depth: 30
@@ -49,7 +50,7 @@ custom_envs:
   Sokoban2Boxes:
     env_type: sokoban
     max_actions_per_traj: 10
-    env_instruction: "You are solving the Sokoban puzzle. Move all boxes to targets. Example answer format: <think>I should go left first, then move the box to the up side.</think><answer>Left || Up</answer>"
+    env_instruction: "You are solving the Sokoban puzzle. Move all boxes to targets. Example answer format: <answer>Left || Up</answer>"
     max_tokens: 200
     env_config: # keys should be a subset of SokobanConfig
       search_depth: 30
@@ -61,7 +62,7 @@ custom_envs:
   SokobanDifferentGridVocab:
     env_type: sokoban
     max_actions_per_traj: 10
-    env_instruction: "You are solving the Sokoban puzzle. Move all boxes to targets. Example answer format: <think>I should go left first, then move the box to the up side.</think><answer>Left || Up</answer>"
+    env_instruction: "You are solving the Sokoban puzzle. Move all boxes to targets. Example answer format: <answer>Left || Up</answer>"
     max_tokens: 200
     env_config: # keys should be a subset of SokobanConfig
       search_depth: 30
@@ -89,7 +90,7 @@ custom_envs:
   SokobanDifferentActionVocab:
     env_type: sokoban
     max_actions_per_traj: 10
-    env_instruction: "You are solving the Sokoban puzzle. Move all boxes to targets. Example answer format: <think>I should go left first, then move the box to the up side.</think><answer>Left || Up</answer>"
+    env_instruction: "You are solving the Sokoban puzzle. Move all boxes to targets. Example answer format: <answer>Left || Up</answer>"
     max_tokens: 200
     env_config: # keys should be a subset of SokobanConfig
       search_depth: 30
@@ -108,7 +109,7 @@ custom_envs:
   VisualSimpleSokoban:
     env_type: sokoban
     max_actions_per_traj: 10
-    env_instruction: "You are solving the Visual Simple Sokoban puzzle. Move all boxes to targets. Example answer format: <think>I should go left first, then move the box to the up side.</think><answer>Left || Up</answer>"
+    env_instruction: "You are solving the Visual Simple Sokoban puzzle. Move all boxes to targets. Example answer format: <answer>Left || Up</answer>"
     max_tokens: 200
     env_config: # keys should be a subset of SokobanConfig
       dim_x: 6
@@ -120,7 +121,7 @@ custom_envs:
   HarderSokoban:
     env_type: sokoban
     max_actions_per_traj: 10
-    env_instruction: "You are solving the Harder Sokoban puzzle. Move all boxes to targets. Example answer format: <think>I should go left first, then move the box to the up side.</think><answer>Left || Up</answer>"
+    env_instruction: "You are solving the Harder Sokoban puzzle. Move all boxes to targets. Example answer format: <answer>Left || Up</answer>"
     max_tokens: 200
     env_config:
       dim_x: 10

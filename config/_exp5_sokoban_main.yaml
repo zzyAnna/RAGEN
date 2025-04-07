@@ -1,0 +1,43 @@
+defaults:
+  - base
+
+system:
+  CUDA_VISIBLE_DEVICES: "4,5,6,7"
+
+micro_batch_size_per_gpu: 8
+ppo_mini_batch_size: 32
+
+actor_rollout_ref:
+  model:
+    path: Qwen/Qwen2.5-3B-Instruct
+
+algorithm:
+  adv_estimator: grpo # gae
+
+trainer:
+  project_name: ragen_new
+  experiment_name: sokoban-main
+  n_gpus_per_node: 4
+
+agent_proxy:
+  max_turn: 5
+  max_actions_per_turn: 10 # how many actions can be output at most in a single turn
+  enable_think: True # False -> no think RL
+  reward_normalization:
+    grouping: "inductive"
+    method: "asym_clip"
+
+es_manager:
+  format_penalty: -0.1
+  train:
+    env_groups: 16
+    group_size: 8
+    env_configs:
+      tags: ["SimpleSokoban", "SokobanSearchDepth10", "SokobanSearchDepth20", "SokobanSearchDepth30"]
+      n_groups: [4, 4, 4, 4] # If not set, all env names divide nums equally. Under the same group, the env config and env seed (prompt) are equal in each generation
+  val:
+    env_groups: 128
+    group_size: 1 # should be set to 1 because val temperature is set to 0 and same prompt leads to same output
+    env_configs:
+      tags: ["SimpleSokoban", "SokobanSearchDepth10", "SokobanSearchDepth20", "SokobanSearchDepth30"]
+      n_groups: [32, 32, 32, 32] # If not set, all env names divide nums equally. Under the same group, the env config and env seed (prompt) are equal in each generation
