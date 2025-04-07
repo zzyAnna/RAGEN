@@ -187,6 +187,7 @@ class ContextManager:
         penalty = torch.tensor([env_output["penalty"] for env_output in env_outputs], dtype=torch.float32)
         normalized_acc_scores = normalized_acc_scores + penalty
 
+        breakpoint()
         score_tensor[:, -1] = normalized_acc_scores
 
         return score_tensor

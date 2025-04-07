@@ -1,18 +1,15 @@
 defaults:
-  - base
+  - critic
 
 system:
   CUDA_VISIBLE_DEVICES: "0,1"
 
 micro_batch_size_per_gpu: 8
-ppo_mini_batch_size: 128
+ppo_mini_batch_size: 32
 
 actor_rollout_ref:
   model:
-    path: Qwen/Qwen2.5-0.5B-Instruct
-
-algorithm:
-  adv_estimator: grpo # gae
+    path: Qwen/Qwen2.5-1.5B-Instruct
 
 trainer:
   project_name: ragen_new
@@ -30,14 +27,14 @@ agent_proxy:
 es_manager:
   format_penalty: -0.1
   train:
-    env_groups: 16
-    group_size: 32
+    env_groups: 8
+    group_size: 16
     env_configs:
-      tags: ["SimpleSokoban", "SokobanSearchDepth10", "SokobanSearchDepth20", "SokobanSearchDepth30"]
-      n_groups: [4, 4, 4, 4] # If not set, all env names divide nums equally. Under the same group, the env config and env seed (prompt) are equal in each generation
+      tags: ["SokobanSearchDepth3", "SokobanSearchDepth5", "SokobanSearchDepth7", "SokobanSearchDepth10"]
+      n_groups: [2, 2, 2, 2] # If not set, all env names divide nums equally. Under the same group, the env config and env seed (prompt) are equal in each generation
   val:
     env_groups: 128
     group_size: 1 # should be set to 1 because val temperature is set to 0 and same prompt leads to same output
     env_configs:
-      tags: ["SimpleSokoban", "SokobanSearchDepth10", "SokobanSearchDepth20", "SokobanSearchDepth30"]
-      n_groups: [32, 32, 32, 32] # If not set, all env names divide nums equally. Under the same group, the env config and env seed (prompt) are equal in each generation
+      tags: ["SokobanSearchDepth10"]
+      n_groups: [128] # If not set, all env names divide nums equally. Under the same group, the env config and env seed (prompt) are equal in each generation

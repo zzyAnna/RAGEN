@@ -36,6 +36,8 @@ actor_rollout_ref:
       do_sample: True
       temperature: 0.5
 
+algorithm:
+  adv_estimator: grpo
 
 critic:
   ppo_mini_batch_size: null # by default, ppo_mini_batch_size = train_batch_size / 4

@@ -10,6 +10,42 @@ custom_envs:
       num_boxes: 1
       max_steps: 100
   
+  SokobanSearchDepth3:
+    env_type: sokoban
+    max_actions_per_traj: 10
+    env_instruction: "You are solving the Sokoban puzzle. Move all boxes to targets. Example answer format: <think>I should go left first, then move the box to the up side.</think><answer>Left || Up</answer>"
+    max_tokens: 30
+    env_config: # keys should be a subset of SokobanConfig
+      search_depth: 3
+      dim_x: 6
+      dim_y: 6
+      num_boxes: 1
+      max_steps: 100
+  
+  SokobanSearchDepth5:
+    env_type: sokoban
+    max_actions_per_traj: 10
+    env_instruction: "You are solving the Sokoban puzzle. Move all boxes to targets. Example answer format: <think>I should go left first, then move the box to the up side.</think><answer>Left || Up</answer>"
+    max_tokens: 30
+    env_config: # keys should be a subset of SokobanConfig
+      search_depth: 5
+      dim_x: 6
+      dim_y: 6
+      num_boxes: 1
+      max_steps: 100
+  
+  SokobanSearchDepth7:
+    env_type: sokoban
+    max_actions_per_traj: 10
+    env_instruction: "You are solving the Sokoban puzzle. Move all boxes to targets. Example answer format: <think>I should go left first, then move the box to the up side.</think><answer>Left || Up</answer>"
+    max_tokens: 30
+    env_config: # keys should be a subset of SokobanConfig
+      search_depth: 7
+      dim_x: 6
+      dim_y: 6
+      num_boxes: 1
+      max_steps: 100
+
   SokobanSearchDepth10:
     env_type: sokoban
     max_actions_per_traj: 10
@@ -21,31 +57,7 @@ custom_envs:
       dim_y: 6
       num_boxes: 1
       max_steps: 100
-  
-  SokobanSearchDepth20:
-    env_type: sokoban
-    max_actions_per_traj: 10
-    env_instruction: "You are solving the Sokoban puzzle. Move all boxes to targets. Example answer format: <think>I should go left first, then move the box to the up side.</think><answer>Left || Up</answer>"
-    max_tokens: 30
-    env_config: # keys should be a subset of SokobanConfig
-      search_depth: 20
-      dim_x: 6
-      dim_y: 6
-      num_boxes: 1
-      max_steps: 100
-  
-  SokobanSearchDepth30:
-    env_type: sokoban
-    max_actions_per_traj: 10
-    env_instruction: "You are solving the Sokoban puzzle. Move all boxes to targets. Example answer format: <think>I should go left first, then move the box to the up side.</think><answer>Left || Up</answer>"
-    max_tokens: 30
-    env_config: # keys should be a subset of SokobanConfig
-      search_depth: 30
-      dim_x: 6
-      dim_y: 6
-      num_boxes: 1
-      max_steps: 100
-  
+
   Sokoban2Boxes:
     env_type: sokoban
     max_actions_per_traj: 10
