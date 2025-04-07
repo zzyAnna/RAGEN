@@ -151,7 +151,6 @@ class LLMAgentProxy:
 			env_outputs: List[Dict] = es_manager.step(env_inputs)
 			if len(env_outputs) == 0: # all finished
 				break
-			breakpoint()
 		rollout_states = es_manager.get_rollout_states() 
 		rollouts = ctx_manager.formulate_rollouts(rollout_states)
 		return rollouts
