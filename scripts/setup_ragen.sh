@@ -43,8 +43,8 @@ main() {
     # Create and activate conda environment
     # if not exists, create it
     if ! conda env list | grep -q "ragen"; then
-        print_step "Creating conda environment 'ragen' with Python 3.9..."
-        conda create -n ragen python=3.9 -y
+        print_step "Creating conda environment 'ragen' with Python 3.12..."
+        conda create -n ragen python=3.12 -y
     else
         print_step "Conda environment 'ragen' already exists"
     fi

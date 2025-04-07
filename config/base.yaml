@@ -10,17 +10,17 @@ ppo_mini_batch_size: 32
 
 actor_rollout_ref:
   model:
-    path: Qwen/Qwen2.5-3B-Instruct
+    path: Qwen/Qwen2.5-0.5B-Instruct
   actor:
     ppo_mini_batch_size: null  # by default, ppo_mini_batch_size = train_batch_size / 4
     micro_batch_size_per_gpu: null # following micro_batch_size_per_gpu
     ppo_micro_batch_size_per_gpu: null # following micro_batch_size_per_gpu
     use_kl_loss: True
     use_ref: True
-    kl_loss_coef: 0.01
-    kl_loss_type: mse
+    kl_loss_coef: 0.001
+    kl_loss_type: low_var_kl
     optim:
-      betas: [0.9, 0.95]
+      betas: [0.9, 0.999]
   ref:
     log_prob_micro_batch_size_per_gpu: null # following micro_batch_size_per_gpu
   rollout:
@@ -29,12 +29,9 @@ actor_rollout_ref:
     max_model_len: 2048
     prompt_length: 1 # useless. Just put it here
     response_length: 400 # single-turn response length
-    enable_kv_cache: True # much faster with this on:) 6.43s vs 10.29s
-    enforce_eager: True
-    free_cache_engine: ${actor_rollout_ref.rollout.enforce_eager}
     gpu_memory_utilization: 0.5
-    enable_chunked_prefill: ${actor_rollout_ref.rollout.enable_kv_cache}
     # max_num_batched_tokens: 8192 # set only when enable_chunked_prefill is true
+    temperature: 1
     val_kwargs:
       do_sample: False
       temperature: 0
@@ -71,8 +68,8 @@ agent_proxy:
   use_turn_scores: False # important to GAE when applying token-level rewards to token-level advantages. If False, will take the sum of scores as the reward for the last turn.
   enable_think: True # False -> no think RL
   reward_normalization:
-    grouping: "env" # env / batch / prompt
-    method: "mean_std"
+    grouping: "inductive" # env / batch / prompt
+    method: "asym_clip"
 
 es_manager:
   format_penalty: -0.1

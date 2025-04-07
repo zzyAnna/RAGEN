@@ -149,9 +149,9 @@ class ContextManager:
         
         rn_cfg = self.config.agent_proxy.reward_normalization
         grouping, method = rn_cfg.grouping, rn_cfg.method
-        if grouping == "prompt":
+        if grouping == "state":
             group_tags = [env_output["group_id"] for env_output in env_outputs]
-        elif grouping == "env":
+        elif grouping == "inductive":
             group_tags = [env_output["tag"] for env_output in env_outputs]
         elif grouping == "batch":
             group_tags = [1] * len(env_outputs)
@@ -160,9 +160,11 @@ class ContextManager:
 
 
         if method == "mean_std":
-            norm_func = lambda x: (x - x.mean(dim=-1, keepdim=True)) / (x.std(dim=-1, keepdim=True) + 1e-6) if x.std(dim=-1, keepdim=True).abs().max() > 1e-6 else torch.zeros_like(x)
+            norm_func = lambda x: (x - x.mean(dim=-1, keepdim=True)) / (x.std(dim=-1, keepdim=True) + 1e-6) if x.std(dim=-1, keepdim=True).abs().max() > 1e-6 else torch.zeros_like(x) # stable to bf16 than x.std()
         elif method == "mean":
             norm_func = lambda x: (x - x.mean(dim=-1, keepdim=True))
+        elif method == "asym_clip":
+            norm_func = lambda x: ((x - x.mean(dim=-1, keepdim=True)) / (x.std(dim=-1, keepdim=True) + 1e-6) if x.std(dim=-1, keepdim=True).abs().max() > 1e-6 else torch.zeros_like(x)).clamp(min=-1, max=3)
         else:
             raise ValueError(f"Invalid normalization method: {method}")
 

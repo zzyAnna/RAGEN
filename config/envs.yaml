@@ -161,6 +161,12 @@ custom_envs:
     max_tokens: 200
     env_config: null
 
+  BanditNoThink:
+    env_type: bandit
+    max_actions_per_traj: 1
+    env_instruction: "You are solving the Bandit puzzle. Guess which machine has the higher expected reward. Example answer format: <answer>coffee</answer>"
+    max_tokens: 200
+    env_config: null
 
   BanditGeneralization:
     env_type: bandit

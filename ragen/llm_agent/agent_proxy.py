@@ -39,6 +39,7 @@ class VllmWrapperWg: # Thi is a developing class for eval and test
 			temperature=ro_config.val_kwargs.temperature,
 			top_p=ro_config.val_kwargs.top_p,
 			top_k=ro_config.val_kwargs.top_k,
+			min_p=0.1,
 		)
 
 	def generate_sequences(self, lm_inputs: DataProto):
@@ -164,7 +165,7 @@ def main(config):
 	proxy = LLMAgentProxy(config, actor_wg, tokenizer)
 	import time
 	start_time = time.time()
-	rollouts = proxy.rollout(DataProto(batch=None, non_tensor_batch=None, meta_info={'eos_token_id': 151645, 'pad_token_id': 151643, 'recompute_log_prob': False, 'do_sample': False, 'validate': True}), val=True)
+	rollouts = proxy.rollout(DataProto(batch=None, non_tensor_batch=None, meta_info={'eos_token_id': 151645, 'pad_token_id': 151643, 'recompute_log_prob': False, 'do_sample':config.actor_rollout_ref.rollout.do_sample, 'validate': True}), val=True)
 	end_time = time.time()
 	print(f'rollout time: {end_time - start_time} seconds')
 	# print rollout rewards from the rm_scores
