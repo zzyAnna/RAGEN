@@ -61,6 +61,9 @@ class DummyRewardManager():
             reward_tensor[i, valid_response_length - 1] = score
             all_scores.append(score)
 
+            # Get data_source from data_item if available, otherwise use a default value
+            data_source = data_item.non_tensor_batch.get('data_source', 'default')
+            
             if data_source not in already_print_data_sources:
                 already_print_data_sources[data_source] = 0
 
@@ -89,6 +92,9 @@ def get_custom_reward_fn(config):
         raise FileNotFoundError(f"Reward function file '{file_path}' not found.")
 
     spec = importlib.util.spec_from_file_location("custom_module", file_path)
+    if spec is None:
+        raise RuntimeError(f"Failed to create module spec from '{file_path}'")
+        
     module = importlib.util.module_from_spec(spec)
     try:
         spec.loader.exec_module(module)
@@ -96,6 +102,8 @@ def get_custom_reward_fn(config):
         raise RuntimeError(f"Error loading module from '{file_path}': {e}")
 
     function_name = reward_fn_config.get("name")
+    if not function_name:
+        raise ValueError("Function name not specified in custom_reward_function config")
 
     if not hasattr(module, function_name):
         raise AttributeError(f"Reward function '{function_name}' not found in '{file_path}'.")
