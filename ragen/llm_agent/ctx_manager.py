@@ -118,7 +118,8 @@ class ContextManager:
         pattern = r'<think>(.*?)</think>\s*<answer>(.*?)</answer>' if self.config.agent_proxy.enable_think else r'<answer>(.*?)</answer>'
         match = re.search(pattern, response, re.DOTALL)
         if not match:
-            think_content, action_content, actions = "", "", []
+            # think_content, action_content, actions = "", "", [] # do not remove this kind of invalid string
+            llm_response, actions = response, []
         else:
             if self.config.agent_proxy.enable_think:
                 think_content, action_content = match.group(1), match.group(2)
@@ -137,7 +138,7 @@ class ContextManager:
                 actions = actions[:max_actions] #Only the first MAX_ACTIONS actions are kept in the rollout.
                 action_content = (" " + self.action_sep + " ").join(actions)
 
-        llm_response = f"<think>{think_content}</think><answer>{action_content}</answer>" if self.config.agent_proxy.enable_think else f"<answer>{action_content}</answer>"
+            llm_response = f"<think>{think_content}</think><answer>{action_content}</answer>" if self.config.agent_proxy.enable_think else f"<answer>{action_content}</answer>"
         return llm_response, actions
         
     def _normalize_score_tensor(self, score_tensor: torch.Tensor, env_outputs: List[Dict]) -> torch.Tensor:

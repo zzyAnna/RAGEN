@@ -224,7 +224,8 @@ class EnvStateManager:
         if action_lookup is None:
             mapped_actions = actions
         else: # the envs have pre-defined action lookup
-            rev_action_lookup = {v: k for k, v in action_lookup.items()}
+            rev_action_lookup = {v.lower(): k for k, v in action_lookup.items()}
+            actions = [action.lower() for action in actions]
             mapped_actions = [rev_action_lookup[action] for action in actions if action in rev_action_lookup]
         return mapped_actions
     

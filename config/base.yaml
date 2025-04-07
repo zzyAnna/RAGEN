@@ -17,7 +17,7 @@ actor_rollout_ref:
     ppo_micro_batch_size_per_gpu: null # following micro_batch_size_per_gpu
     use_kl_loss: True
     use_ref: True
-    kl_loss_coef: 0.001
+    kl_loss_coef: 0.000
     kl_loss_type: low_var_kl
     optim:
       betas: [0.9, 0.999]
@@ -33,8 +33,8 @@ actor_rollout_ref:
     # max_num_batched_tokens: 8192 # set only when enable_chunked_prefill is true
     temperature: 1
     val_kwargs:
-      do_sample: False
-      temperature: 0
+      do_sample: True
+      temperature: 0.5
 
 
 critic:
@@ -43,7 +43,7 @@ critic:
   model:
     path: ${actor_rollout_ref.model.path}
   optim:
-    betas: [0.9, 0.95]
+    betas: [0.9, 0.999]
 
 data:
   max_prompt_length: null

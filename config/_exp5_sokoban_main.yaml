@@ -2,14 +2,14 @@ defaults:
   - base
 
 system:
-  CUDA_VISIBLE_DEVICES: "4,5,6,7"
+  CUDA_VISIBLE_DEVICES: "0,1"
 
 micro_batch_size_per_gpu: 8
-ppo_mini_batch_size: 32
+ppo_mini_batch_size: 128
 
 actor_rollout_ref:
   model:
-    path: Qwen/Qwen2.5-3B-Instruct
+    path: Qwen/Qwen2.5-0.5B-Instruct
 
 algorithm:
   adv_estimator: grpo # gae
@@ -17,7 +17,7 @@ algorithm:
 trainer:
   project_name: ragen_new
   experiment_name: sokoban-main
-  n_gpus_per_node: 4
+  n_gpus_per_node: 2
 
 agent_proxy:
   max_turn: 5
@@ -31,7 +31,7 @@ es_manager:
   format_penalty: -0.1
   train:
     env_groups: 16
-    group_size: 8
+    group_size: 32
     env_configs:
       tags: ["SimpleSokoban", "SokobanSearchDepth10", "SokobanSearchDepth20", "SokobanSearchDepth30"]
       n_groups: [4, 4, 4, 4] # If not set, all env names divide nums equally. Under the same group, the env config and env seed (prompt) are equal in each generation

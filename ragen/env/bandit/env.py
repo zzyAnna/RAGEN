@@ -48,7 +48,7 @@ class BanditEnv(BaseDiscreteActionEnv, gym.Env):
         pos2 = pos1 + 1
         machine1 = self.ARM_IDX_TO_NAME[pos1]
         machine2 = self.ARM_IDX_TO_NAME[pos2]
-        self.render_cache = f"Machines: {machine1}({pos1}), {machine2}({pos2}). Choose: {self.get_all_actions()}"
+        self.render_cache = f"Machine names: {machine1}, {machine2}. Choose from them."
         return self.render_cache
 
     def step(self, action: int):

@@ -2,10 +2,9 @@ custom_envs:
   SimpleSokoban:
     env_type: sokoban
     max_actions_per_traj: 10 # used in environment state manager to control the actual max actions executed per trajectory
-    env_instruction: "You are solving the Simple Sokoban puzzle. Move all boxes to targets. Example answer format: <answer>Left || Up</answer>"
-    max_tokens: 200 # used to curate llm prompt "max words", not used for rollout
+    env_instruction: "You are solving the Simple Sokoban puzzle. Move all boxes to targets. Example answer format: <think>I should go left first, then move the box to the up side.</think><answer>Left || Up</answer>"
+    max_tokens: 30 # used to curate llm prompt "max words", not used for rollout
     env_config: # keys should be a subset of SokobanConfig
-      search_depth: 5
       dim_x: 6
       dim_y: 6
       num_boxes: 1
@@ -14,8 +13,8 @@ custom_envs:
   SokobanSearchDepth10:
     env_type: sokoban
     max_actions_per_traj: 10
-    env_instruction: "You are solving the Sokoban puzzle. Move all boxes to targets. Example answer format: <answer>Left || Up</answer>"
-    max_tokens: 200
+    env_instruction: "You are solving the Sokoban puzzle. Move all boxes to targets. Example answer format: <think>I should go left first, then move the box to the up side.</think><answer>Left || Up</answer>"
+    max_tokens: 30
     env_config: # keys should be a subset of SokobanConfig
       search_depth: 10
       dim_x: 6
@@ -26,8 +25,8 @@ custom_envs:
   SokobanSearchDepth20:
     env_type: sokoban
     max_actions_per_traj: 10
-    env_instruction: "You are solving the Sokoban puzzle. Move all boxes to targets. Example answer format: <answer>Left || Up</answer>"
-    max_tokens: 200
+    env_instruction: "You are solving the Sokoban puzzle. Move all boxes to targets. Example answer format: <think>I should go left first, then move the box to the up side.</think><answer>Left || Up</answer>"
+    max_tokens: 30
     env_config: # keys should be a subset of SokobanConfig
       search_depth: 20
       dim_x: 6
@@ -38,8 +37,8 @@ custom_envs:
   SokobanSearchDepth30:
     env_type: sokoban
     max_actions_per_traj: 10
-    env_instruction: "You are solving the Sokoban puzzle. Move all boxes to targets. Example answer format: <answer>Left || Up</answer>"
-    max_tokens: 200
+    env_instruction: "You are solving the Sokoban puzzle. Move all boxes to targets. Example answer format: <think>I should go left first, then move the box to the up side.</think><answer>Left || Up</answer>"
+    max_tokens: 30
     env_config: # keys should be a subset of SokobanConfig
       search_depth: 30
       dim_x: 6
@@ -50,8 +49,8 @@ custom_envs:
   Sokoban2Boxes:
     env_type: sokoban
     max_actions_per_traj: 10
-    env_instruction: "You are solving the Sokoban puzzle. Move all boxes to targets. Example answer format: <answer>Left || Up</answer>"
-    max_tokens: 200
+    env_instruction: "You are solving the Sokoban puzzle. Move all boxes to targets. Example answer format: <think>I should go left first, then move the box to the up side.</think><answer>Left || Up</answer>"
+    max_tokens: 30
     env_config: # keys should be a subset of SokobanConfig
       search_depth: 30
       dim_x: 6
@@ -62,8 +61,8 @@ custom_envs:
   SokobanDifferentGridVocab:
     env_type: sokoban
     max_actions_per_traj: 10
-    env_instruction: "You are solving the Sokoban puzzle. Move all boxes to targets. Example answer format: <answer>Left || Up</answer>"
-    max_tokens: 200
+    env_instruction: "You are solving the Sokoban puzzle. Move all boxes to targets. Example answer format: <think>I should go left first, then move the box to the up side.</think><answer>Left || Up</answer>"
+    max_tokens: 30
     env_config: # keys should be a subset of SokobanConfig
       search_depth: 30
       dim_x: 6
@@ -90,8 +89,8 @@ custom_envs:
   SokobanDifferentActionVocab:
     env_type: sokoban
     max_actions_per_traj: 10
-    env_instruction: "You are solving the Sokoban puzzle. Move all boxes to targets. Example answer format: <answer>Left || Up</answer>"
-    max_tokens: 200
+    env_instruction: "You are solving the Sokoban puzzle. Move all boxes to targets. Example answer format: <think>I should go left first, then move the box to the up side.</think><answer>Left || Up</answer>"
+    max_tokens: 30
     env_config: # keys should be a subset of SokobanConfig
       search_depth: 30
       dim_x: 6
@@ -109,8 +108,8 @@ custom_envs:
   VisualSimpleSokoban:
     env_type: sokoban
     max_actions_per_traj: 10
-    env_instruction: "You are solving the Visual Simple Sokoban puzzle. Move all boxes to targets. Example answer format: <answer>Left || Up</answer>"
-    max_tokens: 200
+    env_instruction: "You are solving the Visual Simple Sokoban puzzle. Move all boxes to targets. Example answer format: <think>I should go left first, then move the box to the up side.</think><answer>Left || Up</answer>"
+    max_tokens: 30
     env_config: # keys should be a subset of SokobanConfig
       dim_x: 6
       dim_y: 6
@@ -121,8 +120,8 @@ custom_envs:
   HarderSokoban:
     env_type: sokoban
     max_actions_per_traj: 10
-    env_instruction: "You are solving the Harder Sokoban puzzle. Move all boxes to targets. Example answer format: <answer>Left || Up</answer>"
-    max_tokens: 200
+    env_instruction: "You are solving the Harder Sokoban puzzle. Move all boxes to targets. Example answer format: <think>I should go left first, then move the box to the up side.</think><answer>Left || Up</answer>"
+    max_tokens: 30
     env_config:
       dim_x: 10
       dim_y: 10
@@ -138,42 +137,42 @@ custom_envs:
     env_type: countdown
     max_actions_per_traj: 10
     env_instruction: "You are solving the Countdown puzzle. You should use the num list to create an equation that equals the target. Example answer format: <think> To find an equation using [3, 5, 2] to get 4. Let's check 2 + 5 = 7, 7 - 3 = 4. So the answer is 2 + 5 - 3 = 4. </think><answer>2 + 5 - 3</answer>"
-    max_tokens: 200
+    max_tokens: 30
     env_config: null
 
   Bandit:
     env_type: bandit
     max_actions_per_traj: 1
-    env_instruction: "You are solving the Bandit puzzle. Guess which machine has the higher expected reward. Example answer format: <think>I see machines of milk(1), coffee(2), tea(3), and need to choose from [1, 2, 3]. Let analyze. I should pull the lever coffee, which is often associated with alertness and energy, suggesting it may offer a higher reward.</think><answer>coffee</answer>"
-    max_tokens: 200
+    env_instruction: "You are solving the Bandit puzzle. Guess which machine has the higher expected reward. Example answer format: <think>...</think><answer>machine name</answer>"
+    max_tokens: 30
     env_config: null
 
   FrozenLake:
     env_type: frozen_lake
     max_actions_per_traj: 10
     env_instruction: "You are solving the FrozenLake puzzle. Forbid the whole and go to the target. You may move to the unintended direction due to the slippery ice. Example answer format: <think>To forbid the hole and go to the target, I should go left then go up.</think><answer>Left || Up</answer>"
-    max_tokens: 200
+    max_tokens: 30
     env_config: null
 
   MetamathQA:
     env_type: metamathqa
     max_actions_per_traj: 1
     env_instruction: "You are solving Math problems. "
-    max_tokens: 200
+    max_tokens: 30
     env_config: null
 
   BanditNoThink:
     env_type: bandit
     max_actions_per_traj: 1
     env_instruction: "You are solving the Bandit puzzle. Guess which machine has the higher expected reward. Example answer format: <answer>coffee</answer>"
-    max_tokens: 200
+    max_tokens: 30
     env_config: null
 
   BanditGeneralization:
     env_type: bandit
     max_actions_per_traj: 1
-    env_instruction: "You are solving the Bandit puzzle. Guess which machine has the higher expected reward. Example answer format: <think>I see machines of milk(1), coffee(2), tea(3), and need to choose from [1, 2, 3]. Let analyze. I should pull the lever coffee, which is often associated with alertness and energy, suggesting it may offer a higher reward.</think><answer>coffee</answer>"
-    max_tokens: 200
+    env_instruction: "You are solving the Bandit puzzle. Guess which machine has the higher expected reward. Example answer format: <think>Among the machines, I should pull the lever coffee, which is often associated with alertness and energy.</think><answer>coffee</answer>"
+    max_tokens: 30
     env_config: 
       lo_arm_name: "Engineer"
       hi_arm_name: "Teacher"
@@ -181,8 +180,8 @@ custom_envs:
   BanditGeneralizationTest:
     env_type: bandit
     max_actions_per_traj: 1
-    env_instruction: "You are solving the Bandit puzzle. Guess which machine has the higher expected reward. Example answer format: <think>I see machines of milk(1), coffee(2), tea(3), and need to choose from [1, 2, 3]. Let analyze. I should pull the lever coffee, which is often associated with alertness and energy, suggesting it may offer a higher reward.</think><answer>coffee</answer>"
-    max_tokens: 200
+    env_instruction: "You are solving the Bandit puzzle. Guess which machine has the higher expected reward. Example answer format: <think>Among the machines, I should pull the lever coffee, which is often associated with alertness and energy.</think><answer>coffee</answer>"
+    max_tokens: 30
     env_config: 
       lo_arm_name: "Trader"
       hi_arm_name: "Librarian"
@@ -191,7 +190,7 @@ custom_envs:
     env_type: bandit
     max_actions_per_traj: 1
     env_instruction: "You are solving the Bandit puzzle. Guess which machine has the higher expected reward. Example answer format: <answer>coffee</answer>"
-    max_tokens: 200
+    max_tokens: 30
     env_config: 
       lo_arm_name: "Engineer"
       hi_arm_name: "Teacher"
@@ -200,7 +199,7 @@ custom_envs:
     env_type: bandit
     max_actions_per_traj: 1
     env_instruction: "You are solving the Bandit puzzle. Guess which machine has the higher expected reward. Example answer format: <answer>coffee</answer>"
-    max_tokens: 200
+    max_tokens: 30
     env_config: 
       lo_arm_name: "Trader"
       hi_arm_name: "Librarian"

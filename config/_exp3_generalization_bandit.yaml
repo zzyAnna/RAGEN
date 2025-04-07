@@ -11,6 +11,8 @@ trainer:
 agent_proxy:
   enable_think: True # False -> no think RL
 
+ppo_mini_batch_size: 128
+
 es_manager:
   format_penalty: -0.1
   train:

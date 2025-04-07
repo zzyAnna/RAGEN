@@ -39,7 +39,7 @@ class VllmWrapperWg: # Thi is a developing class for eval and test
 			temperature=ro_config.val_kwargs.temperature,
 			top_p=ro_config.val_kwargs.top_p,
 			top_k=ro_config.val_kwargs.top_k,
-			min_p=0.1,
+			# min_p=0.1,
 		)
 
 	def generate_sequences(self, lm_inputs: DataProto):
@@ -151,6 +151,7 @@ class LLMAgentProxy:
 			env_outputs: List[Dict] = es_manager.step(env_inputs)
 			if len(env_outputs) == 0: # all finished
 				break
+			breakpoint()
 		rollout_states = es_manager.get_rollout_states() 
 		rollouts = ctx_manager.formulate_rollouts(rollout_states)
 		return rollouts
