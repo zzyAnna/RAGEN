@@ -1,11 +1,11 @@
 defaults:
-  - base
+  - critic
 
 system:
   CUDA_VISIBLE_DEVICES: "2"
 
 ppo_mini_batch_size: 32
-micro_batch_size_per_gpu: 32
+micro_batch_size_per_gpu: 8
 
 actor_rollout_ref:
   model:
@@ -17,7 +17,7 @@ actor_rollout_ref:
       temperature: 0.5
 
 algorithm:
-  adv_estimator: grpo # it means "no-critic" here. actual reward normalization function is set in agent_proxy.reward_normalization
+  adv_estimator: gae # it means "no-critic" here. actual reward normalization function is set in agent_proxy.reward_normalization
   # lam: 1
  
 trainer:
@@ -32,7 +32,7 @@ agent_proxy:
   enable_think: True # False -> no think RL
   reward_normalization:
     grouping: "batch" 
-    method: "mean"
+    method: "mean_std"
 
 es_manager:
   format_penalty: -0.1

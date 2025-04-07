@@ -155,9 +155,27 @@ custom_envs:
   Bandit:
     env_type: bandit
     max_actions_per_traj: 1
-    env_instruction: "You are solving the Bandit puzzle. Analyze the semantic and symbolic meanings of the machine names and choose one that could get higher expected reward. Example answer format: <think>...</think><answer>machine_name</answer>"
+    env_instruction: "You are solving the Bandit puzzle. Based on the semantic and symbolic meanings of the machine names, choose one that could get higher expected reward. You should contain the machine name in your answer like this: <answer>machine_name</answer>"
     max_tokens: 30
     env_config: null
+
+  BanditGeneralization:
+    env_type: bandit
+    max_actions_per_traj: 1
+    env_instruction: "You are solving the Bandit puzzle. Based on the semantic and symbolic meanings of the machine names, choose one that could get higher expected reward. You should contain the machine name in your answer like this: <answer>machine_name</answer>"
+    max_tokens: 30
+    env_config: 
+      lo_arm_name: "Engineer"
+      hi_arm_name: "Teacher"
+
+  BanditGeneralizationTest:
+    env_type: bandit
+    max_actions_per_traj: 1
+    env_instruction: "You are solving the Bandit puzzle. Based on the semantic and symbolic meanings of the machine names, choose one that could get higher expected reward. You should contain the machine name in your answer like this: <answer>machine_name</answer>"
+    max_tokens: 30
+    env_config: 
+      lo_arm_name: "Trader"
+      hi_arm_name: "Librarian"
 
   FrozenLake:
     env_type: frozen_lake
@@ -172,46 +190,3 @@ custom_envs:
     env_instruction: "You are solving Math problems. "
     max_tokens: 30
     env_config: null
-
-  BanditNoThink:
-    env_type: bandit
-    max_actions_per_traj: 1
-    env_instruction: "You are solving the Bandit puzzle. Analyze the semantic and symbolic meanings of the machine names and choose one that could get higher expected reward. Example answer format: <answer>machine_name</answer>"
-    max_tokens: 30
-    env_config: null
-
-  BanditGeneralization:
-    env_type: bandit
-    max_actions_per_traj: 1
-    env_instruction: "You are solving the Bandit puzzle. Analyze the semantic and symbolic meanings of the machine names and choose one that could get higher expected reward. Example answer format: <think>...</think><answer>machine_name</answer>"
-    max_tokens: 30
-    env_config: 
-      lo_arm_name: "Engineer"
-      hi_arm_name: "Teacher"
-
-  BanditGeneralizationTest:
-    env_type: bandit
-    max_actions_per_traj: 1
-    env_instruction: "You are solving the Bandit puzzle. Analyze the semantic and symbolic meanings of the machine names and choose one that could get higher expected reward. Example answer format: <think>...</think><answer>machine_name</answer>"
-    max_tokens: 30
-    env_config: 
-      lo_arm_name: "Trader"
-      hi_arm_name: "Librarian"
-
-  BanditGeneralizationNoThink:
-    env_type: bandit
-    max_actions_per_traj: 1
-    env_instruction: "You are solving the Bandit puzzle. Analyze the semantic and symbolic meanings of the machine names and choose one that could get higher expected reward. Example answer format: <answer>machine_name</answer>"
-    max_tokens: 30
-    env_config: 
-      lo_arm_name: "Engineer"
-      hi_arm_name: "Teacher"
-
-  BanditGeneralizationNoThinkTest:
-    env_type: bandit
-    max_actions_per_traj: 1
-    env_instruction: "You are solving the Bandit puzzle. Analyze the semantic and symbolic meanings of the machine names and choose one that could get higher expected reward. Example answer format: <answer>machine_name</answer>"
-    max_tokens: 30
-    env_config: 
-      lo_arm_name: "Trader"
-      hi_arm_name: "Librarian"

@@ -11,8 +11,6 @@ trainer:
 agent_proxy:
   enable_think: False # False -> no think RL
 
-ppo_mini_batch_size: 128
-
 es_manager:
   format_penalty: -0.1
   train:
@@ -20,11 +18,11 @@ es_manager:
     # under the same group, the env config and env seed are ensured to be equal
     group_size: 16
     env_configs:
-      tags: ["BanditGeneralizationNoThink"] # BanditGeneralizationNoThink
+      tags: ["BanditGeneralization"] # BanditGeneralizationNoThink
       n_groups: [8] # If not set, all env names divide nums equally. Under the same group, the env config and env seed (prompt) are equal in each generation
   val:
     env_groups: 256
     group_size: 1 # should be set to 1 because val temperature is set to 0 and same prompt leads to same output
     env_configs:
-      tags: ["BanditGeneralizationNoThink", "BanditGeneralizationNoThinkTest"]
+      tags: ["BanditGeneralization", "BanditGeneralizationTest"]
       n_groups: [128, 128] # [128] # If not set, all env names divide nums equally. Under the same group, the env config and env seed (prompt) are equal in each generation
