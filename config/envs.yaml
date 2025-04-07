@@ -155,7 +155,7 @@ custom_envs:
   Bandit:
     env_type: bandit
     max_actions_per_traj: 1
-    env_instruction: "You are solving the Bandit puzzle. Guess which machine has the higher expected reward. Example answer format: <think>...</think><answer>machine name</answer>"
+    env_instruction: "You are solving the Bandit puzzle. One of the two machines are more risky but has a higher expected reward. Which machine should you pull? Based on the symbolic meanings of their names, pull the answer with higher reward. Example answer format: <think>...</think><answer>machine_name</answer>"
     max_tokens: 30
     env_config: null
 
@@ -176,14 +176,14 @@ custom_envs:
   BanditNoThink:
     env_type: bandit
     max_actions_per_traj: 1
-    env_instruction: "You are solving the Bandit puzzle. Guess which machine has the higher expected reward. Example answer format: <answer>coffee</answer>"
+    env_instruction: "You are solving the Bandit puzzle. One of the two machines are more risky but has a higher expected reward. Which machine should you pull? Based on the symbolic meanings of their names, pull the answer with higher reward. Example answer format: <answer>machine_name</answer>"
     max_tokens: 30
     env_config: null
 
   BanditGeneralization:
     env_type: bandit
     max_actions_per_traj: 1
-    env_instruction: "You are solving the Bandit puzzle. Guess which machine has the higher expected reward. Example answer format: <think>Among the machines, I should pull the lever coffee, which is often associated with alertness and energy.</think><answer>coffee</answer>"
+    env_instruction: "You are solving the Bandit puzzle. One of the two machines are more risky but has a higher expected reward. Which machine should you pull? Based on the symbolic meanings of their names, pull the answer with higher reward. Example answer format: <think>...</think><answer>machine_name</answer>"
     max_tokens: 30
     env_config: 
       lo_arm_name: "Engineer"
@@ -192,7 +192,7 @@ custom_envs:
   BanditGeneralizationTest:
     env_type: bandit
     max_actions_per_traj: 1
-    env_instruction: "You are solving the Bandit puzzle. Guess which machine has the higher expected reward. Example answer format: <think>Among the machines, I should pull the lever coffee, which is often associated with alertness and energy.</think><answer>coffee</answer>"
+    env_instruction: "You are solving the Bandit puzzle. One of the two machines are more risky but has a higher expected reward. Which machine should you pull? Based on the symbolic meanings of their names, pull the answer with higher reward. Example answer format: <think>...</think><answer>machine_name</answer>"
     max_tokens: 30
     env_config: 
       lo_arm_name: "Trader"
@@ -201,7 +201,7 @@ custom_envs:
   BanditGeneralizationNoThink:
     env_type: bandit
     max_actions_per_traj: 1
-    env_instruction: "You are solving the Bandit puzzle. Guess which machine has the higher expected reward. Example answer format: <answer>coffee</answer>"
+    env_instruction: "You are solving the Bandit puzzle. One of the two machines are more risky but has a higher expected reward. Which machine should you pull? Based on the symbolic meanings of their names, pull the answer with higher reward. Example answer format: <answer>machine_name</answer>"
     max_tokens: 30
     env_config: 
       lo_arm_name: "Engineer"
@@ -210,7 +210,7 @@ custom_envs:
   BanditGeneralizationNoThinkTest:
     env_type: bandit
     max_actions_per_traj: 1
-    env_instruction: "You are solving the Bandit puzzle. Guess which machine has the higher expected reward. Example answer format: <answer>coffee</answer>"
+    env_instruction: "You are solving the Bandit puzzle. One of the two machines are more risky but has a higher expected reward. Which machine should you pull? Based on the symbolic meanings of their names, pull the answer with higher reward. Example answer format: <answer>machine_name</answer>"
     max_tokens: 30
     env_config: 
       lo_arm_name: "Trader"

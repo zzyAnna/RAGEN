@@ -2,9 +2,9 @@ defaults:
   - base
 
 system:
-  CUDA_VISIBLE_DEVICES: "1"
+  CUDA_VISIBLE_DEVICES: "2"
 
-ppo_mini_batch_size: 64
+ppo_mini_batch_size: 32
 micro_batch_size_per_gpu: 32
 
 actor_rollout_ref:

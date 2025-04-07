@@ -2,7 +2,7 @@ defaults:
   - _exp1_bandit
 
 system:
-  CUDA_VISIBLE_DEVICES: "0"
+  CUDA_VISIBLE_DEVICES: "1"
 
 trainer:
   project_name: ragen_new

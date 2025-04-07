@@ -233,7 +233,8 @@ class RayAgentTrainer(VerlRayPPOTrainer):
                                                             dtype=object)
                 # batch.non_tensor_batch['uid'] = batch.non_tensor_batch['group_ids']
 
-                batch.batch['response_mask'] = compute_response_mask(batch)
+                # batch.batch['response_mask'] = compute_response_mask(batch)
+                batch.batch['response_mask'] = batch.batch['loss_mask']
                 # balance the number of valid tokens on each dp rank.
                 # Note that this breaks the order of data inside the batch.
                 # Please take care when you implement group based adv computation such as GRPO and rloo

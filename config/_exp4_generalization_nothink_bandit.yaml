@@ -2,11 +2,11 @@ defaults:
   - _exp1_bandit
 
 system:
-  CUDA_VISIBLE_DEVICES: "1"
+  CUDA_VISIBLE_DEVICES: "3"
 
 trainer:
   project_name: ragen_new
-  experiment_name: bandit-generalization-nothink-twist
+  experiment_name: bandit-generalization-nothink
 
 agent_proxy:
   enable_think: False # False -> no think RL

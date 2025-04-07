@@ -1,9 +1,6 @@
 defaults:
   - critic
 
-system:
-  CUDA_VISIBLE_DEVICES: "0,1"
-
 micro_batch_size_per_gpu: 8
 ppo_mini_batch_size: 32
 
@@ -14,7 +11,10 @@ actor_rollout_ref:
 trainer:
   project_name: ragen_new
   experiment_name: sokoban-main
-  n_gpus_per_node: 2
+  n_gpus_per_node: 4
+
+system:
+  CUDA_VISIBLE_DEVICES: "0,1,2,3"
 
 agent_proxy:
   max_turn: 5
