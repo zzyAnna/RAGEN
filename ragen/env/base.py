@@ -15,7 +15,7 @@ class BaseEnv(ABC):
         pass
 
     @abstractmethod
-    def reset(self, seed=None) -> Any:
+    def reset(self, seed=None, **kwargs) -> Any:
         """
         Reset the environment.
         NOTE: the environment should be same for the same seed
