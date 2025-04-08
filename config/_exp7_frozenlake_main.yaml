@@ -6,7 +6,7 @@ system:
   CUDA_VISIBLE_DEVICES: "0,1,2,3"
 
 ppo_mini_batch_size: 32
-micro_batch_size_per_gpu: 4
+micro_batch_size_per_gpu: 8
 
 actor_rollout_ref:
   model:
@@ -18,7 +18,7 @@ algorithm:
  
 trainer:
   project_name: ragen_new
-  experiment_name: sokoban-main
+  experiment_name: _exp7_frozenlake_main
   n_gpus_per_node: 4
 
 
@@ -34,11 +34,11 @@ es_manager:
     env_groups: 8
     group_size: 16
     env_configs:
-      tags: ["SimpleSokoban"]
+      tags: ["FrozenLake"]
       n_groups: [8] # If not set, all env names divide nums equally. Under the same group, the env config and env seed (prompt) are equal in each generation
   val:
     env_groups: 128
     group_size: 1 # should be set to 1 because val temperature is set to 0 and same prompt leads to same output
     env_configs:
-      tags: ["SimpleSokoban"]
+      tags: ["FrozenLake"]
       n_groups: [128] # If not set, all env names divide nums equally. Under the same group, the env config and env seed (prompt) are equal in each generation

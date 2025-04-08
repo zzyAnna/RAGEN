@@ -166,6 +166,8 @@ class ContextManager:
             norm_func = lambda x: (x - x.mean(dim=-1, keepdim=True))
         elif method == "asym_clip":
             norm_func = lambda x: ((x - x.mean(dim=-1, keepdim=True)) / (x.std(dim=-1, keepdim=True) + 1e-6) if x.std(dim=-1, keepdim=True).abs().max() > 1e-6 else torch.zeros_like(x)).clamp(min=-1, max=3)
+        elif method == "identity":
+            norm_func = lambda x: x
         else:
             raise ValueError(f"Invalid normalization method: {method}")
 

@@ -12,7 +12,6 @@ agent_proxy:
   enable_think: False # False -> no think RL
 
 es_manager:
-  format_penalty: -0.1
   train:
     env_groups: 8
     # under the same group, the env config and env seed are ensured to be equal
