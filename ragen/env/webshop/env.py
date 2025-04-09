@@ -1,17 +1,17 @@
 from ragen.env.base import BaseLanguageBasedEnv
-from ragen.env.webshop.config import WebAgentTextEnvConfig
+from ragen.env.webshop.config import WebShopEnvConfig
 from webshop_minimal import WebAgentTextEnv
 from typing import Optional, Union
 from ragen.utils import all_seed
 import random
 import string
 
-class WebAgentTextEnvAdapter(BaseLanguageBasedEnv, WebAgentTextEnv):
-    def __init__(self, config: Optional[WebAgentTextEnvConfig] = None, **kwargs: any) -> None:
+class WebShopEnv(BaseLanguageBasedEnv, WebAgentTextEnv):
+    def __init__(self, config: Optional[WebShopEnvConfig] = None, **kwargs: any) -> None:
         """
         Adapter for WebAgentTextEnv to conform to the BaseLanguageBasedEnv interface.
         """
-        self.config = config or WebAgentTextEnvConfig()
+        self.config = config or WebShopEnvConfig()
         self.observation_mode = self.config.observation_mode
         self.file_path = self.config.file_path
         self.server = self.config.server
@@ -72,9 +72,10 @@ class WebAgentTextEnvAdapter(BaseLanguageBasedEnv, WebAgentTextEnv):
         WebAgentTextEnv.close(self)
 
 if __name__ == '__main__':
-    env = WebAgentTextEnvAdapter()
+    env = WebShopEnv()
     print(env.reset())
     while True:
+        print(f"Available actions: {env.get_available_actions()}")
         action = input("Enter action: ")
         if action == 'q':
             break

@@ -10,6 +10,8 @@ from .frozen_lake.config import FrozenLakeEnvConfig
 from .frozen_lake.env import FrozenLakeEnv
 from .metamathqa.env import MetaMathQAEnv
 from .metamathqa.config import MetaMathQAEnvConfig
+from .webshop.env import WebShopEnv
+from .webshop.config import WebShopEnvConfig
 
 REGISTERED_ENVS = {
     'bandit': BanditEnv,
@@ -18,6 +20,7 @@ REGISTERED_ENVS = {
     'frozen_lake': FrozenLakeEnv,
     # 'alfworld': AlfredTXTEnv,
     'metamathqa': MetaMathQAEnv,
+    'webshop': WebShopEnv
 }
 
 REGISTERED_ENV_CONFIGS = {
@@ -27,4 +30,5 @@ REGISTERED_ENV_CONFIGS = {
     'frozen_lake': FrozenLakeEnvConfig,
     # 'alfworld': AlfredEnvConfig,
     'metamathqa': MetaMathQAEnvConfig,
+    'webshop': WebShopEnvConfig
 }

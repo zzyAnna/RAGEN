@@ -6,7 +6,7 @@ from webshop_minimal.utils import (
 )
 
 @dataclass
-class WebAgentTextEnvConfig:
+class WebShopEnvConfig:
     """Configuration for WebAgentText environment"""
     observation_mode: str = field(
         default="text", 

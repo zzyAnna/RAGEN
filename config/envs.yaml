@@ -190,3 +190,10 @@ custom_envs:
     env_instruction: "You are solving Math problems. "
     max_tokens: 30
     env_config: null
+
+  WebShop:
+    env_type: web_shop
+    max_actions_per_traj: 10
+    env_instruction: "You are solving WebShop problems. "
+    max_tokens: 100
+    env_config: null
