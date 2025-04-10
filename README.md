@@ -3,7 +3,7 @@
 
 <p align="center"><img src="./public/ragen.png" width="800px" alt="RICO Framework" /></p>
 <p align="center" style="font-size: 18px;">
-  <strong>RAGEN</strong> leverages reinforcement learning to train <strong>LLM reasoning agents</strong> in interactive, stochastic environments.<br>
+  <strong>RAGEN</strong> (<b>R</b>easoning <b>AGEN</b>t, pronounced like "region") leverages reinforcement learning (RL) to train <strong>LLM reasoning agents</strong> in interactive, stochastic environments.<br>
   <em>We strongly believe in the future of RL + LLM + Agents. The release is a minimally viable leap forward.</em>
 </p>
 
