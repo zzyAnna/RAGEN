@@ -192,7 +192,7 @@ custom_envs:
     env_config: null
 
   WebShop:
-    env_type: web_shop
+    env_type: webshop
     max_actions_per_traj: 10
     env_instruction: "You are solving WebShop problems. "
     max_tokens: 100

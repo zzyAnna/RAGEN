@@ -20,6 +20,7 @@ class WebShopEnv(BaseLanguageBasedEnv, WebAgentTextEnv):
         self.num_products = self.config.num_products
         self.human_goals = self.config.human_goals
         self.show_attrs = self.config.show_attrs
+        self.render_cache = None
 
         BaseLanguageBasedEnv.__init__(self)
         WebAgentTextEnv.__init__(
@@ -50,6 +51,7 @@ class WebShopEnv(BaseLanguageBasedEnv, WebAgentTextEnv):
             with all_seed(seed):
                 session = ''.join(random.choices(string.ascii_lowercase, k=10))
         obs, _ = WebAgentTextEnv.reset(self, session=session, instruction_text=instruction_text)
+        self.render_cache = WebAgentTextEnv.get_instruction_text(self)
         return obs
 
     def step(self, action):
@@ -63,13 +65,26 @@ class WebShopEnv(BaseLanguageBasedEnv, WebAgentTextEnv):
         """
         Render the environment.
         """
-        return WebAgentTextEnv.render(self, mode=mode)
+        return self.render_cache
 
     def close(self):
         """
         Close the environment.
         """
         WebAgentTextEnv.close(self)
+
+    def get_available_actions(self):
+        orig_available_actions = WebAgentTextEnv.get_available_actions(self)
+        available_actions = []
+
+        if orig_available_actions['has_search_bar']:
+            available_actions.append('search[<content>]')
+
+        for clickable in orig_available_actions['clickables']:
+            if clickable != 'search':
+                available_actions.append(f'click[{clickable}]')
+        # TODO: we may need to purge the case when available_actions == ['click[back to search]', 'click[< prev]', 'click[next >]']
+        return available_actions
 
 if __name__ == '__main__':
     env = WebShopEnv()
