@@ -51,14 +51,20 @@ class WebShopEnv(BaseLanguageBasedEnv, WebAgentTextEnv):
             with all_seed(seed):
                 session = ''.join(random.choices(string.ascii_lowercase, k=10))
         obs, _ = WebAgentTextEnv.reset(self, session=session, instruction_text=instruction_text)
-        self.render_cache = WebAgentTextEnv.get_instruction_text(self)
+        self.prepare_render_cache(WebAgentTextEnv.get_instruction_text(self))
         return obs
 
     def step(self, action):
         """
         Take an action in the environment and return the next observation, reward, done, and info.
         """
+        print("######################")
+        print(action)
         state, reward, done, info = WebAgentTextEnv.step(self, action)
+        self.prepare_render_cache(self.observation)
+        info = {"action_is_effective": tuple(self.get_available_actions()) == ('click[back to search]', 'click[< prev]', 'click[next >]'), "action_is_valid": True, "success": done}
+        print("######################")
+        print(self.observation)
         return self.observation, reward, done, info
 
     def render(self, mode=None):
@@ -72,6 +78,13 @@ class WebShopEnv(BaseLanguageBasedEnv, WebAgentTextEnv):
         Close the environment.
         """
         WebAgentTextEnv.close(self)
+
+    def prepare_render_cache(self, observation: str):
+        """
+        Prepare the render cache for the environment.
+        """
+        available_actions = self.get_available_actions()
+        self.render_cache = observation + "\n" + "Available actions: " + ", ".join(available_actions)
 
     def get_available_actions(self):
         orig_available_actions = WebAgentTextEnv.get_available_actions(self)
@@ -90,6 +103,7 @@ if __name__ == '__main__':
     env = WebShopEnv()
     print(env.reset())
     while True:
+        print(env.observation)
         print(f"Available actions: {env.get_available_actions()}")
         action = input("Enter action: ")
         if action == 'q':
