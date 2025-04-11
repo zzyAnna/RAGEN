@@ -58,14 +58,9 @@ class WebShopEnv(BaseLanguageBasedEnv, WebAgentTextEnv):
         """
         Take an action in the environment and return the next observation, reward, done, and info.
         """
-        # TODO: clean up, use better debugging tools
-        print("######################")
-        print(action)
         state, reward, done, info = WebAgentTextEnv.step(self, action)
         self.prepare_render_cache(self.observation)
         info = {"action_is_effective": tuple(self.get_available_actions()) == ('click[back to search]', 'click[< prev]', 'click[next >]'), "action_is_valid": True, "success": done}
-        print("######################")
-        print(self.observation)
         return self.observation, reward, done, info
 
     def render(self, mode=None):
