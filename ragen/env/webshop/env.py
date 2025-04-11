@@ -58,6 +58,7 @@ class WebShopEnv(BaseLanguageBasedEnv, WebAgentTextEnv):
         """
         Take an action in the environment and return the next observation, reward, done, and info.
         """
+        # TODO: clean up, use better debugging tools
         print("######################")
         print(action)
         state, reward, done, info = WebAgentTextEnv.step(self, action)
@@ -87,6 +88,9 @@ class WebShopEnv(BaseLanguageBasedEnv, WebAgentTextEnv):
         self.render_cache = observation + "\n" + "Available actions: " + ", ".join(available_actions)
 
     def get_available_actions(self):
+        """
+        Parse the available actions in the environment to a list of strings.
+        """
         orig_available_actions = WebAgentTextEnv.get_available_actions(self)
         available_actions = []
 
