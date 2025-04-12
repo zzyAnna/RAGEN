@@ -50,6 +50,7 @@ class EnvStateManager:
             ...]
         """
         assert sum(self.config.env_configs.n_groups) == self.env_groups, f"Sum of n_groups must equal env_groups. Got sum({self.config.env_configs.n_groups}) != {self.env_groups}"
+        assert len(self.config.env_configs.tags) == len(self.config.env_configs.n_groups), f"Number of tags must equal number of n_groups. Got {len(self.config.env_configs.tags)} != {len(self.config.env_configs.n_groups)}"
         self.envs = self._init_env_instances(self.config)
 
     def _init_env_instances(self, config):
