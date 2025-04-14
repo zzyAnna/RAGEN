@@ -36,4 +36,4 @@ try:
     REGISTERED_ENVS['webshop'] = WebShopEnv
     REGISTERED_ENV_CONFIGS['webshop'] = WebShopEnvConfig
 except ImportError:
-    print("WebShopEnv and WebShopEnvConfig are not available")
+    pass

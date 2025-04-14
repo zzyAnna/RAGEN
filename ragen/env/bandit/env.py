@@ -3,6 +3,14 @@ import numpy as np
 from ragen.env.base import BaseDiscreteActionEnv
 from .config import BanditEnvConfig
 
+INIT_PROMPT = """You are playing a bandit game. Goal: Maximize your total reward by choosing which arm to pull. 
+Game Rules: 
+1. There are 2 arms, named {name_a} and {name_b}
+2. Each arm has its own reward distribution, related to their names. 
+3. Analyze the symbolic meaning of each arm's name to guess how their reward distribution might behave.
+4. Based on the symbolic meaning of their names, which arm do you think is more likely to give higher rewards on average? Choose between {name_a} and {name_b}, and output like <answer> {name_a} </answer> or <answer> {name_b} </answer>.
+"""
+
 class BanditEnv(BaseDiscreteActionEnv, gym.Env):
     def __init__(self, config = None):
         BaseDiscreteActionEnv.__init__(self)
@@ -48,7 +56,7 @@ class BanditEnv(BaseDiscreteActionEnv, gym.Env):
         pos2 = pos1 + 1
         machine1 = self.ARM_IDX_TO_NAME[pos1]
         machine2 = self.ARM_IDX_TO_NAME[pos2]
-        self.render_cache = f"Machine names: {machine1}, {machine2}. Choose from them."
+        self.render_cache = INIT_PROMPT.format(name_a=machine1, name_b=machine2)
         return self.render_cache
 
     def step(self, action: int):

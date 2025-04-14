@@ -1,2 +1,0 @@
-python train.py --config-name _exp5_sokoban_main
-python train.py --config-name _exp5_sokoban_critic_brpo

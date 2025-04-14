@@ -1,5 +1,5 @@
 defaults:
-  - critic # this is a symbolic link to the verl/verl/trainer/config/ppo_trainer.yaml file
+  - base
     
 es_manager:
   train:

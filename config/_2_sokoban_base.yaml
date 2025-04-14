@@ -1,5 +1,5 @@
 defaults:
-  - critic
+  - base
  
 trainer:
   experiment_name: sokoban-main

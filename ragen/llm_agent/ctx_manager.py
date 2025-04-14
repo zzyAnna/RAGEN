@@ -83,6 +83,8 @@ class ContextManager:
         env_config_lookup = {}
         env_config = {}
         for env_tag, env_config in self.config.custom_envs.items():
+            if env_tag not in self.es_cfg.env_configs.tags:
+                continue
             env_config_new = asdict(REGISTERED_ENV_CONFIGS[env_config.env_type]())
             for k,v in env_config.items():
                 env_config_new[k] = v
