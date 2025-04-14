@@ -1,0 +1,11 @@
+defaults:
+  - critic # this is a symbolic link to the verl/verl/trainer/config/ppo_trainer.yaml file
+    
+es_manager:
+  train:
+    env_configs:
+      tags: ["MetamathQA"]
+  val:
+    env_configs:
+      tags: ["MetamathQA"]
+
