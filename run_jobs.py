@@ -124,15 +124,15 @@ class SimpleJobManager:
                 file_changed = current_hash != self.last_file_hash
                 self.last_file_hash = current_hash
                 
-                if file_changed or not self.last_file_hash:
-                    # Get next job to run
-                    pending_jobs = self._get_pending_jobs()
-                    
-                    if pending_jobs:
-                        next_job = pending_jobs[0]
-                        self._run_job(next_job)
-                    else:
-                        logging.info("No pending jobs. Waiting for new jobs...")
+                # if file_changed or not self.last_file_hash:
+                # Get next job to run
+                pending_jobs = self._get_pending_jobs()
+                
+                if pending_jobs:
+                    next_job = pending_jobs[0]
+                    self._run_job(next_job)
+                else:
+                    logging.info("No pending jobs. Waiting for new jobs...")
                 
                 time.sleep(check_interval)
                 
