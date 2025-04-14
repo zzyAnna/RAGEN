@@ -1,8 +1,6 @@
 defaults:
-  - critic
+  - base
 
-system:
-  CUDA_VISIBLE_DEVICES: "0,1,2,3"
 
 micro_batch_size_per_gpu: 8
 

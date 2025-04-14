@@ -1,4 +1,8 @@
-python train.py --config-name _exp5_sokoban_grpo
+python train.py --config-name _1_bandit_base system.CUDA_VISIBLE_DEVICES="0" trainer.experiment_name=bandit-base
+
+
+
+--config-name _exp5_sokoban_grpo
 python train.py --config-name _exp5_sokoban_critic_128ppobsz_bsz256_n1_testgradnorm
 python train.py --config-name _exp6_countdown_128ppobsz_256bsz_n1_testgradnorm
 python train.py --config-name _exp7_frozenlake_main
