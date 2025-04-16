@@ -16,6 +16,14 @@
   <a href="#"><img src="https://img.shields.io/badge/🔍_Post-34A853?style=for-the-badge&logoColor=white" alt="Post"></a>
 </p>
 
+**2025.4.16 Update:**
+We recently noticed that a [third-party website](https://ragen-ai.com) has been created using our project's name and content. While we appreciate the interest in the project, we’d like to clarify that this GitHub repository is the official and primary source for all code, updates, and documentation.
+If we launch an official website in the future, it will be explicitly linked here.
+
+Thank you for your support and understanding!
+
+
+
 **2025.3.13 Update:**
 
 We are recently refactoring RAGEN code to help you better develop your own idea on the codebase. Please checkout our [developing branch](https://github.com/ZihanWang314/RAGEN/tree/main-new). The first version decomposes RAGEN and veRL for better co-development, taking the latter as a submodule rather than a static directory.
