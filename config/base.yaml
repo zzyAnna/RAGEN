@@ -10,6 +10,12 @@ ppo_mini_batch_size: 32
 model_path: Qwen/Qwen2.5-0.5B-Instruct
 enable_response_mask: False
 
+lora:
+  enabled: True
+  rank: 64
+  alpha: 64
+  target_modules: all-linear
+
 actor_rollout_ref:
   model:
     path: ${model_path}
