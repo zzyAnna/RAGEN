@@ -93,6 +93,10 @@ class RayAgentTrainer(VerlRayPPOTrainer):
         super().__init__(config, tokenizer, role_worker_mapping, resource_pool_manager, ray_worker_group_cls, processor, reward_fn, val_reward_fn)
         # do not use the original val logger, but use this here
         self.generations_logger = GenerationsLogger()
+
+        # if ref_in_actor is True, the reference policy will be actor without lora applied
+        # self.ref_in_actor = config.actor_rollout_ref.model.get('lora_rank', 0) > 0
+        self.ref_in_actor = True
         
         
     def _create_dataloader(self):
@@ -116,6 +120,73 @@ class RayAgentTrainer(VerlRayPPOTrainer):
             actor_rollout_wg=self.actor_rollout_wg,
             tokenizer=self.tokenizer
         )
+
+    def init_workers(self):
+        """Init resource pool and worker group"""
+        self.resource_pool_manager.create_resource_pool()
+
+        self.resource_pool_to_cls = {pool: {} for pool in self.resource_pool_manager.resource_pool_dict.values()}
+
+        # create actor and rollout
+        if self.hybrid_engine:
+            resource_pool = self.resource_pool_manager.get_resource_pool(Role.ActorRollout)
+            actor_rollout_cls = RayClassWithInitArgs(cls=self.role_worker_mapping[Role.ActorRollout],
+                                                     config=self.config.actor_rollout_ref,
+                                                     role='actor_rollout')
+            self.resource_pool_to_cls[resource_pool]['actor_rollout'] = actor_rollout_cls
+        else:
+            raise NotImplementedError
+
+        # create critic
+        if self.use_critic:
+            resource_pool = self.resource_pool_manager.get_resource_pool(Role.Critic)
+            critic_cls = RayClassWithInitArgs(cls=self.role_worker_mapping[Role.Critic], config=self.config.critic)
+            self.resource_pool_to_cls[resource_pool]['critic'] = critic_cls
+
+        # create reference policy if needed
+        if self.use_reference_policy and not self.ref_in_actor:
+            resource_pool = self.resource_pool_manager.get_resource_pool(Role.RefPolicy)
+            ref_policy_cls = RayClassWithInitArgs(self.role_worker_mapping[Role.RefPolicy],
+                                                  config=self.config.actor_rollout_ref,
+                                                  role='ref')
+            self.resource_pool_to_cls[resource_pool]['ref'] = ref_policy_cls
+
+        # create a reward model if reward_fn is None
+        if self.use_rm:
+            # we create a RM here
+            resource_pool = self.resource_pool_manager.get_resource_pool(Role.RewardModel)
+            rm_cls = RayClassWithInitArgs(self.role_worker_mapping[Role.RewardModel], config=self.config.reward_model)
+            self.resource_pool_to_cls[resource_pool]['rm'] = rm_cls
+
+        # initialize WorkerGroup
+        # NOTE: if you want to use a different resource pool for each role, which can support different parallel size,
+        # you should not use `create_colocated_worker_cls`. Instead, directly pass different resource pool to different worker groups.
+        # See https://github.com/volcengine/verl/blob/master/examples/ray/tutorial.ipynb for more information.
+        all_wg = {}
+        self.wg_dicts = []
+        for resource_pool, class_dict in self.resource_pool_to_cls.items():
+            worker_dict_cls = create_colocated_worker_cls(class_dict=class_dict)
+            wg_dict = self.ray_worker_group_cls(resource_pool=resource_pool, ray_cls_with_init=worker_dict_cls)
+            spawn_wg = wg_dict.spawn(prefix_set=class_dict.keys())
+            all_wg.update(spawn_wg)
+            # keep the referece of WorkerDict to support ray >= 2.31. Ref: https://github.com/ray-project/ray/pull/45699
+            self.wg_dicts.append(wg_dict)
+
+        if self.use_critic:
+            self.critic_wg = all_wg['critic']
+            self.critic_wg.init_model()
+
+        if self.use_reference_policy and not self.ref_in_actor:
+            self.ref_policy_wg = all_wg['ref']
+            self.ref_policy_wg.init_model()
+
+        if self.use_rm:
+            self.rm_wg = all_wg['rm']
+            self.rm_wg.init_model()
+
+        # we should create rollout at the end so that vllm can have a better estimation of kv cache memory
+        self.actor_rollout_wg = all_wg['actor_rollout']
+        self.actor_rollout_wg.init_model()
 
     def _validate(self):
         reward_tensor_lst = []
@@ -368,7 +439,10 @@ class RayAgentTrainer(VerlRayPPOTrainer):
                 if self.use_reference_policy:
                     # compute reference log_prob
                     with _timer('ref', timing_raw):
-                        ref_log_prob = self.ref_policy_wg.compute_ref_log_prob(batch)
+                        if not self.ref_in_actor:
+                            ref_log_prob = self.ref_policy_wg.compute_ref_log_prob(batch)
+                        else:
+                            ref_log_prob = self.actor_rollout_wg.compute_ref_log_prob(batch)
                         batch = batch.union(ref_log_prob)
                         avg_ref_log_prob = masked_mean(ref_log_prob.batch['ref_log_prob'], batch.batch['response_mask'])
                         metrics.update({"rollout/ref_log_prob": avg_ref_log_prob})
