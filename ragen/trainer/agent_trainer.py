@@ -27,7 +27,6 @@ from verl.utils.seqlen_balancing import get_seqlen_balanced_partitions, log_seql
 from verl.trainer.ppo.metric_utils import compute_data_metrics, compute_throughout_metrics, compute_timing_metrics, reduce_metrics
 from verl.utils.checkpoint.checkpoint_manager import find_latest_ckpt_path
 from verl.utils.dataset.rl_dataset import RLHFDataset, collate_fn
-from verl.utils.tracking import ValidationGenerationsLogger
 from torch.utils.data import RandomSampler, SequentialSampler
 from torchdata.stateful_dataloader import StatefulDataLoader
 
@@ -40,6 +39,7 @@ import torch
 from verl.utils.torch_functional import masked_mean
 
 from ragen.llm_agent.agent_proxy import LLMAgentProxy
+from ragen.utils import GenerationsLogger
 
 
 class RayAgentTrainer(VerlRayPPOTrainer):
@@ -60,6 +60,8 @@ class RayAgentTrainer(VerlRayPPOTrainer):
                  val_reward_fn=None):
 
         super().__init__(config, tokenizer, role_worker_mapping, resource_pool_manager, ray_worker_group_cls, processor, reward_fn, val_reward_fn)
+        # do not use the original val logger, but use this here
+        self.generations_logger = GenerationsLogger()
         
         
     def _create_dataloader(self):
@@ -135,7 +137,7 @@ class RayAgentTrainer(VerlRayPPOTrainer):
             reward_tensor_lst.append(reward_tensor)
             data_source_lst.append(test_batch.non_tensor_batch.get('data_source', ['unknown'] * reward_tensor.shape[0]))
 
-        self._maybe_log_val_generations(inputs=sample_inputs, outputs=sample_outputs, scores=sample_scores)
+        self._maybe_log_generations(inputs=sample_inputs, outputs=sample_outputs, scores=sample_scores, _type='val')
 
         reward_tensor_lst = [i.sum(-1).cpu() for i in reward_tensor_lst]
         reward_tensor = torch.cat(reward_tensor_lst) # (batch_size,)
@@ -154,6 +156,30 @@ class RayAgentTrainer(VerlRayPPOTrainer):
             metric_dict[f'val/test_score/{data_source}'] = np.mean(rewards)
 
         return metric_dict
+
+    def _maybe_log_generations(self, inputs, outputs, scores, _type='val'):
+        """Log a table of validation samples to the configured logger (wandb or swanlab)"""
+
+        generations_to_log = self.config.trainer.generations_to_log_to_wandb[_type]
+
+        if generations_to_log == 0:
+            return
+
+        import numpy as np
+
+        # Create tuples of (input, output, score) and sort by input text
+        samples = list(zip(inputs, outputs, scores))
+        samples.sort(key=lambda x: x[0])  # Sort by input text
+
+        # Use fixed random seed for deterministic shuffling
+        rng = np.random.RandomState(42)
+        rng.shuffle(samples)
+
+        # Take first N samples after shuffling
+        samples = samples[:generations_to_log]
+
+        # Log to each configured logger
+        self.generations_logger.log(self.config.trainer.logger, samples, self.global_steps, _type)
 
     def fit(self):
         """
@@ -190,6 +216,13 @@ class RayAgentTrainer(VerlRayPPOTrainer):
         self.global_steps += 1
         last_val_metrics = None
 
+        def _process_batch_for_logging(batch):
+            inputs = batch.batch['input_ids']
+            inputs = [self.tokenizer.decode(input_ids, skip_special_tokens=True) for input_ids in inputs]
+            outputs = [""] * len(inputs)
+            scores = batch.batch['rm_scores'].sum(-1).cpu().tolist()
+            return inputs, outputs, scores
+
         for step in range(self.total_training_steps):
             # metrics = {}
             timing_raw = {}
@@ -202,6 +235,8 @@ class RayAgentTrainer(VerlRayPPOTrainer):
                 with _timer('gen', timing_raw):
                     batch = self.agent_proxy.rollout(batch, val=False)
                     metrics = {"train/" + key: value for key, value in batch.meta_info['metrics'].items()}
+                    inputs, outputs, scores = _process_batch_for_logging(batch)
+                    # self._maybe_log_generations(inputs=inputs, outputs=outputs, scores=scores, _type='train')
 
                 if self.config.algorithm.adv_estimator == AdvantageEstimator.REMAX:
                     # TODO: check if this is correct. Not tested yer

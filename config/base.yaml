@@ -7,16 +7,19 @@ system:
 
 micro_batch_size_per_gpu: 4
 ppo_mini_batch_size: 32
+model_path: Qwen/Qwen2.5-0.5B-Instruct
+top_group_ratio: 0.5
 
 actor_rollout_ref:
   model:
-    path: Qwen/Qwen2.5-0.5B-Instruct
+    path: ${model_path}
   actor:
     ppo_mini_batch_size: ${ppo_mini_batch_size}  # by default, ppo_mini_batch_size = train_batch_size / 4
     micro_batch_size_per_gpu: ${micro_batch_size_per_gpu} # following micro_batch_size_per_gpu
     ppo_micro_batch_size_per_gpu: ${micro_batch_size_per_gpu} # following micro_batch_size_per_gpu
-    use_kl_loss: False
     use_ref: True
+    entropy_coeff: 0.001
+    use_kl_loss: False
     kl_loss_coef: 0.001
     kl_loss_type: low_var_kl
     optim:
@@ -36,14 +39,11 @@ actor_rollout_ref:
       do_sample: True
       temperature: 0.5
 
-algorithm:
-  adv_estimator: gae
-
 critic:
   ppo_mini_batch_size: ${ppo_mini_batch_size} # by default, ppo_mini_batch_size = train_batch_size / 4
   ppo_micro_batch_size_per_gpu: ${micro_batch_size_per_gpu} # following micro_batch_size_per_gpu
   model:
-    path: ${actor_rollout_ref.model.path}
+    path: ${model_path}
   optim:
     betas: [0.9, 0.999]
 
@@ -51,6 +51,15 @@ data:
   max_prompt_length: null
   max_response_length: null
   train_batch_size: null
+
+algorithm:
+  gamma: 1.0
+  lam: 1.0
+  adv_estimator: gae
+  kl_penalty: low_var_kl  # how to estimate kl divergence
+  kl_ctrl:
+    type: fixed
+    kl_coef: 0.001
 
 trainer:
   project_name: ragen_submission
@@ -60,7 +69,9 @@ trainer:
   val_before_train: True
   n_gpus_per_node: 1
   test_freq: 10
-  val_generations_to_log_to_wandb: 20
+  generations_to_log_to_wandb: 
+    train: 128
+    val: 20
   logger: [ 'console', 'wandb' ]
 
 agent_proxy:

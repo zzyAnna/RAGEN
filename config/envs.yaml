@@ -122,21 +122,14 @@ custom_envs:
     max_actions_per_traj: 1
     env_instruction: ""
     max_tokens: 30
-    env_config: null
-
-  BanditGeneralization:
-    env_type: bandit
-    max_actions_per_traj: 1
-    env_instruction: "You are solving the Bandit puzzle. Based on the semantic and symbolic meanings of the machine names, choose one that could get higher expected reward. You should contain the machine name in your answer like this: <answer>machine_name</answer>"
-    max_tokens: 30
     env_config: 
-      lo_arm_name: "Engineer"
-      hi_arm_name: "Teacher"
+      lo_arm_name: "Phoenix"
+      hi_arm_name: "Dragon"
 
-  BanditGeneralizationTest:
+  BanditTest:
     env_type: bandit
     max_actions_per_traj: 1
-    env_instruction: "You are solving the Bandit puzzle. Based on the semantic and symbolic meanings of the machine names, choose one that could get higher expected reward. You should contain the machine name in your answer like this: <answer>machine_name</answer>"
+    env_instruction: ""
     max_tokens: 30
     env_config: 
       lo_arm_name: "Trader"

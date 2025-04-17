@@ -5,11 +5,58 @@ python train.py --config-name _3_frozen_lake system.CUDA_VISIBLE_DEVICES="0" tra
 python train.py --config-name _4_countdown system.CUDA_VISIBLE_DEVICES="0" trainer.experiment_name=countdown-base
 python train.py --config-name _5_metamathqa system.CUDA_VISIBLE_DEVICES="0" trainer.experiment_name=metamathqa-base
 
---config-name _exp5_sokoban_grpo
-python train.py --config-name _exp5_sokoban_critic_128ppobsz_bsz256_n1_testgradnorm
-python train.py --config-name _exp6_countdown_128ppobsz_256bsz_n1_testgradnorm
-python train.py --config-name _exp7_frozenlake_main
-python train.py --config-name _exp1_bandit
-python train.py --config-name _exp1_bandit trainer.experiment_name=bandit-no-think  agent_proxy.enable_think=False
-python train.py --config-name _exp2_generalization_bandit
-python train.py --config-name _exp2_generalization_bandit trainer.experiment_name=bandit-generalization-nothink agent_proxy.enable_think=False
+
+python train.py system.CUDA_VISIBLE_DEVICES="0" trainer.experiment_name=sokoban-base-entropy-0-001 actor_rollout_ref.actor.entropy_coeff=0.001 &
+python train.py system.CUDA_VISIBLE_DEVICES="1" trainer.experiment_name=sokoban-base-entropy-0-003 actor_rollout_ref.actor.entropy_coeff=0.003 &
+python train.py system.CUDA_VISIBLE_DEVICES="2" trainer.experiment_name=sokoban-base-entropy-0-01 actor_rollout_ref.actor.entropy_coeff=0.01 &
+python train.py system.CUDA_VISIBLE_DEVICES="3" trainer.experiment_name=sokoban-base-entropy-0-03 actor_rollout_ref.actor.entropy_coeff=0.03 &
+
+
+model_names:
+Qwen/Qwen2.5-0.5B
+Qwen/Qwen2.5-0.5B-Instruct
+deepseek-ai/DeepSeek-R1-Distill-Qwen-1.5B
+Qwen/Qwen2.5-3B
+Qwen/Qwen2.5-3B-Instruct
+Qwen/Qwen2.5-32B-Instruct
+deepseek-ai/DeepSeek-R1-Distill-Qwen-32B
+
+
+MODEL_NAME=Qwen/Qwen2.5-32B-Instruct
+
+
+
+
+python train.py --config-name _1_bandit system.CUDA_VISIBLE_DEVICES=\"1,2\" \
+    $VAL_PREFIX \
+    trainer.n_gpus_per_node=2 \
+    actor_rollout_ref.rollout.gpu_memory_utilization=0.9 \
+    trainer.experiment_name=bandit-eval \
+    model_path=$MODEL_NAME \
+    custom_envs.Bandit.env_config.lo_arm_name="Engineer" \
+    custom_envs.Bandit.env_config.hi_arm_name="Teacher" \
+    custom_envs.BanditTest.env_config.lo_arm_name="Trader" \
+    custom_envs.BanditTest.env_config.hi_arm_name="Librarian"
+
+python -m ragen.llm_agent.agent_proxy --config-name _2_sokoban system.CUDA_VISIBLE_DEVICES=\"1,2\" \
+
+
+
+
+python train.py --config-name _1_bandit system.CUDA_VISIBLE_DEVICES="1" trainer.experiment_name=bandit-base \
+    custom_envs.Bandit.env_config.lo_arm_name="Phoenix" \
+    custom_envs.Bandit.env_config.hi_arm_name="Dragon" \
+    custom_envs.BanditTest.env_config.lo_arm_name="Trader" \
+    custom_envs.BanditTest.env_config.hi_arm_name="Librarian"
+
+
+python -m ragen.llm_agent.agent_proxy --config-name _1_bandit_generalization system.CUDA_VISIBLE_DEVICES="1" trainer.experiment_name=bandit-base 
+
+
+
+
+MODEL_NAME=Qwen/Qwen2.5-32B-Instruct
+python -m ragen.llm_agent.agent_proxy --config-name _2_sokoban_base system.CUDA_VISIBLE_DEVICES=\"0,1,2,3\" trainer.n_gpus_per_node=4 \
+    trainer.experiment_name=sokoban-test_32b \
+    actor_rollout_ref.rollout.gpu_memory_utilization=0.9 \
+    model_path=$MODEL_NAME

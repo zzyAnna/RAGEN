@@ -210,16 +210,17 @@ class ContextManager:
         for env_output in env_outputs:
             if 'state' in env_output['history'][-1] and prepare_for_update:
                 env_output['history'] = env_output['history'][:-1] # when prepare for update, we do not add the state from the n+1 turn to the trajectory
-            THINK_PROMPT = "first wrapping your thoughts in <think>...</think>, then " if self.config.agent_proxy.enable_think else ""
             messages = [
-                {"role": "system", "content": f"You're a helpful assistant. You always respond by {THINK_PROMPT}giving your answer in <answer>...</answer>. Max response length: {self.env_config_lookup[env_output['env_id']]['max_tokens']} words (tokens)."}, 
+                {"role": "system", "content": f"You're a helpful assistant. "}, 
                 {"role": "user", "content": self.prefix_lookup[env_output["env_id"]]}
             ]
 
             for idx, content in enumerate(env_output["history"]):
                 messages[-1]["content"] += f"\nTurn {idx + 1}:\n"
                 if "state" in content:
-                    messages[-1]["content"] += f"State:\n{content['state']}\nYou have {content['actions_left']} actions left\n"
+                    FORMAT_PROMPT = "<think> [Your thoughts] </think> <answer> [your answer] </answer>" if self.config.agent_proxy.enable_think else "<answer> [your answer] </answer>"
+                    LENGTH_PROMPT = f"Max response length: {self.env_config_lookup[env_output['env_id']]['max_tokens']} words (tokens)."
+                    messages[-1]["content"] += f"State:\n{content['state']}\nYou have {content['actions_left']} actions left. Always output: {FORMAT_PROMPT} with no extra text. Strictly follow this format. {LENGTH_PROMPT}\n"
                 if "llm_response" in content:
                     messages.append({"role": "assistant", "content": content["llm_response"]})
                 if "reward" in content and not (prepare_for_update and idx == len(env_output["history"]) - 1):
@@ -303,6 +304,7 @@ class ContextManager:
 
     def formulate_rollouts(self, env_outputs: List[Dict]) -> DataProto:
         llm_inputs = self.get_lm_inputs(env_outputs, prepare_for_update=True)
+        # breakpoint()
         return llm_inputs
 
     

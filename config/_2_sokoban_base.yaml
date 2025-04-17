@@ -3,26 +3,9 @@ defaults:
  
 trainer:
   experiment_name: sokoban-main
-  n_gpus_per_node: 4
 
 
 agent_proxy:
   max_turn: 5
   max_actions_per_turn: 10 # how many actions can be output at most in a single turn
-  reward_normalization:
-    grouping: "state" 
-    method: "identity"
 
-es_manager:
-  train:
-    env_groups: 8
-    group_size: 16
-    env_configs:
-      tags: ["SimpleSokoban"]
-      n_groups: [8] # If not set, all env names divide nums equally. Under the same group, the env config and env seed (prompt) are equal in each generation
-  val:
-    env_groups: 128
-    group_size: 1 # should be set to 1 because val temperature is set to 0 and same prompt leads to same output
-    env_configs:
-      tags: ["SimpleSokoban"]
-      n_groups: [128] # If not set, all env names divide nums equally. Under the same group, the env config and env seed (prompt) are equal in each generation

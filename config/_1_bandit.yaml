@@ -6,7 +6,7 @@ micro_batch_size_per_gpu: 8
 
 actor_rollout_ref:
   rollout:
-    response_length: 400
+    response_length: 500
     val_kwargs:
       do_sample: True
       temperature: 0.5 # enabling randomness in evaluation 
@@ -24,5 +24,7 @@ es_manager:
     env_configs:
       tags: ["Bandit"] # BanditGeneralizationNoThink
   val:
+    env_groups: 256
     env_configs:
-      tags: ["Bandit"]
+      tags: ["Bandit", "BanditTest"]
+      n_groups: [128, 128]
