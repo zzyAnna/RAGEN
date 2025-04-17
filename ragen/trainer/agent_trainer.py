@@ -9,7 +9,7 @@ from contextlib import contextmanager
 from dataclasses import dataclass, field
 from enum import Enum
 from pprint import pprint
-from typing import Type, Dict
+from typing import Type, Dict, Literal, Optional
 from copy import deepcopy
 from tqdm import tqdm
 
@@ -188,7 +188,7 @@ class RayAgentTrainer(VerlRayPPOTrainer):
         self.actor_rollout_wg = all_wg['actor_rollout']
         self.actor_rollout_wg.init_model()
 
-    def _validate(self):
+    def _validate(self, lora_adapter_path: Optional[str] = None):
         reward_tensor_lst = []
         data_source_lst = []
 
@@ -215,7 +215,10 @@ class RayAgentTrainer(VerlRayPPOTrainer):
 
             # pad to be divisible by dp_size
             start_time = time.time()
-            test_batch = self.agent_proxy.rollout(test_gen_batch, val=True)
+            if lora_adapter_path is not None:
+                test_batch = self.agent_proxy.rollout(test_gen_batch, val=True, lora_adapter_path=lora_adapter_path)
+            else:
+                test_batch = self.agent_proxy.rollout(test_gen_batch, val=True)
             end_time = time.time()
             print(f'validation generation time: {end_time - start_time} seconds')
             for key, value in test_batch.meta_info['metrics'].items():
@@ -375,6 +378,18 @@ class RayAgentTrainer(VerlRayPPOTrainer):
             is_last_step = self.global_steps >= self.total_training_steps
 
             with _timer('step', timing_raw):
+                # --- Get LoRA Adapter Path for Rollout ---
+                current_lora_adapter_path = ""
+                if self._is_lora:
+                    with _timer('get_lora_path', timing_raw):
+                        # Get path from rank 0 of the training worker group
+                        current_lora_adapter_path = self.actor_rollout_wg.get_lora_adapter_path(self.config.trainer.default_local_dir)
+                        if current_lora_adapter_path:
+                            print(f"Step {self.global_steps}: Using LoRA adapter path for rollout: {current_lora_adapter_path}")
+                        else:
+                            print(f"Step {self.global_steps}: No valid LoRA adapter path found for rollout.")
+                # ---
+
                 # generate a batch
                 with _timer('gen', timing_raw):
                     batch = self.agent_proxy.rollout(batch, val=False)
@@ -497,11 +512,16 @@ class RayAgentTrainer(VerlRayPPOTrainer):
                     actor_output_metrics = reduce_metrics(actor_output.meta_info['metrics'])
                     metrics.update(actor_output_metrics)
 
+                    # save lora adapter
+                    if self._is_lora:
+                        with _timer('save_lora_adapter', timing_raw):
+                            self._save_checkpoint_lora()
+
                 # validate
                 if self.val_reward_fn is not None and self.config.trainer.test_freq > 0 and \
                     (is_last_step or  self.global_steps % self.config.trainer.test_freq == 0):
                     with _timer('testing', timing_raw):
-                        val_metrics: dict = self._validate()
+                        val_metrics: dict = self._validate(lora_adapter_path=current_lora_adapter_path)
                         if is_last_step:
                             last_val_metrics = val_metrics
                     metrics.update(val_metrics)
@@ -574,3 +594,14 @@ class RayAgentTrainer(VerlRayPPOTrainer):
                                                            'latest_checkpointed_iteration.txt')
         with open(local_latest_checkpointed_iteration, 'w') as f:
             f.write(str(self.global_steps))
+
+    def _save_checkpoint_lora(self):
+        """
+        Save the LoRA checkpoint.
+        """
+        # path: given_path + `/global_step_{global_steps}` + `/actor`
+        local_lora_temp_folder = os.path.join(self.config.trainer.default_local_dir, 'lora_temp')
+
+        print(f'local_lora_temp_folder: {local_lora_temp_folder}')
+
+        self.actor_rollout_wg.save_checkpoint_lora(local_lora_temp_folder)

@@ -124,11 +124,14 @@ class LLMAgentProxy:
 		self.actor_wg = actor_rollout_wg
 		self.tokenizer = tokenizer
 
-	def generate_sequences(self, lm_inputs: DataProto):
+	def generate_sequences(self, lm_inputs: DataProto, lora_adapter_path: str = ""):
 		# TODO: add kv cache both for the vllm wrapper here and for verl vllm.
 		if isinstance(self.actor_wg, RayWorkerGroup):
 			padded_lm_inputs, pad_size = pad_dataproto_to_divisor(lm_inputs, self.actor_wg.world_size)
-			padded_lm_outputs = self.actor_wg.generate_sequences(padded_lm_inputs)
+			if lora_adapter_path:
+				padded_lm_outputs = self.actor_wg.generate_sequences(padded_lm_inputs, lora_adapter_path)
+			else:
+				padded_lm_outputs = self.actor_wg.generate_sequences(padded_lm_inputs)
 			lm_outputs = unpad_dataproto(padded_lm_outputs, pad_size=pad_size)
 			lm_outputs.meta_info = lm_inputs.meta_info
 			lm_outputs.non_tensor_batch = lm_inputs.non_tensor_batch
@@ -139,7 +142,7 @@ class LLMAgentProxy:
 
 		return lm_outputs
 
-	def rollout(self, dataproto: DataProto, val=False):
+	def rollout(self, dataproto: DataProto, val=False, lora_adapter_path: str = ""):
 		es_manager = self.val_es_manager if val else self.train_es_manager
 		ctx_manager = self.val_ctx_manager if val else self.train_ctx_manager
 		env_outputs = es_manager.reset()

@@ -38,6 +38,7 @@ from verl.utils.torch_functional import get_eos_mask, pad_2d_list_to_length
 from verl.workers.rollout.base import BaseRollout
 from vllm.distributed import parallel_state as vllm_ps
 from vllm import LLM, SamplingParams
+from vllm.lora.request import LoRARequest
 from verl.third_party.vllm import vllm_version
 
 # TODO
@@ -105,6 +106,12 @@ class vLLMRollout(BaseRollout):
             raise ValueError('Enable chunked prefill, max_num_batched_tokens is smaller than max_model_len, \
                              please increase max_num_batched_tokens or disable chunked prefill')
 
+        self._is_lora = self.config.lora.enabled
+        self._max_lora_rank = 0
+        if self._is_lora:
+            self._max_lora_rank = self.config.lora.rank
+        self.lora_id_counter = 0
+        
         self.inference_engine = LLM(
             model=model_path,
             enable_sleep_mode=True,
@@ -121,6 +128,16 @@ class vLLMRollout(BaseRollout):
             max_num_batched_tokens=max_num_batched_tokens,
             enable_chunked_prefill=config.enable_chunked_prefill,
             enable_prefix_caching=True,
+
+            # LoRA specific parameters
+            enable_lora=self._is_lora,
+            max_lora_rank=self._max_lora_rank,
+
+            # other possible lora parameters
+            # max_loras=max_loras,
+            # lora_dtype=lora_dtype,
+            # max_cpu_loras=max_cpu_loras,
+            # fully_sharded_loras=fully_sharded_loras
         )
 
         # Offload vllm model to reduce peak memory usage
@@ -163,7 +180,7 @@ class vLLMRollout(BaseRollout):
             setattr(self.sampling_params, key, value)
 
     @torch.no_grad()
-    def generate_sequences(self, prompts: DataProto, **kwargs) -> DataProto:
+    def generate_sequences(self, prompts: DataProto, lora_adapter_path: str = "", **kwargs) -> DataProto:
         # rebuild vllm cache engine
         if vllm_version in ('0.3.1', '0.4.2', '0.5.4', '0.6.3') and self.config.free_cache_engine:
             self.inference_engine.init_cache_engine()
@@ -227,10 +244,23 @@ class vLLMRollout(BaseRollout):
 
         # users can customize different sampling_params at different run
         with self.update_sampling_params(**kwargs):
-            outputs = self.inference_engine.generate(
-                prompts=vllm_inputs,  # because we have already convert it to prompt token id
-                sampling_params=self.sampling_params,
-                use_tqdm=False)
+            if self._is_lora and lora_adapter_path:
+                self.lora_id_counter += 1
+                lora_request = LoRARequest(
+                    "training_lora",
+                    self.lora_id_counter,
+                    lora_adapter_path,
+                )
+                outputs = self.inference_engine.generate(
+                    prompts=vllm_inputs,  # because we have already convert it to prompt token id
+                    sampling_params=self.sampling_params,
+                    use_tqdm=False,
+                    lora_request=lora_request)
+            else:
+                outputs = self.inference_engine.generate(
+                    prompts=vllm_inputs,  # because we have already convert it to prompt token id
+                    sampling_params=self.sampling_params,
+                    use_tqdm=False)
 
             # TODO(sgm): disable logprob when recompute_log_prob is enable
             # if n = 1: (bs, response_length) ; if n > 1: (bs * n, response_length)

@@ -55,6 +55,11 @@ actor_rollout_ref:
     val_kwargs:
       do_sample: True
       temperature: 0.5
+    lora:
+      enabled: ${lora.enabled}
+      rank: ${lora.rank}
+      alpha: ${lora.alpha}
+      target_modules: ${lora.target_modules}
 
 critic:
   ppo_mini_batch_size: ${ppo_mini_batch_size} # by default, ppo_mini_batch_size = train_batch_size / 4

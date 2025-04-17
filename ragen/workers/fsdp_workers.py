@@ -19,6 +19,7 @@ import logging
 import os
 import warnings
 import psutil
+import shutil
 
 import torch
 import torch.distributed
@@ -334,23 +335,33 @@ class ActorRolloutRefWorker(Worker):
             # TODO: a sharding manager that do nothing?
 
         elif rollout_name == 'vllm':
-            from verl.workers.rollout.vllm_rollout import vLLMRollout, vllm_mode
-            from verl.workers.sharding_manager import FSDPVLLMShardingManager
+            # from verl.workers.rollout.vllm_rollout import vLLMRollout, vllm_mode
+            # from verl.workers.sharding_manager import FSDPVLLMShardingManager
             log_gpu_memory_usage(f'Before building {rollout_name} rollout', logger=None)
             local_path = copy_to_local(self.config.model.path)
-            if vllm_mode == 'customized':
-                rollout = vLLMRollout(actor_module=self.actor_module_fsdp,
-                                      config=self.config.rollout,
-                                      tokenizer=self.tokenizer,
-                                      model_hf_config=self.actor_model_config)
-            elif vllm_mode == 'spmd':
-                rollout = vLLMRollout(model_path=local_path,
-                                      config=self.config.rollout,
-                                      tokenizer=self.tokenizer,
-                                      model_hf_config=self.actor_model_config,
-                                      device_mesh=rollout_device_mesh)
-            else:
-                raise NotImplementedError("vllm_mode must be 'customized' or 'spmd'")
+            # if vllm_mode == 'customized':
+            #     rollout = vLLMRollout(actor_module=self.actor_module_fsdp,
+            #                           config=self.config.rollout,
+            #                           tokenizer=self.tokenizer,
+            #                           model_hf_config=self.actor_model_config)
+            # elif vllm_mode == 'spmd':
+            #     rollout = vLLMRollout(model_path=local_path,
+            #                           config=self.config.rollout,
+            #                           tokenizer=self.tokenizer,
+            #                           model_hf_config=self.actor_model_config,
+            #                           device_mesh=rollout_device_mesh)
+            # else:
+            #     raise NotImplementedError("vllm_mode must be 'customized' or 'spmd'")
+
+            from ragen.workers.rollout.vllm_rollout.vllm_rollout_spmd import vLLMRollout
+            from ragen.workers.sharding_manager.fsdp_vllm import FSDPVLLMShardingManager
+            # we are using custom vllm rollout with SPMD
+            rollout = vLLMRollout(model_path=local_path,
+                                  config=self.config.rollout,
+                                  tokenizer=self.tokenizer,
+                                  model_hf_config=self.actor_model_config,
+                                  device_mesh=rollout_device_mesh)
+            
             log_gpu_memory_usage(f'After building {rollout_name} rollout', logger=None)
             if torch.distributed.get_world_size() == 1:
                 self.config.rollout.load_format = 'dummy_hf'
@@ -358,7 +369,8 @@ class ActorRolloutRefWorker(Worker):
                                                                inference_engine=rollout.inference_engine,
                                                                model_config=self.actor_model_config,
                                                                full_params='hf' in self.config.rollout.load_format,
-                                                               device_mesh=rollout_device_mesh)
+                                                               device_mesh=rollout_device_mesh,
+                                                               is_lora=self._is_lora)
             log_gpu_memory_usage('After building sharding manager', logger=None)
 
         elif rollout_name == 'sglang':
@@ -506,7 +518,7 @@ class ActorRolloutRefWorker(Worker):
         return output
 
     @register(dispatch_mode=Dispatch.DP_COMPUTE_PROTO)
-    def generate_sequences(self, prompts: DataProto):
+    def generate_sequences(self, prompts: DataProto, lora_adapter_path: str = ""):
         # Support all hardwares
         prompts = prompts.to(torch.cuda.current_device())
 
@@ -534,7 +546,10 @@ class ActorRolloutRefWorker(Worker):
             log_gpu_memory_usage('After entering rollout sharding manager', logger=logger)
 
             prompts = self.rollout_sharding_manager.preprocess_data(prompts)
-            output = self.rollout.generate_sequences(prompts=prompts)
+            if self._is_lora and lora_adapter_path:
+                output = self.rollout.generate_sequences(prompts=prompts, lora_adapter_path=lora_adapter_path)
+            else:
+                output = self.rollout.generate_sequences(prompts=prompts)
             log_gpu_memory_usage('After rollout generation', logger=logger)
 
             output = self.rollout_sharding_manager.postprocess_data(output)
@@ -636,6 +651,82 @@ class ActorRolloutRefWorker(Worker):
         torch.distributed.barrier()
         if self._is_offload_param:
             offload_fsdp_model_to_cpu(self.actor_module_fsdp)
+
+    @register(dispatch_mode=Dispatch.ONE_TO_ALL)
+    def save_checkpoint_lora(self, local_path):
+        """
+        Save only the LoRA adapter weights to the specified path.
+
+        Args:
+            local_path: The base path where the LoRA adapter will be saved
+        """
+        # Only support saving LoRA adapter for actor
+        assert self._is_actor, "LoRA checkpoint saving is only supported for the actor role."
+        assert self._is_lora, "Cannot save LoRA adapter when LoRA is not enabled."
+        import torch
+        from peft import PeftModel
+        import os
+
+        # Load model to GPU if it's offloaded
+        if self._is_offload_param:
+            load_fsdp_model_to_gpu(self.actor_module_fsdp)
+
+        # Ensure all ranks are ready before rank 0 performs the save
+        torch.distributed.barrier()
+
+        # Get the underlying model, assuming it's a PeftModel
+        peft_model_unwrapped = self.actor_module_fsdp._fsdp_wrapped_module
+        save_peft = False
+
+        if isinstance(peft_model_unwrapped, PeftModel):
+             save_peft = True
+        elif self.rank == 0:
+            # Log a warning if LoRA is enabled but the model isn't a PeftModel
+            # This might indicate an issue elsewhere
+            warnings.warn(f"Rank {self.rank}: LoRA is enabled, but the underlying model is not a PeftModel instance during save. Cannot save adapter.", UserWarning)
+
+
+        if save_peft and self.rank == 0:  # Save only on rank 0
+            try:
+                # --- Delete existing directory first (rank 0 only) ---
+                if os.path.exists(local_path):
+                    print(f"Rank {self.rank}: Deleting existing adapter directory: {local_path}")
+                    shutil.rmtree(local_path)
+                # -----------------------------------------------------
+
+                # Ensure the target directory exists
+                os.makedirs(local_path, exist_ok=True)
+                print(f"Rank {self.rank}: Saving PEFT adapter to {local_path}...")
+                # Use the unwrapped PEFT model for saving.
+                # `is_main_process` helps coordinate saving in distributed settings if the method supports it.
+                peft_model_unwrapped.save_pretrained(local_path, is_main_process=(self.rank == 0))
+                print(f"Rank {self.rank}: PEFT adapter saved successfully.")
+            except Exception as e:
+                # Log errors during saving
+                print(f"Rank {self.rank}: Error saving PEFT adapter: {e}")
+                logger.error(f"Error saving PEFT adapter: {e}", exc_info=True)
+
+        # Ensure all ranks wait for rank 0 to finish before proceeding (e.g., offloading)
+        torch.distributed.barrier()
+
+        # Offload model back to CPU if needed
+        if self._is_offload_param:
+            offload_fsdp_model_to_cpu(self.actor_module_fsdp)
+
+     # --- NEW Method to get adapter path ---
+    @register(dispatch_mode=Dispatch.ONE_TO_ALL)
+    def get_lora_adapter_path(self, base_path: str) -> str:
+        """Gets the expected path of the saved LoRA adapter for a given step."""
+        if not self._is_lora or not self._is_actor:
+            return None
+        
+        local_lora_temp_folder = os.path.join(base_path, 'lora_temp')
+
+        # if the folder exists, return the path, otherwise return empty string
+        if os.path.exists(local_lora_temp_folder):
+            return local_lora_temp_folder
+        else:
+            return ""
 
     @register(dispatch_mode=Dispatch.ONE_TO_ALL)
     def load_checkpoint(self, local_path, hdfs_path=None, del_local_after_load=False):
