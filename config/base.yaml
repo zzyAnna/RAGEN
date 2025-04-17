@@ -8,7 +8,6 @@ system:
 micro_batch_size_per_gpu: 4
 ppo_mini_batch_size: 32
 model_path: Qwen/Qwen2.5-0.5B-Instruct
-top_group_ratio: 0.5
 
 actor_rollout_ref:
   model:
@@ -35,6 +34,8 @@ actor_rollout_ref:
     gpu_memory_utilization: 0.5
     # max_num_batched_tokens: 8192 # set only when enable_chunked_prefill is true
     temperature: 1
+    rollout_filter_ratio: 0.5
+    rollout_filter_type: max_mean # max_mean or std
     val_kwargs:
       do_sample: True
       temperature: 0.5
@@ -56,10 +57,10 @@ algorithm:
   gamma: 1.0
   lam: 1.0
   adv_estimator: gae
-  kl_penalty: low_var_kl  # how to estimate kl divergence
+  kl_penalty: kl  # how to estimate kl divergence
   kl_ctrl:
     type: fixed
-    kl_coef: 0.001
+    kl_coef: 0.000
 
 trainer:
   project_name: ragen_submission

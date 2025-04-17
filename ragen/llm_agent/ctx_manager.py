@@ -304,7 +304,6 @@ class ContextManager:
 
     def formulate_rollouts(self, env_outputs: List[Dict]) -> DataProto:
         llm_inputs = self.get_lm_inputs(env_outputs, prepare_for_update=True)
-        # breakpoint()
         return llm_inputs
 
     

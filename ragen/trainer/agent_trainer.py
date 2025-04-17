@@ -29,10 +29,11 @@ from verl.utils.checkpoint.checkpoint_manager import find_latest_ckpt_path
 from verl.utils.dataset.rl_dataset import RLHFDataset, collate_fn
 from torch.utils.data import RandomSampler, SequentialSampler
 from torchdata.stateful_dataloader import StatefulDataLoader
+import time
 
 WorkerType = Type[Worker]
 
-from verl.trainer.ppo.ray_trainer import Role, AdvantageEstimator, ResourcePoolManager, apply_kl_penalty, compute_advantage, compute_response_mask, _timer
+from verl.trainer.ppo.ray_trainer import Role, AdvantageEstimator, ResourcePoolManager, compute_advantage, compute_response_mask, _timer
 from verl.trainer.ppo.ray_trainer import RayPPOTrainer as VerlRayPPOTrainer
 
 import torch
@@ -40,6 +41,36 @@ from verl.utils.torch_functional import masked_mean
 
 from ragen.llm_agent.agent_proxy import LLMAgentProxy
 from ragen.utils import GenerationsLogger
+
+def apply_kl_penalty(data: DataProto, kl_ctrl: core_algos.AdaptiveKLController, kl_penalty='kl'):
+    responses = data.batch['responses']
+    response_length = responses.size(1)
+    token_level_scores = data.batch['token_level_scores']
+    batch_size = data.batch.batch_size[0]
+    response_mask = data.batch['response_mask']
+
+    # compute kl between ref_policy and current policy
+    if 'ref_log_prob' in data.batch.keys():
+        kld = core_algos.kl_penalty(data.batch['old_log_probs'], data.batch['ref_log_prob'],
+                                    kl_penalty=kl_penalty)  # (batch_size, response_length)
+        kld = kld * response_mask
+        beta = kl_ctrl.value
+    else:
+        beta = 0
+        kld = torch.zeros_like(response_mask, dtype=torch.float32)
+
+    token_level_rewards = token_level_scores - beta * kld
+
+    current_kl = masked_mean(kld, mask=response_mask, axis=-1)  # average over sequence
+    current_kl = torch.mean(current_kl, dim=0).item()
+
+    # according to https://github.com/huggingface/trl/blob/951ca1841f29114b969b57b26c7d3e80a39f75a0/trl/trainer/ppo_trainer.py#L837
+    kl_ctrl.update(current_kl=current_kl, n_steps=batch_size)
+    data.batch['token_level_rewards'] = token_level_rewards
+
+    metrics = {'critic/kl': current_kl, 'critic/kl_coeff': beta}
+
+    return data, metrics
 
 
 class RayAgentTrainer(VerlRayPPOTrainer):
@@ -112,7 +143,6 @@ class RayAgentTrainer(VerlRayPPOTrainer):
             print(f'test_gen_batch meta info: {test_gen_batch.meta_info}')
 
             # pad to be divisible by dp_size
-            import time
             start_time = time.time()
             test_batch = self.agent_proxy.rollout(test_gen_batch, val=True)
             end_time = time.time()
@@ -223,6 +253,49 @@ class RayAgentTrainer(VerlRayPPOTrainer):
             scores = batch.batch['rm_scores'].sum(-1).cpu().tolist()
             return inputs, outputs, scores
 
+        def _filter_rollout(batch):
+            """filter rollout based on in-group max - in-group mean. We want those groups to have high-quality rollouts that deviates significantly from the mean"""
+            rollout_filter_ratio = self.config.actor_rollout_ref.rollout.rollout_filter_ratio
+            num_groups, group_size = self.config.es_manager.train.env_groups, self.config.es_manager.train.group_size
+
+            rm_scores = batch.batch["rm_scores"].sum(dim=-1).view(num_groups, group_size)
+            in_group_std = rm_scores.std(dim=-1)
+            in_group_max = rm_scores.max(dim=-1).values
+            in_group_mean = rm_scores.mean(dim=-1)
+            if rollout_filter_ratio == 1:
+                return batch, {"rollout/in_group_std": in_group_std.mean(), "rollout/in_group_max": in_group_max.mean(), "rollout/in_group_mean": in_group_mean.mean(), "rollout/chosen_in_group_std": in_group_std.mean(), "rollout/chosen_in_group_max": in_group_max.mean(), "rollout/chosen_in_group_mean": in_group_mean.mean()}
+
+            if self.config.actor_rollout_ref.rollout.rollout_filter_type == "max_mean":
+                top_groups = (in_group_max - in_group_mean).topk(int(rollout_filter_ratio * num_groups)).indices
+            elif self.config.actor_rollout_ref.rollout.rollout_filter_type == "std":
+                top_groups = in_group_std.topk(int(rollout_filter_ratio * num_groups)).indices
+            else:
+                raise ValueError(f"Invalid rollout filter type: {self.config.actor_rollout_ref.rollout.rollout_filter_type}")
+
+            mask = torch.zeros(num_groups, dtype=torch.bool)
+            mask[top_groups] = True
+            mask = mask.unsqueeze(1).expand(-1, group_size).flatten()
+
+            batch.batch = batch.batch[mask]
+
+            for key, value in batch.non_tensor_batch.items():
+                if isinstance(value, np.ndarray):
+                    batch.non_tensor_batch[key] = value[mask]
+                else:
+                    batch.non_tensor_batch[key] = [v for v, m in zip(value, mask) if m]
+
+            metrics = {
+                "rollout/in_group_std": in_group_std.mean(),
+                "rollout/in_group_max": in_group_max.mean(),
+                "rollout/in_group_mean": in_group_mean.mean(),
+                "rollout/chosen_in_group_std": in_group_std[top_groups].mean(),
+                "rollout/chosen_in_group_max": in_group_max[top_groups].mean(),
+                "rollout/chosen_in_group_mean": in_group_mean[top_groups].mean()
+            }
+            return batch, metrics
+
+
+        self.start_time = time.time()
         for step in range(self.total_training_steps):
             # metrics = {}
             timing_raw = {}
@@ -234,9 +307,15 @@ class RayAgentTrainer(VerlRayPPOTrainer):
                 # generate a batch
                 with _timer('gen', timing_raw):
                     batch = self.agent_proxy.rollout(batch, val=False)
-                    metrics = {"train/" + key: value for key, value in batch.meta_info['metrics'].items()}
+                    batch, metrics = _filter_rollout(batch)
+                    metrics.update({"train/" + key: value for key, value in batch.meta_info['metrics'].items()})
+
                     inputs, outputs, scores = _process_batch_for_logging(batch)
                     # self._maybe_log_generations(inputs=inputs, outputs=outputs, scores=scores, _type='train')
+
+
+
+
 
                 if self.config.algorithm.adv_estimator == AdvantageEstimator.REMAX:
                     # TODO: check if this is correct. Not tested yer
@@ -283,12 +362,16 @@ class RayAgentTrainer(VerlRayPPOTrainer):
                 with _timer('old_log_prob', timing_raw):
                     old_log_prob = self.actor_rollout_wg.compute_log_prob(batch)
                     batch = batch.union(old_log_prob)
+                    avg_old_log_prob = masked_mean(old_log_prob.batch['old_log_probs'], batch.batch['response_mask'])
+                    metrics.update({"rollout/old_log_prob": avg_old_log_prob})
 
                 if self.use_reference_policy:
                     # compute reference log_prob
                     with _timer('ref', timing_raw):
                         ref_log_prob = self.ref_policy_wg.compute_ref_log_prob(batch)
                         batch = batch.union(ref_log_prob)
+                        avg_ref_log_prob = masked_mean(ref_log_prob.batch['ref_log_prob'], batch.batch['response_mask'])
+                        metrics.update({"rollout/ref_log_prob": avg_ref_log_prob})
 
                 # compute values
                 if self.use_critic:
@@ -361,6 +444,8 @@ class RayAgentTrainer(VerlRayPPOTrainer):
             n_gpus = self.resource_pool_manager.get_n_gpus()
             metrics.update(compute_throughout_metrics(batch=batch, timing_raw=timing_raw, n_gpus=n_gpus))
 
+            # add another timing metric: total time
+            metrics.update({"timing_s/total": time.time() - self.start_time})
             # TODO: make a canonical logger that supports various backend
             logger.log(data=metrics, step=self.global_steps)
 

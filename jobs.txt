@@ -6,12 +6,6 @@ python train.py --config-name _4_countdown system.CUDA_VISIBLE_DEVICES="0" train
 python train.py --config-name _5_metamathqa system.CUDA_VISIBLE_DEVICES="0" trainer.experiment_name=metamathqa-base
 
 
-python train.py system.CUDA_VISIBLE_DEVICES="0" trainer.experiment_name=sokoban-base-entropy-0-001 actor_rollout_ref.actor.entropy_coeff=0.001 &
-python train.py system.CUDA_VISIBLE_DEVICES="1" trainer.experiment_name=sokoban-base-entropy-0-003 actor_rollout_ref.actor.entropy_coeff=0.003 &
-python train.py system.CUDA_VISIBLE_DEVICES="2" trainer.experiment_name=sokoban-base-entropy-0-01 actor_rollout_ref.actor.entropy_coeff=0.01 &
-python train.py system.CUDA_VISIBLE_DEVICES="3" trainer.experiment_name=sokoban-base-entropy-0-03 actor_rollout_ref.actor.entropy_coeff=0.03 &
-
-
 model_names:
 Qwen/Qwen2.5-0.5B
 Qwen/Qwen2.5-0.5B-Instruct
