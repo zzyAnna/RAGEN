@@ -15,6 +15,7 @@ lora:
   rank: 64
   alpha: 64
   target_modules: all-linear
+  local_temp_dir: lora_temp
 
 actor_rollout_ref:
   model:
@@ -37,6 +38,7 @@ actor_rollout_ref:
       rank: ${lora.rank}
       alpha: ${lora.alpha}
       target_modules: ${lora.target_modules}
+      local_temp_dir: ${lora.local_temp_dir}
   ref:
     log_prob_micro_batch_size_per_gpu: ${micro_batch_size_per_gpu} # following micro_batch_size_per_gpu
   rollout:
@@ -60,6 +62,9 @@ actor_rollout_ref:
       rank: ${lora.rank}
       alpha: ${lora.alpha}
       target_modules: ${lora.target_modules}
+      local_temp_dir: ${lora.local_temp_dir}
+algorithm:
+  adv_estimator: gae
 
 critic:
   ppo_mini_batch_size: ${ppo_mini_batch_size} # by default, ppo_mini_batch_size = train_batch_size / 4

@@ -109,6 +109,7 @@ class ActorRolloutRefWorker(Worker):
         self.ulysses_sharding_manager = FSDPUlyssesShardingManager(self.ulysses_device_mesh)
 
         self._is_lora = self.config.actor.lora.enabled
+        self.lora_local_save_path = self.config.actor.lora.local_temp_dir
 
         self.role = role
         assert self.role in ['actor', 'rollout', 'ref', 'actor_rollout', 'actor_rollout_ref']
@@ -319,7 +320,7 @@ class ActorRolloutRefWorker(Worker):
 
         return actor_module_fsdp, actor_optimizer, actor_lr_scheduler, actor_model_config
 
-    def _build_rollout(self):
+    def _build_rollout(self, default_local_dir: str):
         from torch.distributed.device_mesh import init_device_mesh
         # TODO(sgm): support FSDP hybrid shard for larger model
         infer_tp = self.config.rollout.tensor_model_parallel_size
@@ -360,7 +361,8 @@ class ActorRolloutRefWorker(Worker):
                                   config=self.config.rollout,
                                   tokenizer=self.tokenizer,
                                   model_hf_config=self.actor_model_config,
-                                  device_mesh=rollout_device_mesh)
+                                  device_mesh=rollout_device_mesh,
+                                  default_local_dir=default_local_dir)
             
             log_gpu_memory_usage(f'After building {rollout_name} rollout', logger=None)
             if torch.distributed.get_world_size() == 1:
@@ -400,7 +402,7 @@ class ActorRolloutRefWorker(Worker):
         return rollout, rollout_sharding_manager
 
     @register(dispatch_mode=Dispatch.ONE_TO_ALL)
-    def init_model(self):
+    def init_model(self, default_local_dir: str):
         from verl.workers.actor import DataParallelPPOActor
         # This is used to import external_lib into the huggingface systems
         import_external_libs(self.config.model.get('external_lib', None))
@@ -445,7 +447,7 @@ class ActorRolloutRefWorker(Worker):
                                               actor_optimizer=self.actor_optimizer)
 
         if self._is_rollout:
-            self.rollout, self.rollout_sharding_manager = self._build_rollout()
+            self.rollout, self.rollout_sharding_manager = self._build_rollout(default_local_dir=default_local_dir)
 
         if self._is_ref:
             self.ref_module_fsdp = self._build_model_optimizer(model_path=self.config.model.path,
@@ -518,7 +520,7 @@ class ActorRolloutRefWorker(Worker):
         return output
 
     @register(dispatch_mode=Dispatch.DP_COMPUTE_PROTO)
-    def generate_sequences(self, prompts: DataProto, lora_adapter_path: str = ""):
+    def generate_sequences(self, prompts: DataProto):
         # Support all hardwares
         prompts = prompts.to(torch.cuda.current_device())
 
@@ -546,10 +548,9 @@ class ActorRolloutRefWorker(Worker):
             log_gpu_memory_usage('After entering rollout sharding manager', logger=logger)
 
             prompts = self.rollout_sharding_manager.preprocess_data(prompts)
-            if self._is_lora and lora_adapter_path:
-                output = self.rollout.generate_sequences(prompts=prompts, lora_adapter_path=lora_adapter_path)
-            else:
-                output = self.rollout.generate_sequences(prompts=prompts)
+
+            output = self.rollout.generate_sequences(prompts=prompts)
+            
             log_gpu_memory_usage('After rollout generation', logger=logger)
 
             output = self.rollout_sharding_manager.postprocess_data(output)
@@ -685,21 +686,21 @@ class ActorRolloutRefWorker(Worker):
             # This might indicate an issue elsewhere
             warnings.warn(f"Rank {self.rank}: LoRA is enabled, but the underlying model is not a PeftModel instance during save. Cannot save adapter.", UserWarning)
 
-
+        local_path_lora = os.path.join(local_path, self.lora_local_save_path)
         if save_peft and self.rank == 0:  # Save only on rank 0
             try:
                 # --- Delete existing directory first (rank 0 only) ---
-                if os.path.exists(local_path):
-                    print(f"Rank {self.rank}: Deleting existing adapter directory: {local_path}")
-                    shutil.rmtree(local_path)
+                if os.path.exists(local_path_lora):
+                    print(f"Rank {self.rank}: Deleting existing adapter directory: {local_path_lora}")
+                    shutil.rmtree(local_path_lora)
                 # -----------------------------------------------------
 
                 # Ensure the target directory exists
-                os.makedirs(local_path, exist_ok=True)
-                print(f"Rank {self.rank}: Saving PEFT adapter to {local_path}...")
+                os.makedirs(local_path_lora, exist_ok=True)
+                print(f"Rank {self.rank}: Saving PEFT adapter to {local_path_lora}...")
                 # Use the unwrapped PEFT model for saving.
                 # `is_main_process` helps coordinate saving in distributed settings if the method supports it.
-                peft_model_unwrapped.save_pretrained(local_path, is_main_process=(self.rank == 0))
+                peft_model_unwrapped.save_pretrained(local_path_lora, is_main_process=(self.rank == 0))
                 print(f"Rank {self.rank}: PEFT adapter saved successfully.")
             except Exception as e:
                 # Log errors during saving
@@ -720,7 +721,7 @@ class ActorRolloutRefWorker(Worker):
         if not self._is_lora or not self._is_actor:
             return None
         
-        local_lora_temp_folder = os.path.join(base_path, 'lora_temp')
+        local_lora_temp_folder = os.path.join(base_path, self.lora_local_save_path)
 
         # if the folder exists, return the path, otherwise return empty string
         if os.path.exists(local_lora_temp_folder):

@@ -65,7 +65,7 @@ def _repeat_interleave(value: Union[torch.Tensor, np.ndarray], repeats: int) -> 
 
 class vLLMRollout(BaseRollout):
 
-    def __init__(self, model_path: str, config: DictConfig, tokenizer, model_hf_config, **kwargs):
+    def __init__(self, model_path: str, default_local_dir: str, config: DictConfig, tokenizer, model_hf_config, **kwargs):
         """A vLLM rollout. It requires the module is supported by the vllm.
 
         Args:
@@ -111,7 +111,7 @@ class vLLMRollout(BaseRollout):
         if self._is_lora:
             self._max_lora_rank = self.config.lora.rank
         self.lora_id_counter = 0
-        
+        self.lora_local_save_path = os.path.join(default_local_dir, self.config.lora.local_temp_dir)
         self.inference_engine = LLM(
             model=model_path,
             enable_sleep_mode=True,
@@ -180,7 +180,7 @@ class vLLMRollout(BaseRollout):
             setattr(self.sampling_params, key, value)
 
     @torch.no_grad()
-    def generate_sequences(self, prompts: DataProto, lora_adapter_path: str = "", **kwargs) -> DataProto:
+    def generate_sequences(self, prompts: DataProto, **kwargs) -> DataProto:
         # rebuild vllm cache engine
         if vllm_version in ('0.3.1', '0.4.2', '0.5.4', '0.6.3') and self.config.free_cache_engine:
             self.inference_engine.init_cache_engine()
@@ -244,12 +244,12 @@ class vLLMRollout(BaseRollout):
 
         # users can customize different sampling_params at different run
         with self.update_sampling_params(**kwargs):
-            if self._is_lora and lora_adapter_path:
+            if self._is_lora:
                 self.lora_id_counter += 1
                 lora_request = LoRARequest(
                     "training_lora",
                     self.lora_id_counter,
-                    lora_adapter_path,
+                    self.lora_local_save_path,
                 )
                 outputs = self.inference_engine.generate(
                     prompts=vllm_inputs,  # because we have already convert it to prompt token id

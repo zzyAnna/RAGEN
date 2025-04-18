@@ -185,7 +185,7 @@ class RayAgentTrainer(VerlRayPPOTrainer):
 
         # we should create rollout at the end so that vllm can have a better estimation of kv cache memory
         self.actor_rollout_wg = all_wg['actor_rollout']
-        self.actor_rollout_wg.init_model()
+        self.actor_rollout_wg.init_model(self.config.trainer.default_local_dir)
 
     def _validate(self, lora_adapter_path: Optional[str] = None):
         reward_tensor_lst = []
@@ -598,9 +598,5 @@ class RayAgentTrainer(VerlRayPPOTrainer):
         """
         Save the LoRA checkpoint.
         """
-        # path: given_path + `/global_step_{global_steps}` + `/actor`
-        local_lora_temp_folder = os.path.join(self.config.trainer.default_local_dir, 'lora_temp')
 
-        print(f'local_lora_temp_folder: {local_lora_temp_folder}')
-
-        self.actor_rollout_wg.save_checkpoint_lora(local_lora_temp_folder)
+        self.actor_rollout_wg.save_checkpoint_lora(self.config.trainer.default_local_dir)
