@@ -714,20 +714,6 @@ class ActorRolloutRefWorker(Worker):
         if self._is_offload_param:
             offload_fsdp_model_to_cpu(self.actor_module_fsdp)
 
-     # --- NEW Method to get adapter path ---
-    @register(dispatch_mode=Dispatch.ONE_TO_ALL)
-    def get_lora_adapter_path(self, base_path: str) -> str:
-        """Gets the expected path of the saved LoRA adapter for a given step."""
-        if not self._is_lora or not self._is_actor:
-            return None
-        
-        local_lora_temp_folder = os.path.join(base_path, self.lora_local_save_path)
-
-        # if the folder exists, return the path, otherwise return empty string
-        if os.path.exists(local_lora_temp_folder):
-            return local_lora_temp_folder
-        else:
-            return ""
 
     @register(dispatch_mode=Dispatch.ONE_TO_ALL)
     def load_checkpoint(self, local_path, hdfs_path=None, del_local_after_load=False):

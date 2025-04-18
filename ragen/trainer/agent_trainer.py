@@ -187,7 +187,7 @@ class RayAgentTrainer(VerlRayPPOTrainer):
         self.actor_rollout_wg = all_wg['actor_rollout']
         self.actor_rollout_wg.init_model(self.config.trainer.default_local_dir)
 
-    def _validate(self, lora_adapter_path: Optional[str] = None):
+    def _validate(self):
         reward_tensor_lst = []
         data_source_lst = []
 
@@ -214,10 +214,7 @@ class RayAgentTrainer(VerlRayPPOTrainer):
 
             # pad to be divisible by dp_size
             start_time = time.time()
-            if lora_adapter_path is not None:
-                test_batch = self.agent_proxy.rollout(test_gen_batch, val=True, lora_adapter_path=lora_adapter_path)
-            else:
-                test_batch = self.agent_proxy.rollout(test_gen_batch, val=True)
+            test_batch = self.agent_proxy.rollout(test_gen_batch, val=True)
             end_time = time.time()
             print(f'validation generation time: {end_time - start_time} seconds')
             for key, value in test_batch.meta_info['metrics'].items():
@@ -377,18 +374,6 @@ class RayAgentTrainer(VerlRayPPOTrainer):
             is_last_step = self.global_steps >= self.total_training_steps
 
             with _timer('step', timing_raw):
-                # --- Get LoRA Adapter Path for Rollout ---
-                current_lora_adapter_path = ""
-                if self.ref_in_actor:
-                    with _timer('get_lora_path', timing_raw):
-                        # Get path from rank 0 of the training worker group
-                        current_lora_adapter_path = self.actor_rollout_wg.get_lora_adapter_path(self.config.trainer.default_local_dir)
-                        if current_lora_adapter_path:
-                            print(f"Step {self.global_steps}: Using LoRA adapter path for rollout: {current_lora_adapter_path}")
-                        else:
-                            print(f"Step {self.global_steps}: No valid LoRA adapter path found for rollout.")
-                # ---
-
                 # generate a batch
                 with _timer('gen', timing_raw):
                     batch = self.agent_proxy.rollout(batch, val=False)
@@ -520,7 +505,7 @@ class RayAgentTrainer(VerlRayPPOTrainer):
                 if self.val_reward_fn is not None and self.config.trainer.test_freq > 0 and \
                     (is_last_step or  self.global_steps % self.config.trainer.test_freq == 0):
                     with _timer('testing', timing_raw):
-                        val_metrics: dict = self._validate(lora_adapter_path=current_lora_adapter_path)
+                        val_metrics: dict = self._validate()
                         if is_last_step:
                             last_val_metrics = val_metrics
                     metrics.update(val_metrics)
