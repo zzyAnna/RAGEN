@@ -87,6 +87,8 @@ class FSDPVLLMShardingManager(BaseShardingManager):
             # all we need to do is wake up the inference engine because the weights are the same
             self.inference_engine.wake_up()
             print("LoRA is enabled, so we don't need to do anything with syncing model weights to vllm")
+            log_gpu_memory_usage('LoRA enabled but curious')
+
 
         else:
             log_gpu_memory_usage('Before state_dict() in sharding manager memory', logger=logger)
@@ -122,13 +124,18 @@ class FSDPVLLMShardingManager(BaseShardingManager):
             torch.cuda.set_rng_state(self.gen_random_states)
 
     def __exit__(self, exc_type, exc_value, traceback):
-        log_gpu_memory_usage('Before vllm offload in sharding manager', logger=logger)
+        # log_gpu_memory_usage('Before vllm offload in sharding manager', logger=logger)
+        log_gpu_memory_usage('Before vllm offload in sharding manager')
+
+        print("Offloading model weights in sharding manager")
         # TODO(ZSL): check this
         if vllm_version in ('0.4.2', '0.5.4', '0.6.3'):
             self.inference_engine.offload_model_weights()
         else:
             self.inference_engine.sleep(level=1)
-        log_gpu_memory_usage('After vllm offload in sharding manager', logger=logger)
+        # log_gpu_memory_usage('After vllm offload in sharding manager', logger=logger)
+        log_gpu_memory_usage('After vllm offload in sharding manager')
+
 
         # self.module.to('cuda')
         # if torch.distributed.get_rank() == 0:

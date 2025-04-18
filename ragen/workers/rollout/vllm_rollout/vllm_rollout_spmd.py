@@ -40,6 +40,7 @@ from vllm.distributed import parallel_state as vllm_ps
 from vllm import LLM, SamplingParams
 from vllm.lora.request import LoRARequest
 from verl.third_party.vllm import vllm_version
+import os
 
 # TODO
 # 1. support pp in vllm
@@ -79,6 +80,8 @@ class vLLMRollout(BaseRollout):
         self.config = config
         assert not (not config.enforce_eager and config.free_cache_engine), \
             "disable CUDA graph (enforce_eager = False) if free cache engine"
+        
+        import os
 
         tensor_parallel_size = self.config.get('tensor_model_parallel_size', 1)
         assert tensor_parallel_size <= torch.distributed.get_world_size(), \
@@ -87,7 +90,6 @@ class vLLMRollout(BaseRollout):
 
         if kwargs.get('train_tp', None) is not None:
             # deployed with megatron
-            import os
             os.environ['CUDA_TIMER_STREAM_KAFKA_ENABLE'] = '0'
             os.environ['MEGATRON_IMPORT_TIMERS'] = '0'
             train_tp = kwargs.get('train_tp', None)
@@ -244,7 +246,7 @@ class vLLMRollout(BaseRollout):
 
         # users can customize different sampling_params at different run
         with self.update_sampling_params(**kwargs):
-            if self._is_lora:
+            if self._is_lora and os.path.exists(self.lora_local_save_path):
                 self.lora_id_counter += 1
                 lora_request = LoRARequest(
                     "training_lora",
@@ -256,11 +258,16 @@ class vLLMRollout(BaseRollout):
                     sampling_params=self.sampling_params,
                     use_tqdm=False,
                     lora_request=lora_request)
+
+                # destroy the lora request from memory
+                del lora_request
             else:
                 outputs = self.inference_engine.generate(
                     prompts=vllm_inputs,  # because we have already convert it to prompt token id
                     sampling_params=self.sampling_params,
                     use_tqdm=False)
+
+            
 
             # TODO(sgm): disable logprob when recompute_log_prob is enable
             # if n = 1: (bs, response_length) ; if n > 1: (bs * n, response_length)
