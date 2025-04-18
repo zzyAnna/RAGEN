@@ -96,20 +96,20 @@ wait
 # Section 5.2 - what leads to better reasoning?
 python train.py --config-name _2_sokoban system.CUDA_VISIBLE_DEVICES="0" trainer.experiment_name=sokoban-generalization-qwen2.5-0.5b-instruct $SOKOBAN_GENERALIZATION_CONFIG model_path=Qwen/Qwen2.5-0.5B-Instruct &
 python train.py --config-name _2_sokoban system.CUDA_VISIBLE_DEVICES="1" trainer.experiment_name=sokoban-generalization-qwen2.5-1.5b-instruct $SOKOBAN_GENERALIZATION_CONFIG model_path=Qwen/Qwen2.5-1.5B-Instruct &
-python train.py --config-name _2_sokoban system.CUDA_VISIBLE_DEVICES="2,3" trainer.experiment_name=sokoban-generalization-qwen2.5-3b-instruct $SOKOBAN_GENERALIZATION_CONFIG model_path=Qwen/Qwen2.5-3B-Instruct trainer.n_gpus_per_node=2 &
-python train.py --config-name _2_sokoban system.CUDA_VISIBLE_DEVICES="4,5,6,7"  trainer.experiment_name=sokoban-generalization-qwen2.5-7b-instruct $SOKOBAN_GENERALIZATION_CONFIG model_path=Qwen/Qwen2.5-7B-Instruct trainer.n_gpus_per_node=4 &
+python train.py --config-name _2_sokoban system.CUDA_VISIBLE_DEVICES=\"2,3\" trainer.n_gpus_per_node=2 trainer.experiment_name=sokoban-generalization-qwen2.5-3b-instruct $SOKOBAN_GENERALIZATION_CONFIG model_path=Qwen/Qwen2.5-3B-Instruct trainer.n_gpus_per_node=2 &
+python train.py --config-name _2_sokoban system.CUDA_VISIBLE_DEVICES=\"4,5,6,7\" trainer.n_gpus_per_node=4 trainer.experiment_name=sokoban-generalization-qwen2.5-7b-instruct $SOKOBAN_GENERALIZATION_CONFIG model_path=Qwen/Qwen2.5-7B-Instruct trainer.n_gpus_per_node=4 &
 
 wait
 
 python train.py --config-name _2_sokoban system.CUDA_VISIBLE_DEVICES="0" trainer.experiment_name=sokoban-generalization-qwen2.5-0.5b $SOKOBAN_GENERALIZATION_CONFIG model_path=Qwen/Qwen2.5-0.5B &
 python train.py --config-name _2_sokoban system.CUDA_VISIBLE_DEVICES="1" trainer.experiment_name=sokoban-generalization-qwen2.5-1.5b $SOKOBAN_GENERALIZATION_CONFIG model_path=Qwen/Qwen2.5-1.5B &
-python train.py --config-name _2_sokoban system.CUDA_VISIBLE_DEVICES="2,3" trainer.experiment_name=sokoban-generalization-qwen2.5-3b $SOKOBAN_GENERALIZATION_CONFIG model_path=Qwen/Qwen2.5-3B &
-python train.py --config-name _2_sokoban system.CUDA_VISIBLE_DEVICES="4,5,6,7" trainer.experiment_name=sokoban-generalization-qwen2.5-7b $SOKOBAN_GENERALIZATION_CONFIG model_path=Qwen/Qwen2.5-7B &
+python train.py --config-name _2_sokoban system.CUDA_VISIBLE_DEVICES=\"2,3\" trainer.n_gpus_per_node=2 trainer.experiment_name=sokoban-generalization-qwen2.5-3b $SOKOBAN_GENERALIZATION_CONFIG model_path=Qwen/Qwen2.5-3B &
+python train.py --config-name _2_sokoban system.CUDA_VISIBLE_DEVICES=\"4,5,6,7\" trainer.n_gpus_per_node=4 trainer.experiment_name=sokoban-generalization-qwen2.5-7b $SOKOBAN_GENERALIZATION_CONFIG model_path=Qwen/Qwen2.5-7B &
 
 wait
 
-python train.py --config-name _2_sokoban system.CUDA_VISIBLE_DEVICES="0,1,2,3" trainer.experiment_name=sokoban-generalization-qwen2.5-7b-r1 $SOKOBAN_GENERALIZATION_CONFIG model_path=deepseek-ai/DeepSeek-R1-Distill-Qwen-7B &
-python train.py --config-name _2_sokoban system.CUDA_VISIBLE_DEVICES="4,5" trainer.experiment_name=sokoban-generalization-qwen2.5-1.5b-r1 $SOKOBAN_GENERALIZATION_CONFIG model_path=deepseek-ai/DeepSeek-R1-Distill-Qwen-1.5B &
+python train.py --config-name _2_sokoban system.CUDA_VISIBLE_DEVICES=\"0,1,2,3\"  trainer.n_gpus_per_node=4 trainer.n_gpus_per_node=4 trainer.experiment_name=sokoban-generalization-qwen2.5-7b-r1 $SOKOBAN_GENERALIZATION_CONFIG model_path=deepseek-ai/DeepSeek-R1-Distill-Qwen-7B &
+python train.py --config-name _2_sokoban system.CUDA_VISIBLE_DEVICES=\"4,5\"  trainer.n_gpus_per_node=2 trainer.experiment_name=sokoban-generalization-qwen2.5-1.5b-r1 $SOKOBAN_GENERALIZATION_CONFIG model_path=deepseek-ai/DeepSeek-R1-Distill-Qwen-1.5B &
 
 
 wait
@@ -144,3 +144,6 @@ python train.py --config-name _2_sokoban system.CUDA_VISIBLE_DEVICES="0" trainer
 
 
 
+# Extension: Training 7B reasoning model
+SOKOBAN_GENERALIZATION_CONFIG="es_manager.val.env_groups=512 es_manager.val.group_size=1 es_manager.val.env_configs.tags=[SimpleSokoban,LargerSokoban,SokobanDifferentGridVocab,FrozenLake] es_manager.val.env_configs.n_groups=[128,128,128,128]"
+python train.py --config-name _2_sokoban system.CUDA_VISIBLE_DEVICES=\"0,1,2,3,4,5,6,7\" trainer.n_gpus_per_node=8 trainer.experiment_name=sokoban-generalization-qwen2.5-7b-r1-largescale $SOKOBAN_GENERALIZATION_CONFIG model_path=deepseek-ai/DeepSeek-R1-Distill-Qwen-7B es_manager.train.env_groups=128 es_manager.train.env_configs.n_groups=[128] ppo_mini_batch_size=128 actor_rollout_ref.rollout.response_length=2048 actor_rollout_ref.rollout.max_model_len=12000 trainer.test_freq=5 actor_rollout_ref.rollout.max_num_batched_tokens=24000 &
