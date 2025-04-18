@@ -3,107 +3,50 @@ custom_envs:
     env_type: sokoban
     max_actions_per_traj: 10 # used in environment state manager to control the actual max actions executed per trajectory
     env_instruction: "You are solving the Sokoban puzzle. You are the player and you need to push all boxes to targets. When you are right next to a box, you can push it by moving in the same direction. You cannot push a box through a wall, and you cannot pull a box. The answer should be a sequence of actions, like <answer>Right || Right || Up</answer>"
-    max_tokens: 30 # used to curate llm prompt "max words", not used for rollout
+    max_tokens: 100 # used to curate llm prompt "max words", not used for rollout
     env_config: # keys should be a subset of SokobanConfig
       dim_x: 6
       dim_y: 6
       num_boxes: 1
       max_steps: 100
-  
 
-  # SokobanSearchDepth10:
-  #   env_type: sokoban
-  #   max_actions_per_traj: 10
-  #   env_instruction: "You are solving the Sokoban puzzle. Move all boxes to targets. Example answer format: <think>I should go left first, then move the box to the up side.</think><answer>Left || Up</answer>"
-  #   max_tokens: 30
-  #   env_config: # keys should be a subset of SokobanConfig
-  #     search_depth: 10
-  #     dim_x: 6
-  #     dim_y: 6
-  #     num_boxes: 1
-  #     max_steps: 100
-
-  Sokoban2Boxes:
+  LargerSokoban:
     env_type: sokoban
     max_actions_per_traj: 10
-    env_instruction: "You are solving the Sokoban puzzle. Move all boxes to targets. Example answer format: <think>I should go left first, then move the box to the up side.</think><answer>Left || Up</answer>"
-    max_tokens: 30
-    env_config: # keys should be a subset of SokobanConfig
-      search_depth: 30
-      dim_x: 6
-      dim_y: 6
+    env_instruction: "You are solving the Sokoban puzzle. You are the player and you need to push all boxes to targets. When you are right next to a box, you can push it by moving in the same direction. You cannot push a box through a wall, and you cannot pull a box. The answer should be a sequence of actions, like <answer>Right || Right || Up</answer>"
+    max_tokens: 100
+    env_config:
+      dim_x: 8
+      dim_y: 8
       num_boxes: 2
       max_steps: 100
-    
+      search_depth: 10
+  
   SokobanDifferentGridVocab:
     env_type: sokoban
     max_actions_per_traj: 10
-    env_instruction: "You are solving the Sokoban puzzle. Move all boxes to targets. Example answer format: <think>I should go left first, then move the box to the up side.</think><answer>Left || Up</answer>"
-    max_tokens: 30
+    env_instruction: "You are solving the Sokoban puzzle. You are the player and you need to push all boxes to targets. When you are right next to a box, you can push it by moving in the same direction. You cannot push a box through a wall, and you cannot pull a box. The answer should be a sequence of actions, like <answer>Right || Right || Up</answer>"
+    max_tokens: 100
     env_config: # keys should be a subset of SokobanConfig
       search_depth: 30
       dim_x: 6
       dim_y: 6
       num_boxes: 1
       max_steps: 100
-      grid_lookup:
-        0: "W"
-        1: "."
-        2: "G"
-        3: "C"
-        4: "B"
-        5: "A"
-        6: "@"
-      grid_vocab:
-        "W": "wall"
-        ".": "empty"
-        "G": "target"
-        "C": "box on target"
-        "B": "box"
-        "A": "player"
-        "@": "player on target"
-
-  SokobanDifferentActionVocab:
-    env_type: sokoban
-    max_actions_per_traj: 10
-    env_instruction: "You are solving the Sokoban puzzle. Move all boxes to targets. Example answer format: <think>I should go left first, then move the box to the up side.</think><answer>Left || Up</answer>"
-    max_tokens: 30
-    env_config: # keys should be a subset of SokobanConfig
-      search_depth: 30
-      dim_x: 6
-      dim_y: 6
-      num_boxes: 1
-      max_steps: 100
-      action_lookup:
-        1: "Left"
-        2: "Right"
-        3: "Up"
-        4: "Down"
-
-
+      grid_lookup: {0: "W", 1: ".", 2: "G", 3: "C", 4: "B", 5: "A", 6: "@"}
+      grid_vocab: {"W": "wall", ".": "empty", "G": "target", "C": "box on target", "B": "box", "A": "player", "@": "player on target"}
 
   VisualSimpleSokoban:
     env_type: sokoban
     max_actions_per_traj: 10
-    env_instruction: "You are solving the Visual Simple Sokoban puzzle. Move all boxes to targets. Example answer format: <think>I should go left first, then move the box to the up side.</think><answer>Left || Up</answer>"
-    max_tokens: 30
+    env_instruction: "You are solving the Sokoban puzzle. You are the player and you need to push all boxes to targets. When you are right next to a box, you can push it by moving in the same direction. You cannot push a box through a wall, and you cannot pull a box. The answer should be a sequence of actions, like <answer>Right || Right || Up</answer>"
+    max_tokens: 100
     env_config: # keys should be a subset of SokobanConfig
       dim_x: 6
       dim_y: 6
       num_boxes: 1
       max_steps: 100
       render_mode: "rgb_array"
-
-  HarderSokoban:
-    env_type: sokoban
-    max_actions_per_traj: 10
-    env_instruction: "You are solving the Harder Sokoban puzzle. Move all boxes to targets. Example answer format: <think>I should go left first, then move the box to the up side.</think><answer>Left || Up</answer>"
-    max_tokens: 30
-    env_config:
-      dim_x: 10
-      dim_y: 10
-      num_boxes: 2
-      max_steps: 100
 
   # Alfworld:
   #   env_type: alfworld
@@ -114,14 +57,14 @@ custom_envs:
     env_type: countdown
     max_actions_per_traj: 1
     env_instruction: "You are solving the Countdown puzzle. You should use the num list to create an equation that equals the target. Example answer format: <think> To find an equation using [3, 5, 2] to get 4. Let's check 2 + 5 = 7, 7 - 3 = 4. So the answer is 2 + 5 - 3 = 4. </think><answer>2 + 5 - 3</answer>"
-    max_tokens: 30
+    max_tokens: 100
     env_config: null
 
   Bandit:
     env_type: bandit
     max_actions_per_traj: 1
     env_instruction: ""
-    max_tokens: 30
+    max_tokens: 100
     env_config: 
       lo_arm_name: "Phoenix"
       hi_arm_name: "Dragon"
@@ -130,7 +73,7 @@ custom_envs:
     env_type: bandit
     max_actions_per_traj: 1
     env_instruction: ""
-    max_tokens: 30
+    max_tokens: 100
     env_config: 
       lo_arm_name: "Trader"
       hi_arm_name: "Librarian"
@@ -139,14 +82,14 @@ custom_envs:
     env_type: frozen_lake
     max_actions_per_traj: 10
     env_instruction: "You are solving the FrozenLake puzzle. Forbid the whole and go to the target. You may move to the unintended direction due to the slippery ice. Example answer format: <think>To forbid the hole and go to the target, I should go left then go up.</think><answer>Left || Up</answer>"
-    max_tokens: 30
+    max_tokens: 100
     env_config: null
 
   MetamathQA:
     env_type: metamathqa
     max_actions_per_traj: 1
     env_instruction: "You are solving Math problems. "
-    max_tokens: 30
+    max_tokens: 100
     env_config: null
 
   WebShop:

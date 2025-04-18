@@ -19,7 +19,7 @@ from tensordict import TensorDict
 from dataclasses import asdict
 register_resolvers()
 
-def get_loss_mask_and_scores(input_ids: torch.Tensor, tokenizer: AutoTokenizer, all_scores: List[List[float]] = None, use_turn_scores: bool = False):
+def get_masks_and_scores(input_ids: torch.Tensor, tokenizer: AutoTokenizer, all_scores: List[List[float]] = None, use_turn_scores: bool = False):
     """
     input_ids: shape (bsz, seq_len)
     Get loss mask that only learns between <|im_start|>assistant and <|im_end|>. Currently only supports qwen.
@@ -28,7 +28,8 @@ def get_loss_mask_and_scores(input_ids: torch.Tensor, tokenizer: AutoTokenizer, 
     special_token = tokenizer.encode("<|im_start|>")[0]
     turn_starts = torch.where(input_ids == special_token, 1, 0)
     turn_indicators = torch.cumsum(turn_starts, dim=-1)
-    loss_mask = (turn_indicators % 2 == 1) & (turn_indicators > 1) # only learns all assistant turns
+    response_mask = (turn_indicators % 2 == 1) & (turn_indicators > 1) # only learns all assistant turns
+    loss_mask = (turn_indicators > 1) # learns everything after system prompt
 
     reward_token = tokenizer.encode("<|im_end|>")[0]
     score_tensor = torch.zeros_like(input_ids, dtype=torch.float32)
@@ -44,7 +45,7 @@ def get_loss_mask_and_scores(input_ids: torch.Tensor, tokenizer: AutoTokenizer, 
     loss_mask = loss_mask[:, :-1] # remove the last token
     score_tensor = score_tensor[:, 1:] # remove the first token
 
-    return loss_mask, score_tensor
+    return loss_mask, score_tensor, response_mask
 
 
 
@@ -245,8 +246,9 @@ class ContextManager:
         position_ids = attention_mask.cumsum(dim=-1)
         if prepare_for_update:
             scores = [[i['reward'] for i in env_output['history']] for env_output in env_outputs]
-            loss_mask, score_tensor = get_loss_mask_and_scores(input_ids, self.tokenizer, scores, use_turn_scores=self.config.agent_proxy.use_turn_scores)
+            loss_mask, score_tensor, response_mask = get_masks_and_scores(input_ids, self.tokenizer, scores, use_turn_scores=self.config.agent_proxy.use_turn_scores)
             normalized_score_tensor = self._normalize_score_tensor(score_tensor, env_outputs)
+            response_length = response_mask.sum(dim=-1).float().mean().item()
 
         llm_inputs = DataProto()
         llm_inputs.batch = TensorDict({
@@ -277,6 +279,7 @@ class ContextManager:
                 key: np.sum(value) / self.env_nums[key.split("/")[0]]
                 for key, value in metrics.items()
             }
+            metrics["response_length"] = response_length
             llm_inputs.meta_info = {"metrics": metrics}
         return llm_inputs
 

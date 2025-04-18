@@ -54,7 +54,7 @@ class SokobanEnv(BaseDiscreteActionEnv, GymSokobanEnv):
         render_mode = mode if mode is not None else self.render_mode
         if render_mode == 'text':
             room = np.where((self.room_state == 5) & (self.room_fixed == 2), 6, self.room_state)
-            return '\n'.join(''.join(self.GRID_LOOKUP.get(cell, "?") for cell in row) for row in room)
+            return '\n'.join(''.join(self.GRID_LOOKUP.get(cell, "?") for cell in row) for row in room.tolist())
         elif render_mode == 'rgb_array':
             return self.get_image(mode='rgb_array', scale=1)
         else:

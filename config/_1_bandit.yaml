@@ -19,7 +19,6 @@ agent_proxy:
   max_actions_per_turn: 1 # how many actions can be output at most in a single turn
 
 es_manager:
-  format_penalty: -0.2
   train:
     env_configs:
       tags: ["Bandit"] # BanditGeneralizationNoThink

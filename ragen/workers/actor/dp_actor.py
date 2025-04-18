@@ -35,6 +35,20 @@ from flash_attn.bert_padding import pad_input, unpad_input, rearrange, index_fir
 
 __all__ = ['DataParallelPPOActor']
 
+def compute_policy_loss(old_log_prob, log_prob, advantages, eos_mask, cliprange):
+    """Adapted from verl/verl/trainer/ppo/core_algos.py
+    """
+    negative_approx_kl = log_prob - old_log_prob
+    ratio = torch.exp(negative_approx_kl)
+    ppo_kl = verl_F.masked_mean(-negative_approx_kl, eos_mask)
+
+    pg_losses = -advantages * ratio
+    pg_losses2 = -advantages * torch.clamp(ratio, 1.0 - cliprange[0], 1.0 + cliprange[1])
+
+    pg_loss = verl_F.masked_mean(torch.max(pg_losses, pg_losses2), eos_mask)
+    pg_clipfrac = verl_F.masked_mean(torch.gt(pg_losses2, pg_losses).float(), eos_mask)
+    return pg_loss, pg_clipfrac, ppo_kl
+
 
 class DataParallelPPOActor(BasePPOActor):
 
@@ -286,16 +300,16 @@ class DataParallelPPOActor(BasePPOActor):
                     old_log_prob = data['old_log_probs']
                     advantages = data['advantages']
 
-                    clip_ratio = self.config.clip_ratio
+                    clip_ratio = (self.config.clip_ratio_low, self.config.clip_ratio_high)
                     entropy_coeff = self.config.entropy_coeff
 
                     # all return: (bsz, response_length)
                     entropy, log_prob = self._forward_micro_batch(micro_batch=data, temperature=temperature)
-                    pg_loss, pg_clipfrac, ppo_kl = core_algos.compute_policy_loss(old_log_prob=old_log_prob,
-                                                                                  log_prob=log_prob,
-                                                                                  advantages=advantages,
-                                                                                  eos_mask=response_mask,
-                                                                                  cliprange=clip_ratio)
+                    pg_loss, pg_clipfrac, ppo_kl = compute_policy_loss(old_log_prob=old_log_prob,
+                                                                        log_prob=log_prob,
+                                                                        advantages=advantages,
+                                                                        eos_mask=response_mask,
+                                                                        cliprange=clip_ratio)
                     # compute entropy loss from entropy
                     entropy_loss = verl_F.masked_mean(entropy, response_mask)
 

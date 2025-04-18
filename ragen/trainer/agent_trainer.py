@@ -265,8 +265,8 @@ class RayAgentTrainer(VerlRayPPOTrainer):
             if rollout_filter_ratio == 1:
                 return batch, {"rollout/in_group_std": in_group_std.mean(), "rollout/in_group_max": in_group_max.mean(), "rollout/in_group_mean": in_group_mean.mean(), "rollout/chosen_in_group_std": in_group_std.mean(), "rollout/chosen_in_group_max": in_group_max.mean(), "rollout/chosen_in_group_mean": in_group_mean.mean()}
 
-            if self.config.actor_rollout_ref.rollout.rollout_filter_type == "max_mean":
-                top_groups = (in_group_max - in_group_mean).topk(int(rollout_filter_ratio * num_groups)).indices
+            if self.config.actor_rollout_ref.rollout.rollout_filter_type == "std_rev":
+                top_groups = (-in_group_std).topk(int(rollout_filter_ratio * num_groups)).indices
             elif self.config.actor_rollout_ref.rollout.rollout_filter_type == "std":
                 top_groups = in_group_std.topk(int(rollout_filter_ratio * num_groups)).indices
             else:
