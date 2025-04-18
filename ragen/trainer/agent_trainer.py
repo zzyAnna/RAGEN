@@ -95,8 +95,7 @@ class RayAgentTrainer(VerlRayPPOTrainer):
         self.generations_logger = GenerationsLogger()
 
         # if ref_in_actor is True, the reference policy will be actor without lora applied
-        # self.ref_in_actor = config.actor_rollout_ref.model.get('lora_rank', 0) > 0
-        self.ref_in_actor = True
+        self.ref_in_actor = config.actor_rollout_ref.actor.lora.enabled
         
         
     def _create_dataloader(self):
@@ -380,7 +379,7 @@ class RayAgentTrainer(VerlRayPPOTrainer):
             with _timer('step', timing_raw):
                 # --- Get LoRA Adapter Path for Rollout ---
                 current_lora_adapter_path = ""
-                if self._is_lora:
+                if self.ref_in_actor:
                     with _timer('get_lora_path', timing_raw):
                         # Get path from rank 0 of the training worker group
                         current_lora_adapter_path = self.actor_rollout_wg.get_lora_adapter_path(self.config.trainer.default_local_dir)
@@ -513,7 +512,7 @@ class RayAgentTrainer(VerlRayPPOTrainer):
                     metrics.update(actor_output_metrics)
 
                     # save lora adapter
-                    if self._is_lora:
+                    if self.ref_in_actor:
                         with _timer('save_lora_adapter', timing_raw):
                             self._save_checkpoint_lora()
 

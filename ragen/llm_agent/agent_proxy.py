@@ -129,7 +129,7 @@ class LLMAgentProxy:
 		if isinstance(self.actor_wg, RayWorkerGroup):
 			padded_lm_inputs, pad_size = pad_dataproto_to_divisor(lm_inputs, self.actor_wg.world_size)
 			if lora_adapter_path:
-				padded_lm_outputs = self.actor_wg.generate_sequences(padded_lm_inputs, lora_adapter_path)
+				padded_lm_outputs = self.actor_wg.generate_sequences(prompts=padded_lm_inputs, lora_adapter_path=lora_adapter_path)
 			else:
 				padded_lm_outputs = self.actor_wg.generate_sequences(padded_lm_inputs)
 			lm_outputs = unpad_dataproto(padded_lm_outputs, pad_size=pad_size)
