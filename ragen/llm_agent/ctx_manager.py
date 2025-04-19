@@ -30,6 +30,7 @@ def get_masks_and_scores(input_ids: torch.Tensor, tokenizer: AutoTokenizer, all_
     turn_indicators = torch.cumsum(turn_starts, dim=-1)
     response_mask = (turn_indicators % 2 == 1) & (turn_indicators > 1) # only learns all assistant turns
     loss_mask = (turn_indicators > 1) # learns everything after system prompt
+    # loss_mask = response_mask
 
     reward_token = tokenizer.encode("<|im_end|>")[0]
     score_tensor = torch.zeros_like(input_ids, dtype=torch.float32)
@@ -44,6 +45,7 @@ def get_masks_and_scores(input_ids: torch.Tensor, tokenizer: AutoTokenizer, all_
         score_tensor[:, -1] = torch.tensor(scores, dtype=torch.float32)
     loss_mask = loss_mask[:, :-1] # remove the last token
     score_tensor = score_tensor[:, 1:] # remove the first token
+    response_mask = response_mask[:, :-1]
 
     return loss_mask, score_tensor, response_mask
 
@@ -247,6 +249,8 @@ class ContextManager:
         if prepare_for_update:
             scores = [[i['reward'] for i in env_output['history']] for env_output in env_outputs]
             loss_mask, score_tensor, response_mask = get_masks_and_scores(input_ids, self.tokenizer, scores, use_turn_scores=self.config.agent_proxy.use_turn_scores)
+            if self.config.enable_response_mask:
+                loss_mask = response_mask
             normalized_score_tensor = self._normalize_score_tensor(score_tensor, env_outputs)
             response_length = response_mask.sum(dim=-1).float().mean().item()
 

@@ -146,4 +146,15 @@ python train.py --config-name _2_sokoban system.CUDA_VISIBLE_DEVICES="0" trainer
 
 # Extension: Training 7B reasoning model
 SOKOBAN_GENERALIZATION_CONFIG="es_manager.val.env_groups=512 es_manager.val.group_size=1 es_manager.val.env_configs.tags=[SimpleSokoban,LargerSokoban,SokobanDifferentGridVocab,FrozenLake] es_manager.val.env_configs.n_groups=[128,128,128,128]"
-python train.py --config-name _2_sokoban system.CUDA_VISIBLE_DEVICES=\"0,1,2,3,4,5,6,7\" trainer.n_gpus_per_node=8 trainer.experiment_name=sokoban-generalization-qwen2.5-3b-instruct-largescale $SOKOBAN_GENERALIZATION_CONFIG model_path=Qwen/Qwen2.5-3B-Instruct es_manager.train.env_groups=64 es_manager.train.group_size=16 es_manager.train.env_configs.n_groups=[64] ppo_mini_batch_size=128 actor_rollout_ref.rollout.response_length=1024 actor_rollout_ref.rollout.max_model_len=6400 trainer.test_freq=5 actor_rollout_ref.rollout.max_num_batched_tokens=24000 micro_batch_size_per_gpu=2 algorithm.adv_estimator=grpo agent_proxy.reward_normalization.method=mean_std actor_rollout_ref.rollout.rollout_filter_ratio=1 actor_rollout_ref.rollout.tensor_model_parallel_size=8 &
+python train.py --config-name _2_sokoban system.CUDA_VISIBLE_DEVICES=\"0,1,2,3,4,5,6,7\" trainer.n_gpus_per_node=8 trainer.experiment_name=sokoban-generalization-qwen2.5-3b-instruct-largescale $SOKOBAN_GENERALIZATION_CONFIG model_path=Qwen/Qwen2.5-3B-Instruct es_manager.train.env_groups=8 es_manager.train.group_size=16 es_manager.train.env_configs.n_groups=[8] micro_batch_size_per_gpu=8 ppo_mini_batch_size=64 actor_rollout_ref.rollout.response_length=1024 actor_rollout_ref.rollout.max_model_len=6400 trainer.test_freq=5 actor_rollout_ref.rollout.max_num_batched_tokens=24000 micro_batch_size_per_gpu=2 actor_rollout_ref.rollout.rollout_filter_ratio=1 &
+
+python -m ragen.llm_agent.agent_proxy  model_path=Qwen/Qwen2.5-3B-Instruct system.CUDA_VISIBLE_DEVICES=\"0,1,2,3,4,5,6,7\" trainer.n_gpus_per_node=8 actor_rollout_ref.rollout.tensor_model_parallel_size=4 actor_rollout_ref.rollout.response_length=2048 actor_rollout_ref.rollout.max_model_len=12800 
+
+# trainer.save_freq=50 trainer.default_local_dir=/mnt/local/cache/exp_name
+USE_PPO="algorithm.adv_estimator=gae" # by default.
+USE_BASE="algorithm.kl_ctrl.kl_coef=0.001 actor_rollout_ref.actor.kl_loss_coef=0.001 actor_rollout_ref.actor.clip_ratio_high=0.2 actor_rollout_ref.rollout.rollout_filter_ratio=1"
+python train.py --config-name _2_sokoban system.CUDA_VISIBLE_DEVICES=\"0,1,2,3,4,5,6,7\" trainer.n_gpus_per_node=8 trainer.experiment_name=sokoban-ppo $USE_PPO $USE_BASE ppo_mini_batch_size=64 enable_response_mask=True &
+
+# USE_PPO="algorithm.adv_estimator=gae" # by default.
+# USE_BASE="algorithm.kl_ctrl.kl_coef=0.001 actor_rollout_ref.actor.kl_loss_coef=0.001 actor_rollout_ref.actor.clip_ratio_high=0.2 actor_rollout_ref.rollout.rollout_filter_ratio=1"
+# python train.py --config-name _2_sokoban system.CUDA_VISIBLE_DEVICES=\"0\" trainer.n_gpus_per_node=1 trainer.experiment_name=sokoban-ppo $USE_PPO $USE_BASE ppo_mini_batch_size=64 enable_response_mask=True &

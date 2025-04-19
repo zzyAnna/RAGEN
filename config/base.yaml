@@ -8,6 +8,7 @@ system:
 micro_batch_size_per_gpu: 4
 ppo_mini_batch_size: 32
 model_path: Qwen/Qwen2.5-0.5B-Instruct
+enable_response_mask: False
 
 actor_rollout_ref:
   model:
@@ -38,6 +39,8 @@ actor_rollout_ref:
     temperature: 1
     rollout_filter_ratio: 0.25
     rollout_filter_type: std # max_mean or std
+    enforce_eager: False #  for small models, set both enforce_eager and free_cache_engine to False to make rollout faster
+    free_cache_engine: False
     val_kwargs:
       do_sample: True
       temperature: 0.5
