@@ -582,7 +582,14 @@ class ActorRolloutRefWorker(Worker):
             # perform recompute log_prob
             with self.ulysses_sharding_manager:
                 data = self.ulysses_sharding_manager.preprocess_data(data)
+
+                print(f"[DEBUG fsdp_worker rank {self.rank}] compute_log_prob ENTRY:")
+                print(f"  Input data shape (attn_mask): {data.batch['attention_mask'].shape if 'attention_mask' in data.batch else 'N/A'}")
+                print(f"  >>>> Actual Max Sequence Length in Worker Data: {data.batch['attention_mask'].shape[1] if 'attention_mask' in data.batch else 'N/A'}") # <-- CRITICAL
+                print(f"  Memory before actor.compute_log_prob: Allocated={torch.cuda.memory_allocated()/1e9:.2f} GB, Reserved={torch.cuda.memory_reserved()/1e9:.2f} GB")
                 output = self.actor.compute_log_prob(data=data)
+                print(f"[DEBUG fsdp_worker rank {self.rank}] compute_log_prob EXIT:")
+                print(f"  Memory after actor.compute_log_prob: Allocated={torch.cuda.memory_allocated()/1e9:.2f} GB, Reserved={torch.cuda.memory_reserved()/1e9:.2f} GB")
                 output = DataProto.from_dict(tensors={'old_log_probs': output},
                                             meta_info={'temperature': self.config.rollout.temperature})
                 output = self.ulysses_sharding_manager.postprocess_data(output)

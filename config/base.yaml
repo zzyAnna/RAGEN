@@ -12,8 +12,8 @@ enable_response_mask: False
 
 lora:
   enabled: True
-  rank: 64
-  alpha: 64
+  rank: 32
+  alpha: 32
   target_modules: all-linear
   local_temp_dir: lora_temp
 
