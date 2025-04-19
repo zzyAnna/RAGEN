@@ -668,48 +668,54 @@ class ActorRolloutRefWorker(Worker):
         from peft import PeftModel
         import os
 
+        import torch.distributed as dist
+        from torch.distributed.fsdp import FullyShardedDataParallel as FSDP
+        import transformers
+
         # Load model to GPU if it's offloaded
         if self._is_offload_param:
             load_fsdp_model_to_gpu(self.actor_module_fsdp)
 
         # Ensure all ranks are ready before rank 0 performs the save
-        torch.distributed.barrier()
+        dist.barrier()
 
-        # Get the underlying model, assuming it's a PeftModel
-        peft_model_unwrapped = self.actor_module_fsdp._fsdp_wrapped_module
-        save_peft = False
+        if self._is_lora and isinstance(self.actor_module, PeftModel):
+            if dist.get_rank() == 0:
+                os.makedirs(local_path, exist_ok=True)
 
-        if isinstance(peft_model_unwrapped, PeftModel):
-             save_peft = True
-        elif self.rank == 0:
-            # Log a warning if LoRA is enabled but the model isn't a PeftModel
-            # This might indicate an issue elsewhere
-            warnings.warn(f"Rank {self.rank}: LoRA is enabled, but the underlying model is not a PeftModel instance during save. Cannot save adapter.", UserWarning)
+            local_path_lora = os.path.join(local_path, self.lora_local_save_path)
 
-        local_path_lora = os.path.join(local_path, self.lora_local_save_path)
-        if save_peft and self.rank == 0:  # Save only on rank 0
-            try:
+
+            if isinstance(self.actor_module_fsdp, FSDP):
                 # --- Delete existing directory first (rank 0 only) ---
-                if os.path.exists(local_path_lora):
-                    print(f"Rank {self.rank}: Deleting existing adapter directory: {local_path_lora}")
-                    shutil.rmtree(local_path_lora)
+                if dist.get_rank() == 0:
+                    if os.path.exists(local_path_lora):
+                        print(f"Rank {self.rank}: Deleting existing adapter directory: {local_path_lora}")
+                        shutil.rmtree(local_path_lora)
                 # -----------------------------------------------------
 
-                # Ensure the target directory exists
-                os.makedirs(local_path_lora, exist_ok=True)
-                print(f"Rank {self.rank}: Saving PEFT adapter to {local_path_lora}...")
-                # Use the unwrapped PEFT model for saving.
-                # `is_main_process` helps coordinate saving in distributed settings if the method supports it.
-                peft_model_unwrapped.save_pretrained(local_path_lora, is_main_process=(self.rank == 0))
-                print(f"Rank {self.rank}: PEFT adapter saved successfully.")
-            except Exception as e:
-                # Log errors during saving
-                print(f"Rank {self.rank}: Error saving PEFT adapter: {e}")
-                logger.error(f"Error saving PEFT adapter: {e}", exc_info=True)
+                with FSDP.summon_full_params(self.actor_module_fsdp, writeback=False, offload_to_cpu=True):
+                    if dist.get_rank() == 0:
+                        from typing import OrderedDict
+                        lora_params = OrderedDict()
+                        model = self.actor_module_fsdp._fsdp_wrapped_module.base_model.model
+                        for name, param in model.named_parameters():
+                            if ".lora_" in name:
+                                name = "base_model.model." + name.replace("._fsdp_wrapped_module.", ".")
+                                lora_params[name] = param
+                        self.actor_module_fsdp.save_pretrained(
+                            local_path_lora,
+                            state_dict=lora_params,
+                            safe_serialization=True
+                        )
+            else:
+                self.actor_module.save_pretrained(local_path_lora, safe_serialization=True)
 
-        # Ensure all ranks wait for rank 0 to finish before proceeding (e.g., offloading)
-        torch.distributed.barrier()
+            dist.barrier()
+            if dist.get_rank() == 0:
+                print(f"[rank-{self.rank}]: Saved LoRA adapter to: {local_path_lora}")
 
+        dist.barrier()
         # Offload model back to CPU if needed
         if self._is_offload_param:
             offload_fsdp_model_to_cpu(self.actor_module_fsdp)
