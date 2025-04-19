@@ -33,6 +33,8 @@ import verl.utils.torch_functional as verl_F
 
 from flash_attn.bert_padding import pad_input, unpad_input, rearrange, index_first_axis
 
+from verl.utils.debug import log_gpu_memory_usage
+
 __all__ = ['DataParallelPPOActor']
 
 def compute_policy_loss(old_log_prob, log_prob, advantages, eos_mask, cliprange):
@@ -209,6 +211,8 @@ class DataParallelPPOActor(BasePPOActor):
         # set to eval
         self.actor_module.eval()
 
+        log_gpu_memory_usage("compute_log_prob: Start", logger=None)
+
         micro_batch_size = data.meta_info['micro_batch_size']
         temperature = data.meta_info['temperature']  # temperature must be in the data.meta_info to avoid slient error
         use_dynamic_bsz = data.meta_info['use_dynamic_bsz']
@@ -229,14 +233,15 @@ class DataParallelPPOActor(BasePPOActor):
             micro_batches = batch.split(micro_batch_size)
 
         log_probs_lst = []
-        print("Computing log probabilities")
-        for micro_batch in micro_batches:
+        log_gpu_memory_usage("compute_log_prob: Before micro-batch loop", logger=None)
+        for i, micro_batch in enumerate(micro_batches):
             if isinstance(micro_batch, DataProto):
                 micro_batch = {**micro_batch.batch, **micro_batch.non_tensor_batch}
 
             with torch.no_grad():
                 _, log_probs = self._forward_micro_batch(micro_batch, temperature=temperature)
             log_probs_lst.append(log_probs)
+        log_gpu_memory_usage("compute_log_prob: After micro-batch loop", logger=None)
         log_probs = torch.concat(log_probs_lst, dim=0)
 
         if use_dynamic_bsz:
@@ -250,6 +255,7 @@ class DataParallelPPOActor(BasePPOActor):
     def update_policy(self, data: DataProto):
         # make sure we are in training mode
         self.actor_module.train()
+        log_gpu_memory_usage("update_policy: Start", logger=None)
 
         temperature = data.meta_info['temperature']  # temperature must be in the data.meta_info to avoid slient error
 
@@ -268,8 +274,8 @@ class DataParallelPPOActor(BasePPOActor):
         else:
             dataloader = batch.split(self.config.ppo_mini_batch_size)
 
-        print("Starting PPO update")
         metrics = {}
+        log_gpu_memory_usage("update_policy: Before epoch loop", logger=None)
         for epoch in range(self.config.ppo_epochs):
             for batch_idx, data in enumerate(dataloader):
                 # split batch into micro_batches
@@ -348,5 +354,8 @@ class DataParallelPPOActor(BasePPOActor):
                 grad_norm = self._optimizer_step()
                 data = {'actor/grad_norm': grad_norm.detach().item()}
             append_to_dict(metrics, data)
+            log_gpu_memory_usage(f"update_policy: End epoch {epoch}", logger=None)
+        log_gpu_memory_usage("update_policy: After epoch loop", logger=None)
         self.actor_optimizer.zero_grad()
+        log_gpu_memory_usage("update_policy: End", logger=None)
         return metrics
