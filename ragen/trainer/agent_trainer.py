@@ -428,19 +428,6 @@ class RayAgentTrainer(VerlRayPPOTrainer):
                 # compute global_valid tokens
                 batch.meta_info['global_token_num'] = torch.sum(batch.batch['attention_mask'], dim=-1).tolist()
 
-                # DEBUG
-                print(f"\n[DEBUG agent_trainer step {self.global_steps}] Before compute_log_prob:")
-                print(f"  Batch keys: {list(batch.batch.keys())}")
-                if 'input_ids' in batch.batch:
-                    print(f"  input_ids shape: {batch.batch['input_ids'].shape}")
-                if 'attention_mask' in batch.batch:
-                    print(f"  attention_mask shape: {batch.batch['attention_mask'].shape}")
-                    print(f"  >>>> Actual Max Sequence Length in Batch: {batch.batch['attention_mask'].shape[1]}") # <-- CRITICAL
-                if 'responses' in batch.batch:
-                    print(f"  responses shape: {batch.batch['responses'].shape}")
-                print(f"  Config log_prob_max_token_len_per_gpu: {self.config.actor_rollout_ref.rollout.log_prob_max_token_len_per_gpu}")
-                print(f"  Config log_prob_micro_batch_size_per_gpu: {self.config.actor_rollout_ref.rollout.log_prob_micro_batch_size_per_gpu}")
-                print(f"  Memory before sending to worker: Allocated={torch.cuda.memory_allocated()/1e9:.2f} GB, Reserved={torch.cuda.memory_reserved()/1e9:.2f} GB")
                 # recompute old_log_probs
                 with _timer('old_log_prob', timing_raw):
                     old_log_prob = self.actor_rollout_wg.compute_log_prob(batch)
@@ -523,7 +510,8 @@ class RayAgentTrainer(VerlRayPPOTrainer):
                             last_val_metrics = val_metrics
                     metrics.update(val_metrics)
 
-                if self.config.trainer.save_freq > 0 and ( is_last_step or \
+                # no point in saving checkpoint if lora is enabled (ref_in_actor = True)
+                if (not self.ref_in_actor) and self.config.trainer.save_freq > 0 and ( is_last_step or \
                         self.global_steps % self.config.trainer.save_freq == 0):
                     with _timer('save_checkpoint', timing_raw):
                         self._save_checkpoint()

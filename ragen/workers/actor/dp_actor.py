@@ -170,25 +170,7 @@ class DataParallelPPOActor(BasePPOActor):
                 logits.div_(temperature)
                 logits = logits[:, -response_length - 1:-1, :]  # (bsz, response_length, vocab_size)
                 log_probs = logprobs_from_logits(logits, micro_batch['responses'])
-
-                print(f"[DEBUG dp_actor _forward_micro_batch]")
-                print(f"  Logits shape: {logits.shape}") # <-- CRITICAL
-                print(f"  Logits dtype: {logits.dtype}")
-                print(f"  Micro-batch input shape (attn_mask): {micro_batch['attention_mask'].shape if 'attention_mask' in micro_batch else 'N/A'}")
-                print(f"  >>>> Micro-batch sequence length: {logits.shape[1]}") # <-- CRITICAL
-                print(f"  Memory BEFORE entropy calc: Allocated={torch.cuda.memory_allocated()/1e9:.2f} GB, Reserved={torch.cuda.memory_reserved()/1e9:.2f} GB")
-                # Add a try-except to catch the OOM right here if possible
-                try:
-                    entropy = verl_F.entropy_from_logits(logits)
-                    print(f"  Memory AFTER entropy calc: Allocated={torch.cuda.memory_allocated()/1e9:.2f} GB, Reserved={torch.cuda.memory_reserved()/1e9:.2f} GB")
-                except torch.OutOfMemoryError as e:
-                    print(f"[!!! DEBUG OOM Caught during entropy calc !!!]")
-                    print(f"  Logits shape was: {logits.shape}")
-                    print(f"  Logits dtype was: {logits.dtype}")
-                    print(f"  Memory AT OOM point: Allocated={torch.cuda.memory_allocated()/1e9:.2f} GB, Reserved={torch.cuda.memory_reserved()/1e9:.2f} GB")
-                    # It's helpful to see the traceback leading here too, but the raise will do that.
-                    raise e
-                # entropy = verl_F.entropy_from_logits(logits)  # (bsz, response_length)
+                entropy = verl_F.entropy_from_logits(logits)  # (bsz, response_length)
 
             return entropy, log_probs
 
@@ -229,7 +211,6 @@ class DataParallelPPOActor(BasePPOActor):
         # set to eval
         self.actor_module.eval()
 
-        log_gpu_memory_usage("compute_log_prob: Start", logger=None)
 
         micro_batch_size = data.meta_info['micro_batch_size']
         temperature = data.meta_info['temperature']  # temperature must be in the data.meta_info to avoid slient error
@@ -251,11 +232,6 @@ class DataParallelPPOActor(BasePPOActor):
             micro_batches = batch.split(micro_batch_size)
 
         log_probs_lst = []
-        print(f"[DEBUG dp_actor compute_log_prob] Preparing micro-batches:")
-        print(f"  Overall data shape (attn_mask): {data.batch['attention_mask'].shape if 'attention_mask' in data.batch else 'N/A'}")
-        print(f"  Configured micro_batch_size: {micro_batch_size}")
-        print(f"  Number of micro_batches: {len(micro_batches)}")
-        print(f"  Memory before micro-batch loop: Allocated={torch.cuda.memory_allocated()/1e9:.2f} GB, Reserved={torch.cuda.memory_reserved()/1e9:.2f} GB")
         for i, micro_batch in enumerate(micro_batches):
             if isinstance(micro_batch, DataProto):
                 micro_batch = {**micro_batch.batch, **micro_batch.non_tensor_batch}
@@ -263,7 +239,6 @@ class DataParallelPPOActor(BasePPOActor):
             with torch.no_grad():
                 _, log_probs = self._forward_micro_batch(micro_batch, temperature=temperature)
             log_probs_lst.append(log_probs)
-        log_gpu_memory_usage("compute_log_prob: After micro-batch loop", logger=None)
         log_probs = torch.concat(log_probs_lst, dim=0)
 
         if use_dynamic_bsz:
@@ -277,7 +252,6 @@ class DataParallelPPOActor(BasePPOActor):
     def update_policy(self, data: DataProto):
         # make sure we are in training mode
         self.actor_module.train()
-        log_gpu_memory_usage("update_policy: Start", logger=None)
 
         temperature = data.meta_info['temperature']  # temperature must be in the data.meta_info to avoid slient error
 
@@ -297,7 +271,6 @@ class DataParallelPPOActor(BasePPOActor):
             dataloader = batch.split(self.config.ppo_mini_batch_size)
 
         metrics = {}
-        log_gpu_memory_usage("update_policy: Before epoch loop", logger=None)
         for epoch in range(self.config.ppo_epochs):
             for batch_idx, data in enumerate(dataloader):
                 # split batch into micro_batches
@@ -376,8 +349,5 @@ class DataParallelPPOActor(BasePPOActor):
                 grad_norm = self._optimizer_step()
                 data = {'actor/grad_norm': grad_norm.detach().item()}
             append_to_dict(metrics, data)
-            log_gpu_memory_usage(f"update_policy: End epoch {epoch}", logger=None)
-        log_gpu_memory_usage("update_policy: After epoch loop", logger=None)
         self.actor_optimizer.zero_grad()
-        log_gpu_memory_usage("update_policy: End", logger=None)
         return metrics
