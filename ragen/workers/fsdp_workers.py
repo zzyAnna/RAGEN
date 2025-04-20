@@ -701,7 +701,9 @@ class ActorRolloutRefWorker(Worker):
                         shutil.rmtree(local_path_lora)
                 # -----------------------------------------------------
 
-                with FSDP.summon_full_params(self.actor_module_fsdp, writeback=False, offload_to_cpu=True):
+                # with FSDP.summon_full_params(self.actor_module_fsdp, writeback=False, offload_to_cpu=True):
+                with FSDP.summon_full_params(self.actor_module_fsdp, writeback=False):
+
                     if dist.get_rank() == 0:
                         from typing import OrderedDict
                         lora_params = OrderedDict()
