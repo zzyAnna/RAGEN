@@ -11,7 +11,7 @@ model_path: Qwen/Qwen2.5-0.5B-Instruct
 enable_response_mask: False
 
 lora:
-  enabled: False
+  enabled: True
   rank: 64
   alpha: 64
   target_modules: all-linear
@@ -33,6 +33,7 @@ actor_rollout_ref:
     clip_ratio_high: 0.28
     optim:
       betas: [0.9, 0.999]
+      lr: 1e-5
     lora:
       enabled: ${lora.enabled}
       rank: ${lora.rank}
@@ -71,6 +72,7 @@ critic:
     path: ${model_path}
   optim:
     betas: [0.9, 0.999]
+    lr: 1e-4
   lora:
     enabled: ${lora.enabled}
     rank: ${lora.rank}
