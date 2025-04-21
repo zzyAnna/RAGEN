@@ -654,7 +654,7 @@ class ActorRolloutRefWorker(Worker):
             offload_fsdp_model_to_cpu(self.actor_module_fsdp)
 
     @register(dispatch_mode=Dispatch.ONE_TO_ALL)
-    def save_checkpoint_lora(self, local_path):
+    def save_checkpoint_lora(self, local_path, step=0):
         """
         Save only the LoRA adapter weights to the specified path.
 
@@ -712,6 +712,13 @@ class ActorRolloutRefWorker(Worker):
                         )
             else:
                 self.actor_module.save_pretrained(local_path_lora, safe_serialization=True)
+
+            # write a text file to the local_path_lora directory
+            with open(os.path.join(local_path_lora, "lora_info.txt"), "w") as f:
+                f.write(f"LORA_RANK: {self.config.lora.rank}\n")
+                f.write(f"LORA_ALPHA: {self.config.lora.alpha}\n")
+                f.write(f"LORA_TARGET_MODULES: {self.config.lora.target_modules}\n")
+                f.write(f"GLOBAL_STEP: {step}\n")
 
             dist.barrier()
             if dist.get_rank() == 0:

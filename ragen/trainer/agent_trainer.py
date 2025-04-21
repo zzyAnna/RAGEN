@@ -585,4 +585,4 @@ class RayAgentTrainer(VerlRayPPOTrainer):
         Save the LoRA checkpoint.
         """
 
-        self.actor_rollout_wg.save_checkpoint_lora(self.config.trainer.default_local_dir)
+        self.actor_rollout_wg.save_checkpoint_lora(self.config.trainer.default_local_dir, step=self.global_steps)
