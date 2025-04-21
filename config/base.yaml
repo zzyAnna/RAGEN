@@ -63,8 +63,6 @@ actor_rollout_ref:
       alpha: ${lora.alpha}
       target_modules: ${lora.target_modules}
       local_temp_dir: ${lora.local_temp_dir}
-algorithm:
-  adv_estimator: gae
 
 critic:
   ppo_mini_batch_size: ${ppo_mini_batch_size} # by default, ppo_mini_batch_size = train_batch_size / 4
