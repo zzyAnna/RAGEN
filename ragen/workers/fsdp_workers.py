@@ -715,9 +715,9 @@ class ActorRolloutRefWorker(Worker):
 
             # write a text file to the local_path_lora directory
             with open(os.path.join(local_path_lora, "lora_info.txt"), "w") as f:
-                f.write(f"LORA_RANK: {self.config.lora.rank}\n")
-                f.write(f"LORA_ALPHA: {self.config.lora.alpha}\n")
-                f.write(f"LORA_TARGET_MODULES: {self.config.lora.target_modules}\n")
+                f.write(f"LORA_RANK: {self.config.actor.lora.rank}\n")
+                f.write(f"LORA_ALPHA: {self.config.actor.lora.alpha}\n")
+                f.write(f"LORA_TARGET_MODULES: {self.config.actor.lora.target_modules}\n")
                 f.write(f"GLOBAL_STEP: {step}\n")
 
             dist.barrier()
