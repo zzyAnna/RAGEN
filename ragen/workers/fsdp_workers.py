@@ -701,12 +701,10 @@ class ActorRolloutRefWorker(Worker):
                         from typing import OrderedDict
                         lora_params = OrderedDict()
                         model = self.actor_module_fsdp._fsdp_wrapped_module.base_model.model
-                        print(f"[Rank {self.rank}] DEBUG: Type of _fsdp_wrapped_module.base_model.model: {type(model)}")
                         for name, param in model.named_parameters():
                             if ".lora_" in name:
                                 filtered_name = "base_model.model." + name.replace("._fsdp_wrapped_module.", ".")
                                 lora_params[filtered_name] = param
-                                print(f"[Rank {self.rank}] DEBUG:   Found LoRA param: Original Name='{name}', Modified Name='{filtered_name}', Shape={param.shape}, Is_Param={isinstance(param, torch.nn.Parameter)}")
                         self.actor_module_fsdp.save_pretrained(
                             local_path_lora,
                             state_dict=lora_params,
