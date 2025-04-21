@@ -62,24 +62,30 @@ Building upon StarPO, we introduce **RAGEN**, a modular agent training and evalu
 
 RAGEN introduces a reinforcement learning framework to train reasoning-capable LLM agents that can operate in interactive, stochastic environments. 
 
-<p align="center"><img src="./public/rico.png" width="800px" alt="RICO Framework" /></p>
+<p align="center"><img src="./public/rico.png" width="800px" alt="StarPO Framework" /></p>
 <p align="center" style="font-size: 16px; max-width: 800px; margin: 0 auto;">
-The Reasoning-Interaction Chain Optimization (RICO) framework with two interleaved stages: <b>rollout stage</b> and <b>update stage</b>. LLM iteratively generates reasoning-guided actions to interact with the environment to obtain trajectory-level rewards, normalized for LLM update to jointly optimize reasoning and action strategies.
+The StarPO (State-Thinking-Action-Reward Policy Optimization) framework with two interleaved stages: <b>rollout stage</b> and <b>update stage</b>. LLM iteratively generates reasoning-guided actions to interact with the environment to obtain trajectory-level rewards for LLM update to jointly optimize reasoning and action strategies.
 </p>
 
-RAGEN introduces a reinforcement learning framework to train reasoning-capable LLM agents that can operate in interactive, stochastic environments. The framework consists of two key components:
+The framework consists of two key components:
 
 ### > MDP Formulation 
 We formulate agent-environment interactions as Markov Decision Processes (MDPs) where states and actions are token sequences, allowing LLMs to reason over environment dynamics. At time t, state $s_t$ transitions to the next state through action $a_t$ following a transition function. The policy generates actions given the trajectory history. The objective is to maximize expected cumulative rewards across multiple interaction turns.
 
-### > Reasoning-Interaction Chain Optimization 
-RICO enables LLMs to jointly optimize reasoning and action strategies over entire trajectories. The algorithm alternates between two phases:
+### > StarPO: Reinforcing Reasoning via Trajectory-Level Optimization
+StarPO is a general RL framework for optimizing entire multi-turn interaction trajectories for LLM agents.
+The algorithm alternates between two phases:
 
-#### Rollout Stage: Reasoning-Interaction Chain Generation 
+#### Rollout Stage: Reasoning-Interaction Trajectories
 Given an initial state, the LLM generates multiple trajectories. At each step, the model receives the trajectory history and generates a reasoning-guided action: `<think>...</think><ans> action </ans>`. The environment receives the action and returns feedback (reward and next state).
 
 #### Update Stage: Multi-turn Trajectory Optimization 
-After generating trajectories, we train LLMs to optimize expected rewards. Instead of step-by-step optimization, RICO optimizes entire trajectories using importance sampling. This approach enables long-horizon reasoning while maintaining computational efficiency.
+After generating trajectories, we train LLMs to optimize expected rewards. Instead of step-by-step optimization, StarPO optimizes entire trajectories using importance sampling. This approach enables long-horizon reasoning while maintaining computational efficiency. 
+StarPO supports multiple optimization strategies: 
+- PPO: We estimate token-level advantages using a value function over trajectories
+- GRPO: We assign normalized reward to the full trajectory
+
+Rollout and update stages interleave in StarPO, enabling both online and offline learning.
 
 <!--
 ### > Reward Normalization Strategies 
