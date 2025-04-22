@@ -33,6 +33,8 @@ import verl.utils.torch_functional as verl_F
 
 from flash_attn.bert_padding import pad_input, unpad_input, rearrange, index_first_axis
 
+from verl.utils.debug import log_gpu_memory_usage
+
 __all__ = ['DataParallelPPOActor']
 
 def compute_policy_loss(old_log_prob, log_prob, advantages, eos_mask, cliprange):
@@ -208,6 +210,7 @@ class DataParallelPPOActor(BasePPOActor):
         """
         # set to eval
         self.actor_module.eval()
+
 
         micro_batch_size = data.meta_info['micro_batch_size']
         temperature = data.meta_info['temperature']  # temperature must be in the data.meta_info to avoid slient error
