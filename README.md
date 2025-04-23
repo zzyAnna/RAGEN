@@ -7,7 +7,8 @@
 
 
 <p align="center" style="font-size: 18px;">
-  <strong>RAGEN</strong> leverages reinforcement learning to train <strong>LLM reasoning agents</strong> in interactive, stochastic environments.<br>
+  <strong>RAGEN</strong> (<b>R</b>easoning <b>AGEN</b>t, pronounced like "region") leverages reinforcement learning (RL) to train <br>
+  <strong>LLM reasoning agents</strong> in interactive, stochastic environments.<br>
   <em>We strongly believe in the future of RL + LLM + Agents. The release is a minimally viable leap forward.</em>
 </p>
 
@@ -25,6 +26,14 @@ We've streamlined the RAGEN codebase to improve development:
 
 1. Architecture: Restructured veRL as a submodule for better co-development
 2. Modularity: Divided RAGEN into three components—Environment Manager, Context Manager, and Agent Proxy, making it significantly easier to add new environments
+
+
+**2025.4.16 Update:**
+We recently noticed that a [third-party website](https://ragen-ai.com) has been created using our project's name and content. While we appreciate the interest in the project, we’d like to clarify that this GitHub repository is the official and primary source for all code, updates, and documentation.
+If we launch an official website in the future, it will be explicitly linked here.
+
+Thank you for your support and understanding!
+
 
 **2025.3.13 Update:**
 
@@ -245,6 +254,7 @@ You only need to set model and environment to evaluate in `config/<eval_config>.
 We welcome all forms of feedback! Please raise an issue for bugs, questions, or suggestions. This helps our team address common problems efficiently and builds a more productive community.
 
 ## Awesome work powered or inspired by RAGEN
+ - [VAGEN](https://github.com/RAGEN-AI/VAGEN): Training Visual Agents with multi-turn reinforcement learning
  - [Search-R1](https://github.com/PeterGriffinJin/Search-R1): Train your LLMs to reason and call a search engine with reinforcement learning
  - [Agent-R1](https://github.com/0russwest0/Agent-R1): Training Powerful LLM Agents with End-to-End Reinforcement Learning
  - [OpenManus-RL](https://github.com/OpenManus/OpenManus-RL): A live stream development of RL tunning for LLM agents
