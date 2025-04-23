@@ -15,15 +15,16 @@
 
 <p align="center">
   <a href="https://ragen-tutorial.readthedocs.io/"><img src="https://img.shields.io/badge/📚_Documentation-4285F4?style=for-the-badge&logoColor=white" alt="Documentation"></a>
-  <a href="#"><img src="https://img.shields.io/badge/📝_Blog-FF5722?style=for-the-badge&logoColor=white" alt="Blog"></a>
-  <a href="#"><img src="https://img.shields.io/badge/📄_Paper-EA4335?style=for-the-badge&logoColor=white" alt="Paper"></a>
+  <a href="[#](https://ragen-ai.github.io/)"><img src="https://img.shields.io/badge/📝_HomePage-FF5722?style=for-the-badge&logoColor=white" alt="Blog"></a>
+  <a href="https://github.com/RAGEN-AI/RAGEN/blob/main/RAGEN.pdf"><img src="https://img.shields.io/badge/📄_Paper-EA4335?style=for-the-badge&logoColor=white" alt="Paper"></a>
   <a href="#"><img src="https://img.shields.io/badge/🔍_Post-34A853?style=for-the-badge&logoColor=white" alt="Post"></a>
 </p>
 
 **2025.4.20 Update:**
 
-We've streamlined the RAGEN codebase to improve development:
+Our [paper](https://github.com/RAGEN-AI/RAGEN/blob/main/RAGEN.pdf) about RAGEN is out!
 
+We've further streamlined the RAGEN codebase to improve development!
 1. Architecture: Restructured veRL as a submodule for better co-development
 2. Modularity: Divided RAGEN into three components—Environment Manager, Context Manager, and Agent Proxy, making it significantly easier to add new environments
 
