@@ -26,7 +26,7 @@ Our [paper](https://github.com/RAGEN-AI/RAGEN/blob/main/RAGEN.pdf) about RAGEN i
 
 We've further streamlined the RAGEN codebase (v0423) to improve development.
 1. Architecture: Restructured veRL as a submodule for better co-development
-2. Modularity: Divided RAGEN into three components—Environment Manager, Context Manager, and Agent Proxy, making it significantly easier to add new environments
+2. Modularity: Divided RAGEN into three components—Environment Manager, Context Manager, and Agent Proxy, making it significantly simpler to add new environments (details below), track environmental dynamics, and run multiple experiments
 
 
 **2025.4.16 Update:**
