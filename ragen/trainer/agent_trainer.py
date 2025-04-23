@@ -328,7 +328,7 @@ class RayAgentTrainer(VerlRayPPOTrainer):
             rollout_filter_ratio = self.config.actor_rollout_ref.rollout.rollout_filter_ratio
             num_groups, group_size = self.config.es_manager.train.env_groups, self.config.es_manager.train.group_size
 
-            rm_scores = batch.batch["rm_scores"].sum(dim=-1).view(num_groups, group_size)
+            rm_scores = batch.batch["original_rm_scores"].sum(dim=-1).view(num_groups, group_size)
             in_group_std = rm_scores.std(dim=-1)
             in_group_max = rm_scores.max(dim=-1).values
             in_group_mean = rm_scores.mean(dim=-1)

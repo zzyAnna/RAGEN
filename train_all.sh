@@ -170,3 +170,5 @@ python train.py --config-name _2_sokoban system.CUDA_VISIBLE_DEVICES=\"0,1\" tra
 
 # enable_response_mask: False
 # grpo_advantage_length_weight: True
+
+python train.py --config-name _2_sokoban system.CUDA_VISIBLE_DEVICES=\"0,1\" trainer.n_gpus_per_node=2 trainer.experiment_name=sokoban-s-grpo-1-5b algorithm.adv_estimator=grpo agent_proxy.reward_normalization.method=mean_std agent_proxy.max_actions_per_turn=5 custom_envs.SimpleSokoban.max_actions_per_traj=25 enable_response_mask=True grpo_advantage_length_weight=False model_path=Qwen/Qwen2.5-1.5B-Instruct &
