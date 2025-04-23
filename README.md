@@ -3,7 +3,7 @@
 
 <p align="center"><img src="https://github.com/user-attachments/assets/7f2c6aa1-910d-4f43-8f8d-c9be7b0663d8" width="300px" alt="RAGEN icon" /></p>
 
-<!-- <p align="center"><img src="./public/ragen.png" width="800px" alt="RICO Framework" /></p> -->
+<!-- <p align="center"><img src="./public/ragen.png" width="800px" alt="" /></p> -->
 
 
 <p align="center" style="font-size: 18px;">
@@ -55,7 +55,7 @@ Reinforcement Learning (RL) with rule-based rewards has shown promise in enhanci
 
 RAGEN addresses these challenges through:
 - A Markov Decision Process (MDP) formulation for agent tasks
-- Reason-Interaction Chain Optimization (RICO) algorithm that optimizes entire trajectory distributions
+- State-Thinking-Actions-Reward Policy Optimization (StarPO) algorithm that optimizes entire trajectory distributions
 - Progressive reward normalization strategies to handle diverse, complex environments
 -->
 
@@ -268,7 +268,8 @@ We welcome all forms of feedback! Please raise an issue for bugs, questions, or 
 *:Equal Contribution.
 
 ## Acknowledgements
-We thank the [DeepSeek](https://github.com/deepseek-ai/DeepSeek-R1) team for providing the DeepSeek-R1 model and early conceptual inspirations. We are grateful to the [veRL](https://github.com/volcengine/verl) team for their infrastructure support. We thank the [TinyZero](https://github.com/Jiayi-Pan/TinyZero) team for their discoveries that informed our initial exploration. We thank Licheng Liu, Eli Gottlieb, Jiajun Liu for helping explore stable RL algorithms. We would like to appreciate insightful discussions with Han Liu, Xinyu Xing, Li Erran Li, John Schulman, Akari Asai, Eiso Kant, Lu Lu, Runxin Xu, Huajian Xin, Zijun Liu, Weiyi Liu, Weimin Wu, Yibo Wen, Jiarui Liu, Lorenzo Xiao, Ishan Mukherjee, Anabella Isaro, Haosen Sun, How-Yeh Wan, Lester Xue, Matthew Khoriaty, Haoxiang Sun, Jiajun Liu.
+We thank the [DeepSeek](https://github.com/deepseek-ai/DeepSeek-R1) team for providing the DeepSeek-R1 model and early conceptual inspirations. We are grateful to the [veRL](https://github.com/volcengine/verl) team for their infrastructure support. We thank the [TinyZero](https://github.com/Jiayi-Pan/TinyZero) team for their discoveries that informed our initial exploration. We would like to appreciate insightful discussions with Han Liu, Xinyu Xing, Li Erran Li, John Schulman, Akari Asai, Eiso Kant, Lu Lu, Runxin Xu, Huajian Xin, Zijun Liu, Weiyi Liu, Weimin Wu, Yibo Wen, Jiarui Liu, Lorenzo Xiao, Ishan Mukherjee, Anabella Isaro, Haosen Sun, How-Yeh Wan, Lester Xue, Matthew Khoriaty, Haoxiang Sun, Jiajun Liu.
+
 
 
 
