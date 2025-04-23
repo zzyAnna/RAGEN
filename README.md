@@ -62,7 +62,7 @@ Building upon StarPO, we introduce **RAGEN**, a modular agent training and evalu
 
 RAGEN introduces a reinforcement learning framework to train reasoning-capable LLM agents that can operate in interactive, stochastic environments. 
 
-<p align="center"><img src="./public/rico.png" width="800px" alt="StarPO Framework" /></p>
+<p align="center"><img src="https://github.com/user-attachments/assets/3a9c3a19-22cc-42e4-9601-1d00b7801d16" width="800px" alt="StarPO Framework" /></p>
 <p align="center" style="font-size: 16px; max-width: 800px; margin: 0 auto;">
 The StarPO (State-Thinking-Action-Reward Policy Optimization) framework with two interleaved stages: <b>rollout stage</b> and <b>update stage</b>. LLM iteratively generates reasoning-guided actions to interact with the environment to obtain trajectory-level rewards for LLM update to jointly optimize reasoning and action strategies.
 </p>
@@ -258,12 +258,14 @@ We welcome all forms of feedback! Please raise an issue for bugs, questions, or 
 *:Equal Contribution.
 
 ## Acknowledgements
-We thank [DeepSeek](https://github.com/deepseek-ai/DeepSeek-R1) for providing the DeepSeek-R1 model and ideas. We thank the [veRL](https://github.com/volcengine/verl) team for their infrastructure. We thank the [TinyZero](https://github.com/Jiayi-Pan/TinyZero) team for their discoveries that inspired our early exploration. We thank Licheng Liu, Eli Gottlieb, Jiajun Liu for helping explore stable RL algorithms. We thank Han Liu, Xinyu Xing, Li Erran Li, Akari Asai, Eiso Kant, Lu Lu, Runxin Xu, Huajian Xin, Zijun Liu, Weiyi Liu, Weimin Wu, Yibo Wen, Jiarui Liu, Lorenzo Xiao, Ishan Mukherjee, Anabella Isaro, Haosen Sun, How-Yeh Wan, Lester Xue, Weiyi Liu for insightful discussions.
+We thank the [DeepSeek](https://github.com/deepseek-ai/DeepSeek-R1) team for providing the DeepSeek-R1 model and early conceptual inspirations. We are grateful to the [veRL](https://github.com/volcengine/verl) team for their infrastructure support. We thank the [TinyZero](https://github.com/Jiayi-Pan/TinyZero) team for their discoveries that informed our initial exploration. We thank Licheng Liu, Eli Gottlieb, Jiajun Liu for helping explore stable RL algorithms. We would like to appreciate insightful discussions with Han Liu, Xinyu Xing, Li Erran Li, John Schulman, Akari Asai, Eiso Kant, Lu Lu, Runxin Xu, Huajian Xin, Zijun Liu, Weiyi Liu, Weimin Wu, Yibo Wen, Jiarui Liu, Lorenzo Xiao, Ishan Mukherjee, Anabella Isaro, Haosen Sun, How-Yeh Wan, Lester Xue, Matthew Khoriaty, Haoxiang Sun, Jiajun Liu.
+
+
 
 ## Citation
 ```md
 @misc{RAGEN,
-  author       = {Zihan Wang* and Kangrui Wang* and Qineng Wang* and Pingyue Zhang* and Linjie Li* and Zhengyuan Yang and Kefan Yu and Minh Nhat Nguyen and Licheng Liu and Monica Lam and Yiping Lu and Kyunghyun Cho and Jiajun Wu and Li Fei-Fei and Lijuan Wang and Yejin Choi and Manling Li},
+  author       = {Zihan Wang* and Kangrui Wang* and Qineng Wang* and Pingyue Zhang* and Linjie Li* and Zhengyuan Yang and Kefan Yu and Minh Nhat Nguyen and Licheng Liu and Eli Gottlieb and Monica Lam and Yiping Lu and Kyunghyun Cho and Jiajun Wu and Li Fei-Fei and Lijuan Wang and Yejin Choi and Manling Li},
   title        = {Training Agents by Reinforcing Reasoning},
   year         = {2025},
   organization = {GitHub},
