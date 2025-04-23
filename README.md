@@ -24,7 +24,7 @@
 
 **2025.4.20 Update:**
 
-Our [paper](https://github.com/RAGEN-AI/RAGEN/blob/main/RAGEN.pdf) about RAGEN is out!
+Our RAGEN [paper](https://github.com/RAGEN-AI/RAGEN/blob/main/RAGEN.pdf) is out!
 
 We've further streamlined the RAGEN codebase (v0423) to improve development.
 1. Architecture: Restructured veRL as a submodule for better co-development
