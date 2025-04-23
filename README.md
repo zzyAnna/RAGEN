@@ -24,12 +24,13 @@
 
 Our [paper](https://github.com/RAGEN-AI/RAGEN/blob/main/RAGEN.pdf) about RAGEN is out!
 
-We've further streamlined the RAGEN codebase to improve development!
+We've further streamlined the RAGEN codebase to improve development.
 1. Architecture: Restructured veRL as a submodule for better co-development
 2. Modularity: Divided RAGEN into three components—Environment Manager, Context Manager, and Agent Proxy, making it significantly easier to add new environments
 
 
 **2025.4.16 Update:**
+
 We recently noticed that a [third-party website](https://ragen-ai.com) has been created using our project's name and content. While we appreciate the interest in the project, we’d like to clarify that this GitHub repository is the official and primary source for all code, updates, and documentation.
 If we launch an official website in the future, it will be explicitly linked here.
 
