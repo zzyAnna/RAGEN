@@ -481,6 +481,14 @@ class RayAgentTrainer(VerlRayPPOTrainer):
                                                 lam=self.config.algorithm.lam,
                                                 num_repeat=self.config.actor_rollout_ref.rollout.n)
 
+                ##### A very different setting, just here for testing: Can I normalize the advantages to have a mean of 0?
+                if self.config.algorithm.adv_estimator == AdvantageEstimator.GRPO and self.config.grpo_advantage_length_weight:
+                    response_mask = batch.batch['response_mask']
+                    advantages = batch.batch['advantages']
+                    response_relative_lengths = (torch.sum(response_mask, dim=-1) + 1e-6) / torch.sum(response_mask, dim=-1).float().mean()
+                    advantages = advantages / response_relative_lengths.unsqueeze(-1) 
+                    batch.batch['advantages'] = advantages
+
                 # update critic
                 if self.use_critic:
                     with _timer('update_critic', timing_raw):

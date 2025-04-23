@@ -23,7 +23,7 @@ es_manager:
     env_configs:
       tags: ["Bandit"] # BanditGeneralizationNoThink
   val:
-    env_groups: 256
+    env_groups: 512
     env_configs:
       tags: ["Bandit", "BanditTest"]
-      n_groups: [128, 128]
+      n_groups: [256, 256]

@@ -403,7 +403,7 @@ class ActorRolloutRefWorker(Worker):
 
     @register(dispatch_mode=Dispatch.ONE_TO_ALL)
     def init_model(self, default_local_dir: str=None):
-        from verl.workers.actor import DataParallelPPOActor
+        from ragen.workers.actor import DataParallelPPOActor
         # This is used to import external_lib into the huggingface systems
         import_external_libs(self.config.model.get('external_lib', None))
 
@@ -927,7 +927,7 @@ class CriticWorker(Worker):
         # This is used to import external_lib into the huggingface systems
         import_external_libs(self.config.model.get('external_lib', None))
 
-        from verl.workers.critic import DataParallelPPOCritic
+        from ragen.workers.critic import DataParallelPPOCritic
         self.critic_module, self.critic_optimizer, self.critic_lr_scheduler = self._build_critic_model_optimizer(
             self.config)
 

@@ -185,14 +185,15 @@ class ContextManager:
         group2index = {k: torch.tensor(v) for k, v in group2index.items()}
 
         
+        # apply penalty pre-normalization
         acc_scores = score_tensor[:, -1]
         normalized_acc_scores = acc_scores.clone()
-        for group, index in group2index.items():
-            normalized_acc_scores[index] = norm_func(normalized_acc_scores[index])
-
-        # apply penalty
         penalty = torch.tensor([env_output["penalty"] for env_output in env_outputs], dtype=torch.float32)
         normalized_acc_scores = normalized_acc_scores + penalty
+
+        if len(group2index) < acc_scores.shape[0]: # the group size > 1
+            for group, index in group2index.items():
+                normalized_acc_scores[index] = norm_func(normalized_acc_scores[index])
 
         score_tensor[:, -1] = normalized_acc_scores
 

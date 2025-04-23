@@ -1,7 +1,7 @@
 set -e
 
 # Section 1: Base Experiments
-USE_GRPO="algorithm.adv_estimator=grpo agent_proxy.reward_normalization.method=mean_std"
+USE_GRPO="algorithm.adv_estimator=grpo agent_proxy.reward_normalization.method=mean_std actor_rollout_ref.actor.use_kl_loss=True"
 USE_PPO="algorithm.adv_estimator=gae" # by default.
 USE_BASE="algorithm.kl_ctrl.kl_coef=0.001 actor_rollout_ref.actor.kl_loss_coef=0.001 actor_rollout_ref.actor.clip_ratio_high=0.2 actor_rollout_ref.rollout.rollout_filter_ratio=1"
 
@@ -12,7 +12,6 @@ python train.py --config-name _2_sokoban system.CUDA_VISIBLE_DEVICES="2" trainer
 python train.py --config-name _2_sokoban system.CUDA_VISIBLE_DEVICES="3" trainer.experiment_name=sokoban-grpo $USE_GRPO $USE_BASE &
 python train.py --config-name _3_frozen_lake system.CUDA_VISIBLE_DEVICES="4" trainer.experiment_name=frozen_lake-ppo $USE_PPO $USE_BASE &
 python train.py --config-name _3_frozen_lake system.CUDA_VISIBLE_DEVICES="5" trainer.experiment_name=frozen_lake-grpo $USE_GRPO $USE_BASE &
-
 
 # Section 4.1 - Filtering and critic
 # 0.25
@@ -79,7 +78,7 @@ python train.py --config-name _1_bandit system.CUDA_VISIBLE_DEVICES="3" trainer.
 
 
 SOKOBAN_GENERALIZATION_CONFIG="es_manager.val.env_groups=512 es_manager.val.group_size=1 es_manager.val.env_configs.tags=[SimpleSokoban,LargerSokoban,SokobanDifferentGridVocab,FrozenLake] es_manager.val.env_configs.n_groups=[128,128,128,128]"
-python train.py --config-name _2_sokoban system.CUDA_VISIBLE_DEVICES="4" trainer.experiment_name=sokoban-generalization $SOKOBAN_GENERALIZATION_CONFIG &
+python train.py --config-name _2_sokoban system.CUDA_VISIBLE_DEVICES=\"0,1\" trainer.n_gpus_per_node=2 trainer.experiment_name=sokoban-generalization $SOKOBAN_GENERALIZATION_CONFIG trainer.total_training_steps=500 trainer.save_freq=50 trainer.default_local_dir=/mnt/local/ragen_checkpoints/sokoban-generalization micro_batch_size_per_gpu=8 model_path=Qwen/Qwen2.5-1.5B-Instruct&
 python train.py --config-name _2_sokoban system.CUDA_VISIBLE_DEVICES="5" trainer.experiment_name=sokoban-generalization-nothink $SOKOBAN_GENERALIZATION_CONFIG agent_proxy.enable_think=False &
 
 
@@ -151,10 +150,23 @@ python train.py --config-name _2_sokoban system.CUDA_VISIBLE_DEVICES=\"0,1,2,3,4
 python -m ragen.llm_agent.agent_proxy  model_path=Qwen/Qwen2.5-3B-Instruct system.CUDA_VISIBLE_DEVICES=\"0,1,2,3,4,5,6,7\" trainer.n_gpus_per_node=8 actor_rollout_ref.rollout.tensor_model_parallel_size=4 actor_rollout_ref.rollout.response_length=2048 actor_rollout_ref.rollout.max_model_len=12800 
 
 # trainer.save_freq=50 trainer.default_local_dir=/mnt/local/cache/exp_name
-USE_PPO="algorithm.adv_estimator=gae" # by default.
-USE_BASE="algorithm.kl_ctrl.kl_coef=0.001 actor_rollout_ref.actor.kl_loss_coef=0.001 actor_rollout_ref.actor.clip_ratio_high=0.2 actor_rollout_ref.rollout.rollout_filter_ratio=1"
-python train.py --config-name _2_sokoban system.CUDA_VISIBLE_DEVICES=\"0,1,2,3,4,5,6,7\" trainer.n_gpus_per_node=8 trainer.experiment_name=sokoban-ppo $USE_PPO $USE_BASE ppo_mini_batch_size=64 enable_response_mask=True &
+
+# USE_BASE="algorithm.kl_ctrl.kl_coef=0.001 actor_rollout_ref.actor.kl_loss_coef=0.001 actor_rollout_ref.actor.clip_ratio_high=0.2 actor_rollout_ref.rollout.rollout_filter_ratio=1"
+python train.py --config-name _2_sokoban system.CUDA_VISIBLE_DEVICES=\"0\" trainer.n_gpus_per_node=1 trainer.experiment_name=sokoban-final enable_response_mask=True trainer.total_training_steps=500 trainer.save_freq=50 trainer.default_local_dir=/mnt/local/ragen_checkpoints/sokoban-generalization &
+
+python train.py --config-name _1_bandit system.CUDA_VISIBLE_DEVICES=\"1\" trainer.n_gpus_per_node=1 trainer.experiment_name=bandit-final enable_response_mask=True trainer.total_training_steps=500 trainer.save_freq=50 trainer.default_local_dir=/mnt/local/ragen_checkpoints/bandit-generalization &
+
+python train.py --config-name _3_frozen_lake system.CUDA_VISIBLE_DEVICES=\"1\" trainer.n_gpus_per_node=1 trainer.experiment_name=frozenlake-final enable_response_mask=True trainer.total_training_steps=500 trainer.save_freq=50 trainer.default_local_dir=/mnt/local/ragen_checkpoints/frozenlake-generalization &
+
+
+
 
 # USE_PPO="algorithm.adv_estimator=gae" # by default.
 # USE_BASE="algorithm.kl_ctrl.kl_coef=0.001 actor_rollout_ref.actor.kl_loss_coef=0.001 actor_rollout_ref.actor.clip_ratio_high=0.2 actor_rollout_ref.rollout.rollout_filter_ratio=1"
 # python train.py --config-name _2_sokoban system.CUDA_VISIBLE_DEVICES=\"0\" trainer.n_gpus_per_node=1 trainer.experiment_name=sokoban-ppo $USE_PPO $USE_BASE ppo_mini_batch_size=64 enable_response_mask=True &
+
+
+python train.py --config-name _2_sokoban system.CUDA_VISIBLE_DEVICES=\"0,1\" trainer.n_gpus_per_node=2 trainer.experiment_name=sokoban-s-grpo algorithm.adv_estimator=grpo agent_proxy.reward_normalization.method=mean_std &
+
+# enable_response_mask: False
+# grpo_advantage_length_weight: True
