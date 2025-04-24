@@ -250,7 +250,7 @@ To add a new environment to our framework:
 ## Evaluation
 RAGEN provides a easy way to evaluate a model:
 ```bash
-python -m ragen.llm_agent.agent_proxy --config_name <eval_config>
+python -m ragen.llm_agent.agent_proxy --config-name <eval_config>
 ```
 You only need to set model and environment to evaluate in `config/<eval_config>.yaml`
 
