@@ -1,9 +1,8 @@
 <h1 align="center"> RAGEN: Training Agents by Reinforcing Reasoning </h1>
 
 
-<p align="center"><img src="https://github-production-user-asset-6210df.s3.amazonaws.com/169177197/435489727-7f2c6aa1-910d-4f43-8f8d-c9be7b0663d8.png?X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Credential=AKIAVCODYLSA53PQK4ZA%2F20250424%2Fus-east-1%2Fs3%2Faws4_request&X-Amz-Date=20250424T145647Z&X-Amz-Expires=300&X-Amz-Signature=b06455eeeb9f180046ab273dbe8bf23a9cdb6ab793065be4b2a48028ca12d0de&X-Amz-SignedHeaders=host" width="300px" alt="RAGEN icon" /></p>
+<p align="center"><img src="public/ragen_logo.jpeg" width="300px" alt="RAGEN icon" /></p>
 
-<!-- <p align="center"><img src="./public/ragen.png" width="800px" alt="" /></p> -->
 
 
 <p align="center" style="font-size: 18px;">
@@ -74,9 +73,9 @@ Building upon StarPO, we introduce **RAGEN**, a modular agent training and evalu
 
 RAGEN introduces a reinforcement learning framework to train reasoning-capable LLM agents that can operate in interactive, stochastic environments. 
 
-<p align="center"><img src="https://github-production-user-asset-6210df.s3.amazonaws.com/112086423/436407750-3a9c3a19-22cc-42e4-9601-1d00b7801d16.png?X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Credential=AKIAVCODYLSA53PQK4ZA%2F20250424%2Fus-east-1%2Fs3%2Faws4_request&X-Amz-Date=20250424T145718Z&X-Amz-Expires=300&X-Amz-Signature=66ff704b89eb6239ffbbcdeffe307a220c5c9faa2bc69f15c1278ce8d96ea776&X-Amz-SignedHeaders=host" width="800px" alt="StarPO Framework" /></p>
+<p align="center"><img src="public/starpo_logo.png" width="800px" alt="StarPO Framework" /></p>
 <p align="center" style="font-size: 16px; max-width: 800px; margin: 0 auto;">
-The StarPO (State-Thinking-Action-Reward Policy Optimization) framework with two interleaved stages: <b>rollout stage</b> and <b>update stage</b>. LLM iteratively generates reasoning-guided actions to interact with the environment to obtain trajectory-level rewards for LLM update to jointly optimize reasoning and action strategies.
+The StarPO (State-Thinking-Action-Reward Policy Optimization) framework with two interleaved stages: <b>rollout stage</b> and <b>update stage</b>. LLM iteratively generates reasoning-guided actions to interact with the environment to obtain trajectory-level rewards for LLM update to jointly   optimize reasoning and action strategies.
 </p>
 
 The framework consists of two key components:
@@ -167,9 +166,9 @@ We evaluate RAGEN across multiple environments. Below are results Qwen-2.5-0.5B-
 - We selectively retained only the top 25% of trajectories that successfully completed their respective tasks
 
 <p align="center" style="display: flex; justify-content: center; align-items: center; flex-direction: column; gap: 20px; max-width: 500px; margin: 0 auto;">
-    <img src="https://github-production-user-asset-6210df.s3.amazonaws.com/169177197/435497297-ba5230d5-4ed0-423f-8d3b-1f9dd3042884.png?X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Credential=AKIAVCODYLSA53PQK4ZA%2F20250424%2Fus-east-1%2Fs3%2Faws4_request&X-Amz-Date=20250424T145733Z&X-Amz-Expires=300&X-Amz-Signature=992d0b82a09bce7964cf54cd7f754e318f5e17defedd3381b2ce8815b0faa7d0&X-Amz-SignedHeaders=host" width="250px" alt="Bandit" />
-    <img src="https://github-production-user-asset-6210df.s3.amazonaws.com/169177197/435497313-54c2981e-407b-427e-9836-01a4fb1bd32e.png?X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Credential=AKIAVCODYLSA53PQK4ZA%2F20250424%2Fus-east-1%2Fs3%2Faws4_request&X-Amz-Date=20250424T145746Z&X-Amz-Expires=300&X-Amz-Signature=5fd66997a91c266da3900109426b8a8cf4e979f51d94e184244658a05af070d1&X-Amz-SignedHeaders=host" width="250px"  alt="Simple Sokoban" />
-    <img src="https://github-production-user-asset-6210df.s3.amazonaws.com/169177197/435497305-8d11392d-cc4d-43ce-8308-cad15037a936.png?X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Credential=AKIAVCODYLSA53PQK4ZA%2F20250424%2Fus-east-1%2Fs3%2Faws4_request&X-Amz-Date=20250424T145757Z&X-Amz-Expires=300&X-Amz-Signature=02809d5fec1b9429f17cbacba40e0335ae1bf1241e2f1c93affa98e13fb36c42&X-Amz-SignedHeaders=host" width="250px"  alt="Frozen lake" />
+    <img src="public/exp1.png" width="250px" alt="Bandit" />
+    <img src="public/exp2.png" width="250px"  alt="Simple Sokoban" />
+    <img src="public/exp3.png" width="250px"  alt="Frozen lake" />
 </p>
 
 We demonstrate RAGEN's robust generalization ability by training on simple Sokoban environments (6×6 with 1 box) and successfully evaluating performance on:
@@ -178,9 +177,9 @@ We demonstrate RAGEN's robust generalization ability by training on simple Sokob
 - FrozenLake environments
 
 <p align="center" style="display: flex; justify-content: center; align-items: center; flex-direction: column; gap: 20px; max-width: 500px; margin: 0 auto;">
-    <img src="https://github-production-user-asset-6210df.s3.amazonaws.com/169177197/435498098-0128c81a-4c62-4607-b5ad-0527d47b2395.png?X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Credential=AKIAVCODYLSA53PQK4ZA%2F20250424%2Fus-east-1%2Fs3%2Faws4_request&X-Amz-Date=20250424T145806Z&X-Amz-Expires=300&X-Amz-Signature=75830bec7f4dd0789c24d8dae31199a1de96f6f7e99abe22a17cf51107f657cd&X-Amz-SignedHeaders=host" width="250px" alt="Larger Sokoban" />
-    <img src="https://github-production-user-asset-6210df.s3.amazonaws.com/169177197/435498109-01ef5a71-c1d2-4a94-8661-378f0bb8aa14.png?X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Credential=AKIAVCODYLSA53PQK4ZA%2F20250424%2Fus-east-1%2Fs3%2Faws4_request&X-Amz-Date=20250424T145814Z&X-Amz-Expires=300&X-Amz-Signature=9754435f286d27ce787638ac0f53b475ecf48a4455e1983046a727d69c262b4d&X-Amz-SignedHeaders=host" width="250px"  alt="Sokoban with Different Grid Vocabulary" />
-    <img src="https://github-production-user-asset-6210df.s3.amazonaws.com/169177197/435498080-0a35d02a-4c1a-4990-b852-6391555df317.png?X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Credential=AKIAVCODYLSA53PQK4ZA%2F20250424%2Fus-east-1%2Fs3%2Faws4_request&X-Amz-Date=20250424T145820Z&X-Amz-Expires=300&X-Amz-Signature=061bf28aab628cf16fe3bfdb143898b3c6e12ebec32566c049df65509b450f51&X-Amz-SignedHeaders=host" width="250px"  alt="Frozen lake" />
+    <img src="public/exp4.png" width="250px" alt="Larger Sokoban" />
+    <img src="public/exp5.png" width="250px"  alt="Sokoban with Different Grid Vocabulary" />
+    <img src="public/exp6.png" width="250px"  alt="Frozen lake" />
 </p>
 
 Key observations:
