@@ -47,6 +47,11 @@ We are recently refactoring RAGEN code to help you better develop your own idea 
 1. In previous veRL implementation, there is a [KL term issue](https://github.com/volcengine/verl/pull/179/files), which has been fixed in recent versions.
 2. We find evidence from multiple sources that PPO could be more stable than GRPO training in [Open-Reasoner-Zero](https://x.com/rosstaylor90/status/1892664646890312125), [TinyZero](https://github.com/Jiayi-Pan/TinyZero), and [Zhihu](https://www.zhihu.com/search?type=content&q=%E6%97%A0%E5%81%8FGRPO). We have changed the default advantage estimator to GAE (using PPO) and aim to find more stable while efficient RL optimization methods in later versions.
 
+**2025.1.27:**
+
+We are thrilled to release RAGEN! Check out our post [here](https://x.com/wzihanw/status/1884092805598826609).
+
+
 ## Overview
 
 <!--
