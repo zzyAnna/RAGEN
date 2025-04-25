@@ -134,7 +134,8 @@ To train:
 python train.py --config-name base
 ```
 
-For parameter efficient training with LoRA, we provide a default configuration with LoRA enabled in `config/base-lora.yaml`. To customize the LoRA settings, see the the `lora` section at the top of the configuration file.
+### Parameter efficient training with LoRA
+We provide a default configuration with LoRA enabled in `config/base-lora.yaml`. To customize the LoRA settings, see the the `lora` section at the top of the configuration file.
 
 To train with LoRA:
 
