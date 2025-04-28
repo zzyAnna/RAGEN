@@ -1,9 +1,6 @@
 defaults:
   - base
 
-
-micro_batch_size_per_gpu: 8
-
 actor_rollout_ref:
   rollout:
     response_length: 500
