@@ -15,7 +15,7 @@
 <p align="center">
   <a href="https://ragen-tutorial.readthedocs.io/"><img src="https://img.shields.io/badge/📚_Documentation-4285F4?style=for-the-badge&logoColor=white" alt="Documentation"></a>
   <a href="https://ragen-ai.github.io/"><img src="https://img.shields.io/badge/📝_HomePage-FF5722?style=for-the-badge&logoColor=white" alt="Blog"></a>
-  <a href="https://github.com/RAGEN-AI/RAGEN/blob/main/RAGEN.pdf"><img src="https://img.shields.io/badge/📄_Paper-EA4335?style=for-the-badge&logoColor=white" alt="Paper"></a>
+  <a href="https://arxiv.org/abs/2504.20073"><img src="https://img.shields.io/badge/📄_Paper-EA4335?style=for-the-badge&logoColor=white" alt="Paper"></a>
   <a href="https://x.com/wzihanw/status/1915052871474712858"><img src="https://img.shields.io/badge/🔍_Post-34A853?style=for-the-badge&logoColor=white" alt="Post"></a>
   <a href="https://api.wandb.ai/links/zihanwang-ai-northwestern-university/a8er8l7b"><img src="https://img.shields.io/badge/🧪_Experiment_Log-AB47BC?style=for-the-badge&logoColor=white" alt="Experiment Log"></a>
 
@@ -23,7 +23,7 @@
 
 **2025.4.20 Update:**
 
-Our RAGEN [paper](https://github.com/RAGEN-AI/RAGEN/blob/main/RAGEN.pdf) is out!
+Our RAGEN [paper](https://arxiv.org/abs/2504.20073) is out!
 
 We've further streamlined the RAGEN codebase (v0423) to improve development.
 1. Architecture: Restructured veRL as a submodule for better co-development
@@ -291,12 +291,15 @@ We thank the [DeepSeek](https://github.com/deepseek-ai/DeepSeek-R1) team for pro
 
 
 ## Citation
+If you find RAGEN useful, please consider citing our work:
 ```md
-@misc{RAGEN,
-  author       = {Zihan Wang* and Kangrui Wang* and Qineng Wang* and Pingyue Zhang* and Linjie Li* and Zhengyuan Yang and Kefan Yu and Minh Nhat Nguyen and Licheng Liu and Eli Gottlieb and Monica Lam and Yiping Lu and Kyunghyun Cho and Jiajun Wu and Li Fei-Fei and Lijuan Wang and Yejin Choi and Manling Li},
-  title        = {Training Agents by Reinforcing Reasoning},
-  year         = {2025},
-  organization = {GitHub},
-  url          = {https://github.com/ZihanWang314/ragen},
+@misc{wang2025ragenunderstandingselfevolutionllm,
+      title={RAGEN: Understanding Self-Evolution in LLM Agents via Multi-Turn Reinforcement Learning}, 
+      author={Zihan Wang and Kangrui Wang and Qineng Wang and Pingyue Zhang and Linjie Li and Zhengyuan Yang and Kefan Yu and Minh Nhat Nguyen and Licheng Liu and Eli Gottlieb and Monica Lam and Yiping Lu and Kyunghyun Cho and Jiajun Wu and Li Fei-Fei and Lijuan Wang and Yejin Choi and Manling Li},
+      year={2025},
+      eprint={2504.20073},
+      archivePrefix={arXiv},
+      primaryClass={cs.LG},
+      url={https://arxiv.org/abs/2504.20073}, 
 }
 ```
