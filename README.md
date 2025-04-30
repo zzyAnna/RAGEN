@@ -293,7 +293,7 @@ We thank the [DeepSeek](https://github.com/deepseek-ai/DeepSeek-R1) team for pro
 ## Citation
 If you find RAGEN useful, please consider citing our work:
 ```md
-@misc{wang2025ragenunderstandingselfevolutionllm,
+@misc{ragen,
       title={RAGEN: Understanding Self-Evolution in LLM Agents via Multi-Turn Reinforcement Learning}, 
       author={Zihan Wang and Kangrui Wang and Qineng Wang and Pingyue Zhang and Linjie Li and Zhengyuan Yang and Kefan Yu and Minh Nhat Nguyen and Licheng Liu and Eli Gottlieb and Monica Lam and Yiping Lu and Kyunghyun Cho and Jiajun Wu and Li Fei-Fei and Lijuan Wang and Yejin Choi and Manling Li},
       year={2025},
