@@ -57,9 +57,13 @@ def get_masks_and_scores(input_ids: torch.Tensor, tokenizer: AutoTokenizer, all_
             # Set the last token of the rows where all positions are False to True
             reward_position[~reward_position.any(dim=-1), -1] = True
             score_tensor[reward_position] = scores
+        if "qwen" in tokenizer.name_or_path.lower():
+            # for Qwen, there is a "\n" between special token and reward token, so we shift this to make sure reward is assigned to the last token of a turn
+            score_tensor = score_tensor.roll(shifts=1, dims=-1)
     else:
         scores = [sum(i) for i in all_scores]
         score_tensor[:, -1] = torch.tensor(scores, dtype=torch.float32)
+
     score_tensor = score_tensor[:, 1:] # remove the first token
     loss_mask = loss_mask[:, :-1] # remove the last token
     response_mask = response_mask[:, :-1] # remove the last token
@@ -205,7 +209,7 @@ class ContextManager:
         # apply penalty pre-normalization
         acc_scores = score_tensor[:, -1]
         normalized_acc_scores = acc_scores.clone()
-        penalty = torch.tensor([env_output["penalty"] for env_output in env_outputs], dtype=torch.float32)
+        penalty = torch.tensor([env_output.get("penalty", 0) for env_output in env_outputs], dtype=torch.float32)
         normalized_acc_scores = normalized_acc_scores + penalty
 
         if len(group2index) < acc_scores.shape[0]: # the group size > 1
@@ -342,26 +346,26 @@ def main(config):
     tokenizer = AutoTokenizer.from_pretrained(config.actor_rollout_ref.model.path)
     ctx_manager = ContextManager(config=config, tokenizer=tokenizer)
     print("ctx_manager prefix", ctx_manager.prefix_lookup)
-    batch_list = [
-        {
-            "env_id": 0,
-            "chat_response": "<think><think></answer> 123. </think><answer> <answer> say | hi </answer></answer>",
-        },
-        {
-            "env_id": 1,
-            "chat_response": "<think> 456. </think><answer> love ; you </answer><think> mlll nb </think><answer> lxxx ; you </answer>",
-        }
-    ]
-    ctx_manager.action_sep_lookup = {
-        0: "|",
-        1: ";"
-    }
-    for item in batch_list:
-        item["responses"] = tokenizer.encode(item["chat_response"], return_tensors="pt",max_length=512, truncation=True,padding="max_length")[0]
-    batch_dict = collate_fn(batch_list)
-    batch = DataProto.from_single_dict(batch_dict)
-    env_inputs = ctx_manager.get_env_inputs(batch)
-    print(env_inputs)
+    # batch_list = [
+    #     {
+    #         "env_ids": 0,
+    #         "chat_response": "<think><think></answer> 123. </think><answer> <answer> say | hi </answer></answer>",
+    #     },
+    #     {
+    #         "env_ids": 1,
+    #         "chat_response": "<think> 456. </think><answer> 789 </answer><think> 10123 </think><answer> 11111 </answer>",
+    #     }
+    # ]
+    # ctx_manager.action_sep_lookup = {
+    #     0: "|",
+    #     1: ";"
+    # }
+    # for item in batch_list:
+    #     item["responses"] = tokenizer.encode(item["chat_response"], return_tensors="pt",max_length=512, truncation=True,padding="max_length")[0]
+    # batch_dict = collate_fn(batch_list)
+    # batch = DataProto.from_single_dict(batch_dict)
+    # env_inputs = ctx_manager.get_env_inputs(batch)
+    # print(env_inputs)
     
 
 
@@ -369,19 +373,21 @@ def main(config):
         {
             "env_id": 1,
             "history": [
-                {"state": "###\n#x_#<image>", "llm_response": "Response 1", "reward": 0.5},
-                {"state": "###\n#x_#<image>", "llm_response": "Response 2", "reward": 0.8},
-                {"state": "###\n#x_#<image>"}
+                {"state": "###\n#x_#<image>", "llm_response": "Response 1", "reward": 0.5, "actions_left": 2},
+                {"state": "###\n#x_#<image>", "llm_response": "Response 2", "reward": 0.8, "actions_left": 1},
+                {"state": "###\n#x_#<image>", "actions_left": 0}
             ],
-            "group_id": 0
+            "group_id": 0,
+            "metrics": {}
         },
         {
             "env_id": 2,
             "history": [
-                {"state": "###\n#x_#<image>", "llm_response": "Response 3", "reward": 0.3},
-                {"state": "###\n#x_#<image>"}
+                {"state": "###\n#x_#<image>", "llm_response": "Response 3", "reward": 0.3, "actions_left": 1},
+                {"state": "###\n#x_#<image>", "actions_left": 0}
             ],
-            "group_id": 1
+            "group_id": 1,
+            "metrics": {}
         }
     ]
     
