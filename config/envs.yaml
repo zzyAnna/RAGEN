@@ -141,7 +141,8 @@ custom_envs:
     # Available actions: ['click[back to search]', 'click[< prev]', 'click[description]', 'click[features]', 'click[reviews]', 'click[buy now]', 'click[black | blue]', 'click[blue]', 'click[blue | red]', 'click[bronze]', 'click[brown]', 'click[gold]', 'click[green]', 'click[red]', 'click[red | blue]', 'click[yellow]', 'click[grey | red]', 'click[small]', 'click[medium]', 'click[large]', 'click[x-large]', 'click[xx-large]']
     # <think>I already selected color and size, now click buy now</think><answer>click[buy now]</answer>
     max_tokens: 200
-    env_config: null
-    # env_config: 
+    # env_config: null
+    env_config: 
+      dataset: small # choose from small or full
     #   data_path: /RAGEN-Dev/external/webshop-minimal/webshop_minimal
     #   file_path: /RAGEN-Dev/external/webshop-minimal/webshop_minimal/data/items_shuffle.json

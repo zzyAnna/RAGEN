@@ -5,6 +5,7 @@ from typing import Optional, Union
 from ragen.utils import all_seed
 import random
 import string
+import uuid
 
 
 # Define global constant for render instructions
@@ -36,8 +37,8 @@ class WebShopEnv(BaseLanguageBasedEnv, WebAgentTextEnv):
         self.human_goals = self.config.human_goals
         self.show_attrs = self.config.show_attrs
         self.render_cache = None
-        if self.config.data_path:
-            init_basedir(self.config.data_path)
+        if self.config.dataset:
+            init_basedir(self.config.dataset)
 
         BaseLanguageBasedEnv.__init__(self)
         WebAgentTextEnv.__init__(
@@ -50,6 +51,7 @@ class WebShopEnv(BaseLanguageBasedEnv, WebAgentTextEnv):
             num_products=self.num_products,
             human_goals=self.human_goals,
             show_attrs=self.show_attrs,
+            session_prefix=str(uuid.uuid4().hex), # we use a random session prefix to avoid collision
             **kwargs
         )
 
