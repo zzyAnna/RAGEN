@@ -8,6 +8,10 @@ from webshop_minimal.utils import (
 @dataclass
 class WebShopEnvConfig:
     """Configuration for WebAgentText environment"""
+    data_path: str = field(
+        default="",
+        metadata={"description": "Path to the webshop data"}
+    )
     observation_mode: str = field(
         default="text", 
         metadata={"choices": ["html", "text"]}
