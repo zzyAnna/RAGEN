@@ -35,6 +35,9 @@ from verl.utils.torch_functional import masked_mean
 from verl.utils.ulysses import gather_outpus_and_unpad, ulysses_pad_and_slice_inputs
 from verl.workers.critic import BasePPOCritic
 
+from peft import PeftModel
+
+
 __all__ = ["DataParallelPPOCritic"]
 
 logger = logging.getLogger(__file__)
@@ -148,6 +151,13 @@ class DataParallelPPOCritic(BasePPOCritic):
         else:
             micro_batches = batch.split(micro_batch_size)
 
+        is_peft_model = isinstance(self.critic_module._fsdp_wrapped_module, PeftModel)
+        if is_peft_model:
+            print(f"[INFO] Critic is a PeftModel")
+            with FSDP.summon_full_params(self.critic_module):
+                self.critic_module.merge_adapter()
+            print(f"[INFO] Merged adapter")
+
         values_lst = []
         for micro_batch in micro_batches:
             if isinstance(micro_batch, DataProto):
@@ -156,6 +166,13 @@ class DataParallelPPOCritic(BasePPOCritic):
             with torch.no_grad():
                 values = self._forward_micro_batch(micro_batch)
             values_lst.append(values)
+
+        if is_peft_model:
+            print(f"[INFO] Unmerging adapter")
+            with FSDP.summon_full_params(self.critic_module):
+                self.critic_module.unmerge_adapter()
+            print(f"[INFO] Unmerged adapter")
+            
         values = torch.concat(values_lst, dim=0)
         responses = data.batch["responses"]
         # attention_mask = data.batch["attention_mask"]

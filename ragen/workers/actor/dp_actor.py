@@ -36,6 +36,9 @@ from verl.utils.torch_functional import logprobs_from_logits
 from verl.utils.ulysses import gather_outpus_and_unpad, ulysses_pad_and_slice_inputs
 from verl.workers.actor import BasePPOActor
 
+from peft import PeftModel
+
+
 __all__ = ["DataParallelPPOActor"]
 
 logger = logging.getLogger(__file__)
@@ -214,6 +217,13 @@ class DataParallelPPOActor(BasePPOActor):
         else:
             micro_batches = batch.split(micro_batch_size)
 
+        is_peft_model = isinstance(self.actor_module._fsdp_wrapped_module, PeftModel)
+        if is_peft_model:
+            print(f"[INFO] Actor is a PeftModel")
+            with FSDP.summon_full_params(self.actor_module):
+                self.actor_module.merge_adapter()
+            print(f"[INFO] Merged adapter")
+
         log_probs_lst = []
         entropy_lst = []
         for micro_batch in micro_batches:
@@ -226,6 +236,13 @@ class DataParallelPPOActor(BasePPOActor):
                 entropy_lst.append(entropy)
 
         log_probs = torch.concat(log_probs_lst, dim=0)
+
+        if is_peft_model:
+            print(f"[INFO] Unmerging adapter")
+            with FSDP.summon_full_params(self.actor_module):
+                self.actor_module.unmerge_adapter()
+            print(f"[INFO] Unmerged adapter")
+        
         entropys = None
         if calculate_entropy:
             entropys = torch.concat(entropy_lst, dim=0)
