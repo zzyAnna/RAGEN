@@ -24,7 +24,7 @@ import torch
 from flash_attn.bert_padding import index_first_axis, pad_input, rearrange, unpad_input
 from torch import nn
 from torch.distributed.fsdp import FullyShardedDataParallel as FSDP
-
+import torch.distributed as dist
 import verl.utils.torch_functional as verl_F
 from verl import DataProto
 from verl.trainer.ppo.core_algos import agg_loss, compute_policy_loss, kl_penalty
@@ -177,7 +177,7 @@ class DataParallelPPOActor(BasePPOActor):
         return grad_norm
 
     @GPUMemoryLogger(role="dp actor", logger=logger)
-    def compute_log_prob(self, data: DataProto, calculate_entropy=False) -> torch.Tensor:
+    def compute_log_prob(self, data: DataProto, calculate_entropy=False, no_lora=False) -> torch.Tensor:
         """Compute the log probability of the responses given input_ids, attention_mask and position_ids
 
         Args:
@@ -217,12 +217,15 @@ class DataParallelPPOActor(BasePPOActor):
         else:
             micro_batches = batch.split(micro_batch_size)
 
-        is_peft_model = isinstance(self.actor_module._fsdp_wrapped_module, PeftModel)
+        is_peft_model = not no_lora and isinstance(self.actor_module._fsdp_wrapped_module, PeftModel)
         if is_peft_model:
             print(f"[INFO] Actor is a PeftModel")
             with FSDP.summon_full_params(self.actor_module):
                 self.actor_module.merge_adapter()
-            print(f"[INFO] Merged adapter")
+            print(f"[INFO] Merged adapter actor")
+
+        # add barrier
+        dist.barrier()
 
         log_probs_lst = []
         entropy_lst = []
@@ -238,11 +241,17 @@ class DataParallelPPOActor(BasePPOActor):
         log_probs = torch.concat(log_probs_lst, dim=0)
 
         if is_peft_model:
-            print(f"[INFO] Unmerging adapter")
+            print(f"[INFO] Unmerging adapter actor")
             with FSDP.summon_full_params(self.actor_module):
                 self.actor_module.unmerge_adapter()
-            print(f"[INFO] Unmerged adapter")
+            print(f"[INFO] Unmerged adapter actor")
         
+        # add barrier
+        dist.barrier()
+
+        # cuda sync
+        torch.cuda.synchronize()
+
         entropys = None
         if calculate_entropy:
             entropys = torch.concat(entropy_lst, dim=0)
@@ -251,6 +260,9 @@ class DataParallelPPOActor(BasePPOActor):
             assert len(indices) == log_probs.size(0), f"{len(indices)} vs. {log_probs.size()}"
             revert_indices = torch.tensor(get_reverse_idx(indices), dtype=torch.long)
             log_probs = log_probs[revert_indices]
+
+        # add barrier
+        dist.barrier()
 
         return log_probs, entropys
 
