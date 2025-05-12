@@ -24,7 +24,6 @@ import torch.distributed
 from flash_attn.bert_padding import index_first_axis, pad_input, rearrange, unpad_input
 from torch import nn, optim
 from torch.distributed.fsdp import FullyShardedDataParallel as FSDP
-import torch.distributed as dist
 from verl import DataProto
 from verl.trainer.ppo import core_algos
 from verl.utils.debug import GPUMemoryLogger
@@ -158,9 +157,6 @@ class DataParallelPPOCritic(BasePPOCritic):
                 self.critic_module.merge_adapter()
             print(f"[INFO] Merged adapter critic")
 
-        # add barrier
-        dist.barrier()
-
         values_lst = []
         for micro_batch in micro_batches:
             if isinstance(micro_batch, DataProto):
@@ -176,11 +172,6 @@ class DataParallelPPOCritic(BasePPOCritic):
                 self.critic_module.unmerge_adapter()
             print(f"[INFO] Unmerged adapter critic")
 
-        # add barrier
-        dist.barrier()
-
-        # cuda sync
-        torch.cuda.synchronize()
 
         values = torch.concat(values_lst, dim=0)
         responses = data.batch["responses"]
@@ -193,9 +184,6 @@ class DataParallelPPOCritic(BasePPOCritic):
             assert len(indices) == values.size(0), f"{len(indices)} vs. {values.size()}"
             revert_indices = torch.tensor(get_reverse_idx(indices), dtype=torch.long)
             values = values[revert_indices]
-
-        # add barrier
-        dist.barrier()
 
         return values
 

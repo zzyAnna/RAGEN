@@ -24,7 +24,6 @@ import torch
 from flash_attn.bert_padding import index_first_axis, pad_input, rearrange, unpad_input
 from torch import nn
 from torch.distributed.fsdp import FullyShardedDataParallel as FSDP
-import torch.distributed as dist
 import verl.utils.torch_functional as verl_F
 from verl import DataProto
 from verl.trainer.ppo.core_algos import agg_loss, compute_policy_loss, kl_penalty
@@ -224,9 +223,6 @@ class DataParallelPPOActor(BasePPOActor):
                 self.actor_module.merge_adapter()
             print(f"[INFO] Merged adapter actor")
 
-        # add barrier
-        dist.barrier()
-
         log_probs_lst = []
         entropy_lst = []
         for micro_batch in micro_batches:
@@ -246,11 +242,6 @@ class DataParallelPPOActor(BasePPOActor):
                 self.actor_module.unmerge_adapter()
             print(f"[INFO] Unmerged adapter actor")
         
-        # add barrier
-        dist.barrier()
-
-        # cuda sync
-        torch.cuda.synchronize()
 
         entropys = None
         if calculate_entropy:
@@ -260,9 +251,6 @@ class DataParallelPPOActor(BasePPOActor):
             assert len(indices) == log_probs.size(0), f"{len(indices)} vs. {log_probs.size()}"
             revert_indices = torch.tensor(get_reverse_idx(indices), dtype=torch.long)
             log_probs = log_probs[revert_indices]
-
-        # add barrier
-        dist.barrier()
 
         return log_probs, entropys
 
