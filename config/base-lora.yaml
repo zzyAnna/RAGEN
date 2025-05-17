@@ -12,8 +12,8 @@ enable_response_mask: True # Enabling response mask could improve stability of r
 grpo_advantage_length_weight: False # if you do not enable this and critic/advantage_estimator is GRPO, and the critic/advantages/mean is too low, then you can try enabling this to encourage reasoning and forbid collapse
 
 lora:
-  rank: 0
-  alpha: 16
+  rank: 64
+  alpha: 64
   target_modules: all-linear
 
 actor_rollout_ref:
@@ -36,6 +36,7 @@ actor_rollout_ref:
     grpo_advantage_length_weight: ${grpo_advantage_length_weight}
     optim:
       betas: [0.9, 0.999]
+      lr: 1e-5
   ref:
     log_prob_micro_batch_size_per_gpu: ${micro_batch_size_per_gpu} # following micro_batch_size_per_gpu
   rollout:
@@ -66,6 +67,7 @@ critic:
     target_modules: ${lora.target_modules}
   optim:
     betas: [0.9, 0.999]
+    lr: 1e-4
 
 data:
   max_prompt_length: null
