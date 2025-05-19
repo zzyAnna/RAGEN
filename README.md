@@ -145,7 +145,18 @@ To train:
 python train.py --config-name base
 ```
 
-### Parameter efficient training with LoRA
+### Saving compute
+By default our code is runnable on A100 80GB machines. If you are using machine with lower memory (e.g. RTX 4090), please consider adapting below parameters, like follows (performance might change due to smaller batch size and shorter context length):
+```bash
+python train.py \
+  micro_batch_size_per_gpu=1 \ 
+  ppo_mini_batch_size=8 \ 
+  actor_rollout_ref.rollout.max_model_len=2048 \ 
+  actor_rollout_ref.rollout.response_length=128 
+```
+Please refer to [this issue](https://github.com/RAGEN-AI/RAGEN/issues/89) for more information.
+
+#### Parameter efficient training with LoRA
 We provide a default configuration with LoRA enabled in `config/base-lora.yaml`. To customize the LoRA settings, see the the `lora` section at the top of the configuration file.
 
 To train with LoRA:
