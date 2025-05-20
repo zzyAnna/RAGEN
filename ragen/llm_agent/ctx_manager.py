@@ -63,7 +63,6 @@ def get_masks_and_scores(input_ids: torch.Tensor, tokenizer: AutoTokenizer, all_
     else:
         scores = [sum(i) for i in all_scores]
         score_tensor[:, -1] = torch.tensor(scores, dtype=torch.float32)
-
     score_tensor = score_tensor[:, 1:] # remove the first token
     loss_mask = loss_mask[:, :-1] # remove the last token
     response_mask = response_mask[:, :-1] # remove the last token
@@ -101,6 +100,10 @@ class ContextManager:
         }
         self._init_prefix_lookup()
     
+    def _check_env_installed(self, env_type: str):
+        if env_type not in REGISTERED_ENV_CONFIGS:
+            raise ValueError(f"Environment {env_type} is not installed. Please install it using the scripts/setup_{env_type}.sh script.")
+
     def _init_prefix_lookup(self):
         prefix_lookup = {}
         prefixes = {}
@@ -109,6 +112,8 @@ class ContextManager:
         for env_tag, env_config in self.config.custom_envs.items():
             if env_tag not in self.es_cfg.env_configs.tags:
                 continue
+
+            self._check_env_installed(env_config.env_type)
             env_config_new = asdict(REGISTERED_ENV_CONFIGS[env_config.env_type]())
             for k,v in env_config.items():
                 env_config_new[k] = v

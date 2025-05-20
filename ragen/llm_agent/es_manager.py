@@ -124,6 +124,7 @@ class EnvStateManager:
                 if done:
                     turn_done = True
                     break
+            
             return acc_reward, turn_info, turn_done, executed_actions
 
         def _log_env_state(status, history, cur_obs, max_actions_per_traj, executed_actions, all_actions, acc_reward, turn_done, turn_info, env_input):

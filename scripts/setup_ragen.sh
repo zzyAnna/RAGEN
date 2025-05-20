@@ -107,6 +107,7 @@ main() {
     
     # Install remaining requirements
     print_step "Installing additional requirements..."
+    pip install flashinfer-python -i https://flashinfer.ai/whl/cu126/torch2.6
     pip install -r requirements.txt
 
     print_step "Downloading data..."
