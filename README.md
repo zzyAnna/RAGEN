@@ -157,7 +157,6 @@ python train.py \
   actor_rollout_ref.rollout.max_model_len=2048 \ 
   actor_rollout_ref.rollout.response_length=128 
 ```
-Please refer to [this issue](https://github.com/RAGEN-AI/RAGEN/issues/89) for more information.
 
 #### Parameter efficient training with LoRA
 We provide a default configuration with LoRA enabled in `config/base-lora.yaml`. To customize the LoRA settings, see the the `lora` section at the top of the configuration file. The current settings are:
