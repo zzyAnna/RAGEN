@@ -222,6 +222,13 @@ Key observations:
 - By using no KL and filtering out failed trajectories, we can achieve better and stable performance
 - Generalization results highlight RAGEN's capacity to transfer learned policies across varying environment complexities, representations, and domains.
 
+## Evaluation
+RAGEN provides a easy way to evaluate a model:
+```bash
+python -m ragen.llm_agent.agent_proxy --config-name <eval_config>
+```
+You only need to set model and environment to evaluate in `config/<eval_config>.yaml`.
+
 
 <!--
 ## Example Trajectories
@@ -281,12 +288,6 @@ To add a new environment to our framework:
 
 4. Add the environment tag to the `es_manager` section in `config/base.yaml`
 
-## Evaluation
-RAGEN provides a easy way to evaluate a model:
-```bash
-python -m ragen.llm_agent.agent_proxy --config-name <eval_config>
-```
-You only need to set model and environment to evaluate in `config/<eval_config>.yaml`
 
 ## Feedback
 We welcome all forms of feedback! Please raise an issue for bugs, questions, or suggestions. This helps our team address common problems efficiently and builds a more productive community.
