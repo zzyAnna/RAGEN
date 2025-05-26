@@ -288,6 +288,41 @@ To add a new environment to our framework:
 
 4. Add the environment tag to the `es_manager` section in `config/base.yaml`
 
+## Using RAGEN with dstack
+
+[dstackai/dstack](https://github.com/dstackai/dstack) is an open-source container orchestrator that simplifies distributed training across cloud providers and on-premises environments
+without the need to use K8S or Slurm.
+
+### 1. Create fleet
+
+Before submitting distributed training jobs, create a `dstack` [fleet](https://dstack.ai/docs/concepts/fleets).
+
+### 2. Run a Ray cluster task
+
+Once the fleet is created, define and apply a Ray cluster task:
+
+```shell
+$ dstack apply -f examples/distributed-training/ray-ragen/.dstack.yml
+```
+
+You can find the task configuration example at [`examples/distributed-training/ray-ragen/.dstack.yml`](https://github.com/dstackai/dstack/blob/master/examples/distributed-training/ray-ragen/.dstack.yml).
+
+The `dstack apply` command will provision the Ray cluster with all dependencies and forward the Ray dashboard port to `localhost:8265`.
+
+
+### 3. Submit a training job
+
+Now you can submit a training job locally to the Ray cluster:
+
+```shell
+$ RAY_ADDRESS=http://localhost:8265
+$ ray job submit \
+    ...
+```
+
+See the full [RAGEN+Ray example](https://dstack.ai/examples/distributed-training/ray-ragen/).
+
+For more details on how `dstack` can be used for distributed training, check out the [Clusters](https://dstack.ai/docs/guides/clusters/) guide.
 
 ## Feedback
 We welcome all forms of feedback! Please raise an issue for bugs, questions, or suggestions. This helps our team address common problems efficiently and builds a more productive community.
