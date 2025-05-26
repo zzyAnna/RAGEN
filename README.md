@@ -320,7 +320,7 @@ $ ray job submit \
     ...
 ```
 
-See the full [RAGEN+Ray example](https://github.com/dstackai/dstack/tree/master/docs/examples/distributed-training/ray-ragen).
+See the full [RAGEN+Ray example](https://dstack.ai/examples/distributed-training/ray-ragen/).
 
 For more details on how `dstack` can be used for distributed training, check out the [Clusters](https://dstack.ai/docs/guides/clusters/) guide.
 
