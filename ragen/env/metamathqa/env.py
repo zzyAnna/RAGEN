@@ -59,6 +59,8 @@ class MetaMathQAEnv(BaseLanguageBasedEnv):
         if self.correct_answer:
             normalized_label = re.sub(r'\s+', '', self.correct_answer.lower())
             is_correct = normalized_answer == normalized_label
+        else:
+            is_correct = False
         is_valid = normalized_answer != ""
         return is_correct, is_valid
 
