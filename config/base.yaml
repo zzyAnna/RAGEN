@@ -97,6 +97,7 @@ trainer:
   logger: [ 'console', 'wandb' ]
 
 agent_proxy:
+  max_context_window: 3
   max_turn: 5
   action_sep: "||"
   max_actions_per_turn: 5 # how many actions can be output at most in a single turn
