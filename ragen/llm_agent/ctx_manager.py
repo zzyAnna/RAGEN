@@ -278,7 +278,7 @@ class ContextManager:
         input_ids, attention_mask = inputs.input_ids, inputs.attention_mask
         position_ids = attention_mask.cumsum(dim=-1)
         if prepare_for_update:
-            scores = [[i['reward'] for i in env_output['history']] for env_output in env_outputs]
+            scores = [[i.get('reward', 0.0) for i in env_output['history']] for env_output in env_outputs]
             score_tensor, loss_mask, response_mask = get_masks_and_scores(input_ids, self.tokenizer, scores, use_turn_scores=self.config.agent_proxy.use_turn_scores, enable_response_mask=self.config.enable_response_mask)
 
             normalized_score_tensor = score_tensor

@@ -1,18 +1,24 @@
 import pytest
 from ragen.llm_agent.ctx_manager import ContextManager
-from transformers import AutoTokenizer
 from omegaconf import OmegaConf
-from verl import DataProto
+from verl.verl.protocol import DataProto
 
 class DummyTokenizer:
+    name_or_path = "qwen"  # or "llama-3" or any string your code expects
+
     def apply_chat_template(self, messages, add_generation_prompt, tokenize):
         return " ".join([msg["content"] for msg in messages])
+
     def __call__(self, texts, return_tensors, padding, padding_side, truncation):
         import torch
-        return {
-            "input_ids": torch.tensor([[1, 2, 3]]),
-            "attention_mask": torch.tensor([[1, 1, 1]])
-        }
+        class DummyOutput:
+            input_ids = torch.tensor([[1, 2, 3]])
+            attention_mask = torch.tensor([[1, 1, 1]])
+        return DummyOutput()
+
+    def encode(self, text):
+        # Return a dummy list of token ids; must be at least length 1 for [0] indexing
+        return [42, 43]
 
 @pytest.fixture
 def dummy_config():
@@ -20,9 +26,34 @@ def dummy_config():
         "agent_proxy": {
             "max_context_window": 2,
             "enable_think": False,
-            "use_turn_scores": False
+            "use_turn_scores": False,
+            "action_sep": "|",
+            "reward_normalization": {
+                "grouping": "batch",
+                "method": "identity"
+            }
         },
-        "enable_response_mask": False
+        "enable_response_mask": False,
+        "es_manager": {
+            "train": {
+                "env_configs": {
+                    "n_groups": [1],
+                    "tags": ["sokoban"]
+                },
+                "group_size": 1
+            }
+        },
+        "custom_envs": {
+            "sokoban": {
+                "env_type": "sokoban",
+                "max_actions_per_traj": 10
+            }
+        },
+        "actor_rollout_ref": {
+            "rollout": {
+                "response_length": 128
+            }
+        }
     })
     return cfg
 

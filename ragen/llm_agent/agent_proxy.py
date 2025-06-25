@@ -3,7 +3,7 @@ from ragen.llm_agent.es_manager import EnvStateManager
 from vllm import LLM, SamplingParams
 from verl.verl.single_controller.ray.base import RayWorkerGroup
 from transformers import AutoTokenizer, AutoModelForCausalLM
-from verl.protocol import DataProto
+from verl.verl.protocol import DataProto
 import hydra
 import os
 from typing import List, Dict
@@ -26,7 +26,7 @@ class VllmWrapperWg: # Thi is a developing class for eval and test
             enforce_eager=ro_config.enforce_eager,
             gpu_memory_utilization=ro_config.gpu_memory_utilization,
             disable_custom_all_reduce=True,
-            disable_mm_preprocessor_cache=True,
+            # disable_mm_preprocessor_cache=True,
             skip_tokenizer_init=False,
             max_model_len=ro_config.max_model_len,
             disable_log_stats=ro_config.disable_log_stats,
